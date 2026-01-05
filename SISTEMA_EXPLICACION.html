@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Cumplimiento - Explicación</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container-main {
+            max-width: 1200px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .diagram-section {
+            margin: 50px 0;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+        .diagram-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        .flow-chart {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .flow-box {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .flow-box.success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .flow-box.danger {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        .flow-box.info {
+            border-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        .arrow {
+            font-size: 2em;
+            color: #667eea;
+            text-align: center;
+        }
+        .table-comparison {
+            width: 100%;
+            margin: 20px 0;
+        }
+        .table-comparison th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        .table-comparison td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .table-comparison tr:hover {
+            background: #f5f5f5;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .feature-list li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .color-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .legend-item {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .legend-success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+        .legend-danger {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+        .legend-info {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            color: #0c5460;
+        }
+        .section-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            line-height: 35px;
+            text-align: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            color: #666;
+        }
+        .key-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .metric-number {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <h1>🎯 Sistema de Cumplimiento Documentario</h1>
+        <p class="subtitle">Gestión integral de carga de documentos por períodos</p>
+
+        <!-- Sección 1: Visión General -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">1</span>VISIÓN GENERAL</div>
+            <p>Sistema automatizado que permite a los usuarios cargar documentos según el mes especificado, con control de plazos internos y validación de cumplimiento.</p>
+            
+            <div class="key-metrics">
+                <div class="metric-card">
+                    <div class="metric-number">5</div>
+                    <div class="metric-label">Tipos de Periodicidad</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-number">12</div>
+                    <div class="metric-label">Meses Configurables</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-number">∞</div>
+                    <div class="metric-label">Items por Período</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 2: Flujo Principal -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">2</span>FLUJO DE CARGA DE DOCUMENTOS</div>
+            
+            <div class="flow-chart">
+                <div class="flow-box">
+                    <strong>Usuario Accede</strong><br>
+                    <small>a su dashboard</small>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box">
+                    <strong>Selecciona Mes</strong><br>
+                    <small>Ej: Diciembre 2025</small>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box">
+                    <strong>Ve Items del Mes</strong><br>
+                    <small>Según periodicidad</small>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box">
+                    <strong>Sube Documento</strong><br>
+                    <small>en formulario modal</small>
+                </div>
+            </div>
+
+            <div class="flow-chart">
+                <div class="arrow">←</div>
+                <div class="flow-box success">
+                    <strong>✓ Guardado</strong><br>
+                    <small>Fondo verde</small>
+                </div>
+                <div class="arrow">←</div>
+                <div class="flow-box">
+                    <strong>Sistema Valida</strong><br>
+                    <small>Archivo y datos</small>
+                </div>
+                <div class="arrow">←</div>
+                <div class="flow-box">
+                    <strong>Genera Timestamp</strong><br>
+                    <small>Fecha de envío</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 3: Sistema de Colores -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">3</span>INDICADORES VISUALES</div>
+            <p>El dashboard usa colores para indicar el estado de cumplimiento:</p>
+            
+            <div class="color-legend">
+                <div class="legend-item legend-success">
+                    VERDE: Item con documento cargado
+                </div>
+                <div class="legend-item legend-danger">
+                    ROJO: Item sin documento cargado
+                </div>
+                <div class="legend-item legend-info">
+                    AZUL: Botón para cargar documento
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 4: Tipos de Periodicidad -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">4</span>TIPOS DE ITEMS Y PERIODICIDAD</div>
+            
+            <table class="table-comparison">
+                <thead>
+                    <tr>
+                        <th width="20%">Tipo</th>
+                        <th width="40%">Descripción</th>
+                        <th width="40%">Ejemplo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Mensual</strong></td>
+                        <td>Se debe cargar cada mes</td>
+                        <td>Reportes mensuales de ventas</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Trimestral</strong></td>
+                        <td>Se debe cargar cada 3 meses</td>
+                        <td>Reporte tributario (mar, jun, sep, dic)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Semestral</strong></td>
+                        <td>Se debe cargar cada 6 meses</td>
+                        <td>Auditoría semestral (jun, dic)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Anual</strong></td>
+                        <td>Se debe cargar una vez al año</td>
+                        <td>Declaración anual (diciembre)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ocurrencia</strong></td>
+                        <td>Se carga cuando ocurre el evento</td>
+                        <td>Cambios organizacionales, auditorías especiales</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección 5: Sistema de Plazos -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">5</span>GESTIÓN DE PLAZOS</div>
+            <p><strong>Concepto clave:</strong> Cada item tiene un plazo configurado por mes específico, independiente de su periodicidad.</p>
+            
+            <div class="flow-chart">
+                <div class="flow-box info">
+                    <strong>Administrador</strong><br>
+                    <small>configura plazos</small>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box info">
+                    <strong>Por mes (Ej: 15)</strong><br>
+                    <small>El 15 de cada mes</small>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box info">
+                    <strong>Al cargar en mes X</strong><br>
+                    <small>Se usa el plazo del mes X</small>
+                </div>
+            </div>
+
+            <h5 style="margin-top: 30px; color: #667eea;">Ejemplo:</h5>
+            <ul class="feature-list">
+                <li>Item: "Reporte Mensual" - Plazo Diciembre 2025: 15 de diciembre</li>
+                <li>Usuario carga en diciembre → Se aplica plazo del 15 de diciembre</li>
+                <li>Si carga en enero 2026 → Se aplica plazo del mes de enero (si está configurado)</li>
+            </ul>
+        </div>
+
+        <!-- Sección 6: Características del Sistema -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">6</span>CARACTERÍSTICAS PRINCIPALES</div>
+            
+            <ul class="feature-list">
+                <li>Dashboard por usuario con vista por mes seleccionado</li>
+                <li>Carga automática de fecha/hora de envío (timestamp)</li>
+                <li>Validación de archivos (formato, tamaño)</li>
+                <li>Almacenamiento seguro de documentos</li>
+                <li>Descarga de documentos con validación de propiedad</li>
+                <li>Indicadores visuales de cumplimiento (verde/rojo)</li>
+                <li>Gestión de plazos internos por mes</li>
+                <li>Historial de cambios y auditoría</li>
+                <li>Botón "Verificador Carga" para control adicional (ampliable)</li>
+                <li>Interfaz responsiva para cualquier dispositivo</li>
+            </ul>
+        </div>
+
+        <!-- Sección 7: Arquitectura de Datos -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">7</span>ESTRUCTURA DE DATOS</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                <div style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h5 style="color: #667eea;">Tabla: documentos</h5>
+                    <ul style="font-size: 0.9em; list-style: none; padding: 0;">
+                        <li>• id</li>
+                        <li>• item_id</li>
+                        <li>• usuario_id</li>
+                        <li>• archivo (nombre)</li>
+                        <li>• fecha_subida</li>
+                        <li>• estado</li>
+                    </ul>
+                </div>
+                <div style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h5 style="color: #667eea;">Tabla: documento_seguimiento</h5>
+                    <ul style="font-size: 0.9em; list-style: none; padding: 0;">
+                        <li>• id</li>
+                        <li>• documento_id</li>
+                        <li>• item_id</li>
+                        <li>• ano (año)</li>
+                        <li>• mes</li>
+                        <li>• fecha_envio (timestamp)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                <div style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h5 style="color: #667eea;">Tabla: item_plazos</h5>
+                    <ul style="font-size: 0.9em; list-style: none; padding: 0;">
+                        <li>• id</li>
+                        <li>• item_id</li>
+                        <li>• ano</li>
+                        <li>• mes</li>
+                        <li>• plazo_interno (fecha)</li>
+                        <li>• fecha_carga_portal</li>
+                    </ul>
+                </div>
+                <div style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h5 style="color: #667eea;">Tabla: items</h5>
+                    <ul style="font-size: 0.9em; list-style: none; padding: 0;">
+                        <li>• id</li>
+                        <li>• numeracion</li>
+                        <li>• nombre</li>
+                        <li>• periodicidad (mensual, trimestral...)</li>
+                        <li>• usuario_responsable</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección 8: Flujo de Seguridad -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">8</span>MEDIDAS DE SEGURIDAD</div>
+            
+            <ul class="feature-list">
+                <li>Autenticación obligatoria con sesión de usuario</li>
+                <li>Validación de propiedad: solo el propietario puede descargar</li>
+                <li>Uso de prepared statements para prevenir inyecciones SQL</li>
+                <li>Almacenamiento seguro de archivos con nombres aleatorios</li>
+                <li>Validación de tipo MIME de archivos</li>
+                <li>Roles de usuario: usuario y administrativo</li>
+                <li>Registro de auditoría de todas las acciones</li>
+                <li>Rutas protegidas con require_role()</li>
+            </ul>
+        </div>
+
+        <!-- Sección 9: Roles y Permisos -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">9</span>ROLES Y PERMISOS</div>
+            
+            <table class="table-comparison">
+                <thead>
+                    <tr>
+                        <th width="30%">Rol</th>
+                        <th width="70%">Permisos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Usuario</strong></td>
+                        <td>
+                            • Ver dashboard con items asignados<br>
+                            • Cargar documentos<br>
+                            • Descargar sus propios documentos<br>
+                            • Filtrar por mes/año
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Administrativo</strong></td>
+                        <td>
+                            • Panel de administración<br>
+                            • Gestionar plazos por mes<br>
+                            • Ver todos los documentos<br>
+                            • Gestionar usuarios y items<br>
+                            • Reportes de cumplimiento
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección 10: Próximas Mejoras -->
+        <div class="diagram-section">
+            <div class="diagram-title"><span class="section-number">10</span>PRÓXIMAS MEJORAS</div>
+            
+            <ul class="feature-list">
+                <li>Habilitar funcionalidad completa del botón "Verificador Carga"</li>
+                <li>Sistema de notificaciones automáticas de plazos próximos</li>
+                <li>Generación de reportes de cumplimiento por período</li>
+                <li>Integración con correo electrónico para alertas</li>
+                <li>API REST para integración con otros sistemas</li>
+                <li>Exportación de datos en Excel/PDF</li>
+                <li>Dashboard de analytics para directivos</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>Sistema de Cumplimiento Documentario</strong></p>
+            <p>Generado: <?php echo date('d/m/Y H:i'); ?></p>
+            <p style="font-size: 0.9em; color: #999;">Acceso en: <code>http://localhost/cumplimiento/usuario/dashboard.php</code></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

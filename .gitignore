@@ -1,0 +1,45 @@
+# Archivos de configuración local
+config/config.php
+
+# Uploads (documentos cargados)
+uploads/*
+!uploads/.gitkeep
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+
+# Archivos de prueba
+test_*.php
+ejemplo_*.php
+fix_*.php
+diagnostico_*.php
+verificacion_*.php
+verify_*.php
+reorganizar_*.php
+migrate.php
+
+# Archivos de documentación temporal
+*.txt
+!START_HERE.txt
+*.md
+!README.md
+!README_AHORA.md
+
+# Base de datos
+*.sql.backup
