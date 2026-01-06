@@ -57,6 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // PRG Pattern: Redirigir después del POST exitoso
     if ($redirect) {
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         header('Location: ' . SITE_URL . 'admin/direcciones/index.php');
         exit;
     }
