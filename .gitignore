@@ -1,5 +1,6 @@
 # Archivos de configuración local
 config/config.php
+deploy.php
 
 # Uploads (documentos cargados)
 uploads/*
