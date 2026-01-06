@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/appmuniloslagos/public_html/carga_ta
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/cp -R .htaccess $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/uploads
+    - /bin/chmod 777 $DEPLOYPATH/uploads
