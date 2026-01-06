@@ -1,5 +1,7 @@
 ---
 deployment:
   tasks:
-    - /bin/mkdir -p uploads
-    - /bin/chmod 777 uploads
+    - export DEPLOYPATH=/home/appmuniloslagos/repositories/carga_ta/
+    - /bin/chmod 755 $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/uploads
+    - /bin/chmod 777 $DEPLOYPATH/uploads
