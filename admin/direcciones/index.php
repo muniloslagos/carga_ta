@@ -1,4 +1,8 @@
 <?php
+// Activar errores temporalmente para diagnóstico
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 // PRIMERO: Verificar autenticación ANTES de cualquier salida
 require_once '../../includes/check_auth.php';
 require_role('administrativo');
