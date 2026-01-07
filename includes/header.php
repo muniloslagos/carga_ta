@@ -34,14 +34,43 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
     <!-- Navbar Mejorada -->
     <nav class="navbar navbar-expand-lg" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
         <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold" href="<?php echo SITE_URL; ?>" style="font-size: 1.1rem; letter-spacing: 0.5px;">
-                <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.4rem;"></i> 
-                <span style="color: #ffffff;"><?php echo SITE_NAME; ?></span>
+            <a class="navbar-brand fw-bold" href="<?php echo SITE_URL; ?>" style="font-size: 0.95rem; letter-spacing: 0.3px;">
+                <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.2rem;"></i> 
+                <span style="color: #ffffff;">Control de Transparencia</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                <?php if ($is_logged_in && $current_profile === 'administrativo'): ?>
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/index.php">
+                                <i class="bi bi-house-door"></i> Inicio
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/usuarios/index.php">
+                                <i class="bi bi-people"></i> Usuarios
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/direcciones/index.php">
+                                <i class="bi bi-building"></i> Direcciones
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/items/index.php">
+                                <i class="bi bi-list-check"></i> Items
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/documentos/index.php">
+                                <i class="bi bi-file-earmark-text"></i> Documentos
+                            </a>
+                        </li>
+                    </ul>
+                <?php endif; ?>
                 <ul class="navbar-nav ms-auto align-items-center gap-3">
                     <?php if ($is_logged_in && $current_user): ?>
                         <li class="nav-item">
