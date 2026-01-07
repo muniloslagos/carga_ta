@@ -123,5 +123,13 @@ class Usuario {
         $stmt->bind_param("si", $hashedPassword, $id);
         return $stmt->execute();
     }
+
+    // Obtener usuarios sin dirección asignada
+    public function getUsuariosSinDireccion() {
+        $sql = "SELECT * FROM {$this->table} 
+                WHERE activo = 1 AND (direccion_id IS NULL OR direccion_id = 0)
+                ORDER BY nombre ASC";
+        return $this->db->query($sql);
+    }
 }
 ?>

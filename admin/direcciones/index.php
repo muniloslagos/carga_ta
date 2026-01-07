@@ -105,10 +105,10 @@ $direcciones = $direccionClass->getAll();
                 <thead class="table-light">
                     <tr>
                         <th width="5%">ID</th>
-                        <th width="25%">Nombre</th>
-                        <th width="40%">Descripción</th>
-                        <th width="15%" class="text-center">Usuarios</th>
-                        <th width="15%" class="text-center">Acciones</th>
+                        <th width="20%">Nombre</th>
+                        <th width="35%">Descripción</th>
+                        <th width="12%" class="text-center">Usuarios</th>
+                        <th width="28%" class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -132,6 +132,11 @@ $direcciones = $direccionClass->getAll();
                                 </span>
                             </td>
                             <td class="text-center">
+                                <a href="asignar_usuarios.php?direccion_id=<?php echo $dir['id']; ?>" 
+                                   class="btn btn-sm btn-primary" 
+                                   title="Asignar usuarios">
+                                    <i class="bi bi-person-plus"></i>
+                                </a>
                                 <button class="btn btn-sm btn-warning" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#direccionModal"
