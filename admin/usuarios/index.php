@@ -1,4 +1,8 @@
 <?php
+// Activar errores para diagnóstico
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 // PRIMERO: Verificar autenticación ANTES de cualquier salida
 require_once '../../includes/check_auth.php';
 require_role('administrativo');
@@ -30,11 +34,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         if (!empty($data['nombre']) && !empty($data['email']) && !empty($data['password'])) {
-            if ($usuarioClass->create($data)) {
-                $_SESSION['success'] = 'Usuario creado correctamente';
-                $redirect = true;
+            // Verificar si el email ya existe
+            $existingUser = $usuarioClass->getByEmail($data['email']);
+            if ($existingUser) {
+                $error = 'El correo electrónico ya está registrado';
             } else {
-                $error = 'Error al crear el usuario';
+                if ($usuarioClass->create($data)) {
+                    $_SESSION['success'] = 'Usuario creado correctamente';
+                    $redirect = true;
+                } else {
+                    // Obtener el error de MySQL
+                    $mysqlError = $db->getConnection()->error;
+                    $error = 'Error al crear el usuario: ' . $mysqlError;
+                }
             }
         } else {
             $error = 'Complete todos los campos requeridos';

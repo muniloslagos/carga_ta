@@ -63,13 +63,16 @@ class Usuario {
         $stmt = $this->db->prepare($sql);
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
         
+        // Manejar direccion_id nulo
+        $direccion_id = !empty($data['direccion_id']) ? $data['direccion_id'] : null;
+        
         $stmt->bind_param(
-            "sssii",
+            "ssssi",
             $data['nombre'],
             $data['email'],
             $hashedPassword,
             $data['perfil'],
-            $data['direccion_id']
+            $direccion_id
         );
 
         return $stmt->execute();
