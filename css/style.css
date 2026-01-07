@@ -94,11 +94,8 @@ footer {
 }
 
 .page-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
     padding: 2rem 0;
     margin-bottom: 2rem;
-    border-radius: 8px;
 }
 
 .page-header h1 {
