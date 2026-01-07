@@ -98,39 +98,61 @@ $direcciones = $direccionClass->getAll();
     </div>
 <?php endif; ?>
 
-<div class="row">
-    <?php while ($dir = $direcciones->fetch_assoc()): ?>
-        <div class="col-md-6 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-building"></i> <?php echo htmlspecialchars($dir['nombre']); ?>
-                    </h5>
-                    <p class="card-text text-muted"><?php echo htmlspecialchars($dir['descripcion'] ?? 'Sin descripción'); ?></p>
-                    <?php
-                    $usuarios = $direccionClass->getUsuarios($dir['id']);
-                    $count = $usuarios->num_rows;
-                    ?>
-                    <p class="text-sm"><strong><?php echo $count; ?></strong> usuarios asignados</p>
-                </div>
-                <div class="card-footer bg-light">
-                    <button class="btn btn-sm btn-warning" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#direccionModal"
-                            onclick="editDireccion(<?php echo $dir['id']; ?>)">
-                        <i class="bi bi-pencil"></i> Editar
-                    </button>
-                    <form method="POST" style="display: inline;" onsubmit="return confirm('¿Desactivar dirección?');">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="direccion_id" value="<?php echo $dir['id']; ?>">
-                        <button type="submit" class="btn btn-sm btn-danger">
-                            <i class="bi bi-trash"></i> Eliminar
-                        </button>
-                    </form>
-                </div>
-            </div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th width="5%">ID</th>
+                        <th width="25%">Nombre</th>
+                        <th width="40%">Descripción</th>
+                        <th width="15%" class="text-center">Usuarios</th>
+                        <th width="15%" class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($dir = $direcciones->fetch_assoc()): ?>
+                        <?php
+                        $usuarios = $direccionClass->getUsuarios($dir['id']);
+                        $count = $usuarios->num_rows;
+                        ?>
+                        <tr>
+                            <td><strong><?php echo $dir['id']; ?></strong></td>
+                            <td>
+                                <i class="bi bi-building text-primary"></i> 
+                                <strong><?php echo htmlspecialchars($dir['nombre']); ?></strong>
+                            </td>
+                            <td class="text-muted">
+                                <?php echo htmlspecialchars($dir['descripcion'] ?? 'Sin descripción'); ?>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">
+                                    <i class="bi bi-people"></i> <?php echo $count; ?>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-warning" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#direccionModal"
+                                        onclick="editDireccion(<?php echo $dir['id']; ?>)"
+                                        title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('¿Desactivar dirección?');">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="direccion_id" value="<?php echo $dir['id']; ?>">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
         </div>
-    <?php endwhile; ?>
+    </div>
 </div>
 
 <!-- Modal para crear/editar dirección -->
