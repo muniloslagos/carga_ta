@@ -66,7 +66,15 @@ if (isset($_SESSION['success'])) {
 
 // Obtener usuarios asignados y disponibles
 $usuarios_asignados = $direccionClass->getUsuarios($direccion_id);
-$usuarios_disponibles = $usuarioClass->getUsuariosSinDireccion();
+
+// Obtener usuarios que NO están asignados a esta dirección
+$sql = "SELECT * FROM usuarios 
+        WHERE activo = 1 AND (direccion_id != ? OR direccion_id IS NULL)
+        ORDER BY nombre ASC";
+$stmt = $db->getConnection()->prepare($sql);
+$stmt->bind_param("i", $direccion_id);
+$stmt->execute();
+$usuarios_disponibles = $stmt->get_result();
 
 // AHORA SÍ: Incluir header con HTML
 require_once '../../includes/header.php';
