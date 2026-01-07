@@ -71,16 +71,16 @@ $estado_filtro = $_GET['estado'] ?? '';
 $item_filtro = intval($_GET['item'] ?? 0);
 ?>
 
-<div class="page-header mb-4 pb-3" style="border-bottom: 3px solid #3498db;">
+<div class="page-header mb-4 pb-3" style="border-bottom: 2px solid #e0e0e0;">
     <div class="row align-items-center">
         <div class="col">
             <div class="d-flex align-items-center gap-3">
-                <div class="icon-box" style="background: #3498db; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="bi bi-file-earmark-text text-white" style="font-size: 1.8rem;"></i>
+                <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(250,112,154,0.3);">
+                    <i class="bi bi-file-earmark-text text-white" style="font-size: 1.5rem;"></i>
                 </div>
                 <div>
-                    <h1 class="mb-0" style="color: #2c3e50; font-weight: 600;">Gestión de Documentos</h1>
-                    <small class="text-muted">Revisa y aprueba los documentos cargados</small>
+                    <h1 class="mb-1" style="color: #2c3e50; font-weight: 600; font-size: 1.5rem;">Gestión de Documentos</h1>
+                    <small class="text-muted" style="font-size: 0.875rem;">Revisa y aprueba los documentos cargados</small>
                 </div>
             </div>
         </div>

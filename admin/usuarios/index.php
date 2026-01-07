@@ -83,22 +83,22 @@ $direcciones = $direccionClass->getAll();
 $usuarios = $usuarioClass->getAll();
 ?>
 
-<div class="page-header mb-4 pb-3" style="border-bottom: 3px solid #3498db;">
+<div class="page-header mb-4 pb-3" style="border-bottom: 2px solid #e0e0e0;">
     <div class="row align-items-center">
         <div class="col">
             <div class="d-flex align-items-center gap-3">
-                <div class="icon-box" style="background: #3498db; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-                    <i class="bi bi-people text-white" style="font-size: 1.8rem;"></i>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(102,126,234,0.3);">
+                    <i class="bi bi-people-fill text-white" style="font-size: 1.5rem;"></i>
                 </div>
                 <div>
-                    <h1 class="mb-0" style="color: #2c3e50; font-weight: 600;">Gestión de Usuarios</h1>
-                    <small class="text-muted">Administra perfiles y permisos del sistema</small>
+                    <h1 class="mb-1" style="color: #2c3e50; font-weight: 600; font-size: 1.5rem;">Gestión de Usuarios</h1>
+                    <small class="text-muted" style="font-size: 0.875rem;">Administra perfiles y permisos del sistema</small>
                 </div>
             </div>
         </div>
         <div class="col-auto">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#usuarioModal">
-                <i class="bi bi-plus-circle"></i> Nuevo Usuario
+            <button class="btn btn-lg" data-bs-toggle="modal" data-bs-target="#usuarioModal" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(102,126,234,0.3); font-weight: 500;">
+                <i class="bi bi-plus-circle-fill"></i> Nuevo Usuario
             </button>
         </div>
     </div>
