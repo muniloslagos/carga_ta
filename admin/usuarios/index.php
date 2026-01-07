@@ -83,16 +83,26 @@ $direcciones = $direccionClass->getAll();
 $usuarios = $usuarioClass->getAll();
 ?>
 
-<div class="page-header">
+<div class="page-header mb-4 pb-3" style="border-bottom: 3px solid #3498db;">
     <div class="row align-items-center">
         <div class="col">
-            <h1><i class="bi bi-people"></i> Gestión de Usuarios</h1>
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background: #3498db; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-people text-white" style="font-size: 1.8rem;"></i>
+                </div>
+                <div>
+                    <h1 class="mb-0" style="color: #2c3e50; font-weight: 600;">Gestión de Usuarios</h1>
+                    <small class="text-muted">Administra perfiles y permisos del sistema</small>
+                </div>
+            </div>
         </div>
-        <div class="col text-end">
+        <div class="col-auto">
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#usuarioModal">
                 <i class="bi bi-plus-circle"></i> Nuevo Usuario
             </button>
         </div>
+    </div>
+</div>
     </div>
 </div>
 

@@ -80,16 +80,22 @@ $usuarios_disponibles = $stmt->get_result();
 require_once '../../includes/header.php';
 ?>
 
-<div class="page-header">
+<div class="page-header mb-4 pb-3" style="border-bottom: 3px solid #3498db;">
     <div class="row align-items-center">
         <div class="col">
-            <h1>
-                <i class="bi bi-building"></i> 
-                <?php echo htmlspecialchars($direccion['nombre']); ?>
-            </h1>
-            <p class="text-muted">Asignar usuarios a esta dirección</p>
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background: #3498db; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-person-plus text-white" style="font-size: 1.8rem;"></i>
+                </div>
+                <div>
+                    <h1 class="mb-0" style="color: #2c3e50; font-weight: 600;">
+                        <?php echo htmlspecialchars($direccion['nombre']); ?>
+                    </h1>
+                    <small class="text-muted">Asignar usuarios a esta dirección</small>
+                </div>
+            </div>
         </div>
-        <div class="col text-end">
+        <div class="col-auto">
             <a href="index.php" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Volver
             </a>
