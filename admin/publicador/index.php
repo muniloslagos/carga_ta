@@ -46,13 +46,16 @@ $query = "
     LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
-    WHERE (
-        (i.periodicidad = 'mensual' AND (ds.mes = ? AND ds.ano = ? OR d.id IS NULL))
-        OR (i.periodicidad = 'trimestral' AND (MOD(?, 3) = MOD(ds.mes, 3) AND ds.ano = ? OR d.id IS NULL))
-        OR (i.periodicidad = 'semestral' AND (MOD(?, 6) = MOD(ds.mes, 6) AND ds.ano = ? OR d.id IS NULL))
-        OR (i.periodicidad = 'anual' AND (ds.ano = ? OR d.id IS NULL))
-        OR (i.periodicidad = 'ocurrencia' AND (ds.mes = ? AND ds.ano = ? OR d.id IS NULL))
-    )
+    WHERE i.activo = 1
+        AND (
+            -- Solo items con documento del período, o sin documento
+            d.id IS NULL
+            OR (i.periodicidad = 'mensual' AND ds.mes = ? AND ds.ano = ?)
+            OR (i.periodicidad = 'trimestral' AND FLOOR((ds.mes-1)/3) = FLOOR((?-1)/3) AND ds.ano = ?)
+            OR (i.periodicidad = 'semestral' AND FLOOR((ds.mes-1)/6) = FLOOR((?-1)/6) AND ds.ano = ?)
+            OR (i.periodicidad = 'anual' AND ds.ano = ?)
+            OR (i.periodicidad = 'ocurrencia' AND ds.mes = ? AND ds.ano = ?)
+        )
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
         i.numeracion";
@@ -287,47 +290,83 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
     
     <!-- TAB PUBLICADOS -->
     <div class="tab-pane fade" id="contenido-publicados" role="tabpanel">
+        
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Mostrando todos los documentos publicados (con verificador cargado) de todos los períodos.
+        </div>
 
 <?php
-foreach ($itemsPorPeriodicidad as $periodicidad => $items):
-    if (count($items) === 0) continue;
-    
-    // Filtrar: solo mostrar items CON documento Y CON verificador (publicados)
-    $itemsPublicados = array_filter($items, function($item) {
-        return $item['doc_id'] && $item['verificador_id'];
-    });
-    
-    if (count($itemsPublicados) === 0) continue;
-    
-    $config = $periodosNombres[$periodicidad];
+// Para publicados, traer TODOS los documentos con verificador (sin filtro de período)
+$queryPublicados = "
+    SELECT 
+        i.id as item_id,
+        i.numeracion,
+        i.nombre as item_nombre,
+        i.periodicidad,
+        d.id as doc_id,
+        d.titulo,
+        ds.mes,
+        ds.ano,
+        ds.fecha_envio,
+        u.nombre as usuario_nombre,
+        vp.id as verificador_id,
+        vp.fecha_carga_portal
+    FROM items_transparencia i
+    JOIN documentos d ON i.id = d.item_id 
+    JOIN documento_seguimiento ds ON d.id = ds.documento_id
+    JOIN verificadores_publicador vp ON d.id = vp.documento_id
+    LEFT JOIN usuarios u ON d.usuario_id = u.id
+    WHERE i.activo = 1
+        AND d.estado IN ('pendiente', 'aprobado')
+    ORDER BY vp.fecha_carga_portal DESC";
+
+$resultPublicados = $db->getConnection()->query($queryPublicados);
+$itemsPublicadosTodos = [];
+
+while ($row = $resultPublicados->fetch_assoc()) {
+    $itemsPublicadosTodos[] = $row;
+}
+
+if (count($itemsPublicadosTodos) === 0) {
+    echo '<div class="alert alert-warning"><i class="bi bi-inbox"></i> No hay documentos publicados aún.</div>';
+} else {
 ?>
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header" style="background: <?php echo $config['color']; ?>; color: white; font-weight: 600;">
-        <i class="bi bi-<?php echo $config['icon']; ?>"></i> 
-        <?php echo $config['nombre']; ?> - <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
-        <span class="badge bg-light text-dark ms-2"><?php echo count($itemsPublicados); ?> publicado(s)</span>
+    <div class="card-header bg-success text-white">
+        <i class="bi bi-check-circle"></i> Documentos Publicados
+        <span class="badge bg-light text-dark ms-2"><?php echo count($itemsPublicadosTodos); ?> total</span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
                     <th width="8%">Núm.</th>
-                    <th width="25%">Item</th>
-                    <th width="10%">Estado</th>
-                    <th width="15%">Cargado Por</th>
+                    <th width="22%">Item</th>
+                    <th width="10%">Periodicidad</th>
+                    <th width="8%">Período</th>
+                    <th width="12%">Cargado Por</th>
                     <th width="12%">Fecha Envío</th>
-                    <th width="12%">Fecha Publicación</th>
-                    <th width="23%">Acciones</th>
+                    <th width="10%">Publicación</th>
+                    <th width="18%">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($itemsPublicados as $item): ?>
+                <?php foreach ($itemsPublicadosTodos as $item): ?>
                 <tr>
                     <td><small class="text-muted"><?php echo htmlspecialchars($item['numeracion']); ?></small></td>
                     <td><strong><?php echo htmlspecialchars($item['item_nombre']); ?></strong></td>
+                    <td><small><?php echo ucfirst($item['periodicidad']); ?></small></td>
                     <td>
-                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Publicado</span>
+                        <small class="text-primary">
+                            <?php 
+                            if ($item['periodicidad'] === 'anual') {
+                                echo $item['ano'];
+                            } else {
+                                echo $meses[$item['mes']] . ' ' . $item['ano'];
+                            }
+                            ?>
+                        </small>
                     </td>
                     <td>
                         <?php if ($item['usuario_nombre']): ?>
@@ -351,12 +390,11 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
                         <?php endif; ?>
                     </td>
                     <td>
-                        <!-- Documento ya publicado -->
                         <button class="btn btn-sm btn-outline-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                            <i class="bi bi-file-earmark-text"></i> Ver Doc
+                            <i class="bi bi-file-earmark-text"></i> Doc
                         </button>
                         <button class="btn btn-sm btn-outline-success" onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
-                            <i class="bi bi-patch-check"></i> Ver Verificador
+                            <i class="bi bi-patch-check"></i> Verif
                         </button>
                     </td>
                 </tr>
@@ -366,7 +404,9 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
     </div>
 </div>
 
-<?php endforeach; ?>
+<?php
+}
+?>
 
     </div> <!-- Fin tab-pane publicados -->
 </div> <!-- Fin tab-content -->
