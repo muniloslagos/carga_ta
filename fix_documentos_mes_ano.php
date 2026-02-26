@@ -48,6 +48,7 @@ $sql = "SELECT
             d.titulo,
             d.fecha_subida,
             d.item_id,
+            d.usuario_id,
             i.numeracion,
             i.nombre as item_nombre,
             i.periodicidad,
@@ -160,6 +161,7 @@ if (!empty($documentos)) {
         $correcciones[] = [
             'doc_id' => $doc['doc_id'],
             'item_id' => $doc['item_id'],
+            'usuario_id' => $doc['usuario_id'],
             'mes' => $mes_calc,
             'ano' => $ano_calc
         ];
@@ -189,6 +191,7 @@ if (!empty($documentos)) {
     foreach ($correcciones as $corr) {
         $doc_id = $corr['doc_id'];
         $item_id = $corr['item_id'];
+        $usuario_id = $corr['usuario_id'];
         $mes = $corr['mes'];
         $ano = $corr['ano'];
         
@@ -217,10 +220,10 @@ if (!empty($documentos)) {
         } else {
             // INSERT (no debería pasar porque se inserta al cargar, pero por si acaso)
             $sql_insert = "INSERT INTO documento_seguimiento 
-                          (documento_id, item_id, mes, ano, estado, fecha_creacion)
-                          VALUES (?, ?, ?, ?, 'pendiente', NOW())";
+                          (documento_id, item_id, usuario_id, mes, ano, estado, fecha_creacion)
+                          VALUES (?, ?, ?, ?, ?, 'pendiente', NOW())";
             $stmt_ins = $conn->prepare($sql_insert);
-            $stmt_ins->bind_param("iiii", $doc_id, $item_id, $mes, $ano);
+            $stmt_ins->bind_param("iiiii", $doc_id, $item_id, $usuario_id, $mes, $ano);
             
             if ($stmt_ins->execute()) {
                 echo "<p class='ok'>✅ Doc #$doc_id: Registro creado con mes=$mes, ano=$ano</p>";
