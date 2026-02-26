@@ -108,17 +108,22 @@ while ($row = $resultado->fetch_assoc()) {
 }
 ?>
 
-<!-- HEADER CON DEGRADADO -->
-<div class="page-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; margin: -1rem -1rem 2rem -1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-        <div style="background: rgba(255,255,255,0.2); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-            <i class="bi bi-cloud-upload-fill" style="font-size: 1.5rem; color: white;"></i>
+<!-- HEADER UNIFICADO -->
+<div style="display: flex; align-items: center; gap: 0; margin-bottom: 1.75rem; border-bottom: 2px solid #e9ecef; padding-bottom: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6c757d; font-size: 0.9rem; white-space: nowrap;">
+        <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.1rem;"></i>
+        <span style="font-weight: 500;">Control de Transparencia</span>
+    </div>
+    <div style="width: 1px; height: 36px; background: #ced4da; margin: 0 1.25rem; flex-shrink: 0;"></div>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <i class="bi bi-cloud-upload-fill" style="font-size: 1.1rem; color: white;"></i>
         </div>
         <div>
-            <h1 style="color: white; font-size: 1.5rem; font-weight: 600; margin: 0;">
+            <h1 style="font-size: 1.25rem; font-weight: 600; color: #2c3e50; margin: 0; line-height: 1.2;">
                 Centro de Publicación y Verificación
             </h1>
-            <p style="color: rgba(255,255,255,0.9); font-size: 0.875rem; margin: 0;">
+            <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">
                 Gestión de documentos en Transparencia Activa
             </p>
         </div>
