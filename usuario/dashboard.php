@@ -280,8 +280,15 @@ if (isset($_SESSION['success'])) {
                         </thead>
                         <tbody>
                             <?php
+                            // DEBUG TEMPORAL
+                            echo "<!-- DEBUG: Items mensuales count: " . count($itemsPorPeriodicidad['mensual']) . " -->";
+                            if (count($itemsPorPeriodicidad['mensual']) > 0) {
+                                echo "<!-- DEBUG: Primer item: " . print_r($itemsPorPeriodicidad['mensual'][0], true) . " -->";
+                            }
+                            
                             if (!empty($itemsPorPeriodicidad['mensual'])) {
                                 foreach ($itemsPorPeriodicidad['mensual'] as $item) {
+                                    try {
                                     $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoSeleccionado, $mesSeleccionado);
                                     $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                                              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -367,9 +374,13 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                     </tr>
                                     <?php
+                                    } catch (Exception $e) {
+                                        echo '<tr><td colspan="8" class="text-danger">Error en item ' . htmlspecialchars($item['nombre']) . ': ' . htmlspecialchars($e->getMessage()) . '</td></tr>';
+                                        echo '<!-- Error trace: ' . htmlspecialchars($e->getTraceAsString()) . ' -->';
+                                    }
                                 }
                             } else {
-                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items mensuales asignados</td></tr>';
+                                echo '<tr><td colspan="8" class="text-center text-muted">No hay items mensuales asignados</td></tr>';
                             }
                             ?>
                         </tbody>
