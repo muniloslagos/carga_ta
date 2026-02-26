@@ -1,9 +1,13 @@
 <?php
-require_once dirname(__DIR__) . '/config/config.php';
+require_once __DIR__ . '/config/config.php';
 
 header('Content-Type: text/html; charset=UTF-8');
 
 $db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+if ($db_conn->connect_error) {
+    die("Error de conexión: " . $db_conn->connect_error);
+}
 
 echo "<!DOCTYPE html>
 <html>
@@ -43,7 +47,7 @@ echo "<h2>Últimos 30 Documentos en Base de Datos</h2>";
 echo "<table>";
 echo "<tr><th>ID</th><th>Título</th><th>Item</th><th>Archivo (BD)</th><th>Existe Físicamente</th></tr>";
 
-$uploadsDir = dirname(__DIR__) . '/uploads/';
+$uploadsDir = __DIR__ . '/uploads/';
 $totalDocs = 0;
 $archivosExisten = 0;
 $archivosFaltan = 0;
