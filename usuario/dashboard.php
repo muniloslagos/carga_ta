@@ -31,8 +31,8 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 // Query SQL optimizado: Obtener items con sus documentos, plazos y verificadores
 // Filtrar por usuario si es cargador_informacion
 $whereUsuario = '';
-$params = [$mesSeleccionado, $anoSeleccionado, $mesActual, $anoActual];
-$types = 'iiii';
+$params = [];
+$types = '';
 
 if ($user_perfil === 'cargador_informacion') {
     // Cargador solo ve items de su dirección
