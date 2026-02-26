@@ -5,7 +5,8 @@
  * y qué datos hay en la base de datos
  */
 
-// No requiere autenticación para diagnóstico rápido
+// Cargar configuración primero
+require_once 'config/config.php';
 require_once 'config/Database.php';
 
 header('Content-Type: text/html; charset=UTF-8');
