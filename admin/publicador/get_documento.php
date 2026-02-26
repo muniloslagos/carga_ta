@@ -1,5 +1,4 @@
 <?php
-// Mostrar información del documento
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Documento.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Usuario.php';
@@ -13,25 +12,69 @@ $usuarioClass = new Usuario($db_conn);
 $documento = $documentoClass->getById($doc_id);
 
 if (!$documento) {
-    echo '<p class="text-danger">Documento no encontrado</p>';
+    echo '<div class="alert alert-danger">Documento no encontrado</div>';
     exit;
 }
 
 $usuario = $usuarioClass->getById($documento['usuario_id']);
+$extension = strtoupper(pathinfo($documento['archivo'], PATHINFO_EXTENSION));
 ?>
 
-<div class="row">
-    <div class="col-md-6">
-        <h6>Información del Documento</h6>
-        <p><strong>Título:</strong> <?php echo htmlspecialchars($documento['titulo']); ?></p>
-        <p><strong>Cargado por:</strong> <?php echo htmlspecialchars($usuario['nombre'] ?? 'Desconocido'); ?></p>
-        <p><strong>Descripción:</strong> <?php echo htmlspecialchars($documento['descripcion'] ?? '-'); ?></p>
-        <p><strong>Fecha Carga:</strong> <?php echo date('d/m/Y H:i', strtotime($documento['fecha_subida'])); ?></p>
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="card-title text-info"><i class="bi bi-file-earmark-text"></i> Información del Documento</h6>
+        <table class="table table-sm table-borderless">
+            <tr>
+                <td width="35%" class="text-muted"><strong>Título:</strong></td>
+                <td><?php echo htmlspecialchars($documento['titulo']); ?></td>
+            </tr>
+            <tr>
+                <td class="text-muted"><strong>Item:</strong></td>
+                <td><?php echo htmlspecialchars($documento['item_nombre'] ?? '-'); ?></td>
+            </tr>
+            <tr>
+                <td class="text-muted"><strong>Cargado por:</strong></td>
+                <td><?php echo htmlspecialchars($usuario['nombre'] ?? 'Desconocido'); ?></td>
+            </tr>
+            <tr>
+                <td class="text-muted"><strong>Fecha de Carga:</strong></td>
+                <td><?php echo date('d/m/Y H:i', strtotime($documento['fecha_subida'])); ?></td>
+            </tr>
+            <tr>
+                <td class="text-muted"><strong>Estado:</strong></td>
+                <td>
+                    <?php if ($documento['estado'] === 'pendiente'): ?>
+                        <span class="badge bg-warning text-dark">Pendiente</span>
+                    <?php elseif ($documento['estado'] === 'aprobado'): ?>
+                        <span class="badge bg-success">Aprobado</span>
+                    <?php else: ?>
+                        <span class="badge bg-secondary"><?php echo ucfirst($documento['estado']); ?></span>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php if ($documento['descripcion']): ?>
+            <tr>
+                <td class="text-muted"><strong>Descripción:</strong></td>
+                <td><?php echo nl2br(htmlspecialchars($documento['descripcion'])); ?></td>
+            </tr>
+            <?php endif; ?>
+        </table>
     </div>
-    <div class="col-md-6">
-        <h6>Descargar Documento</h6>
-        <a href="../usuario/descargar_documento.php?doc_id=<?php echo $documento['id']; ?>" class="btn btn-primary btn-sm" target="_blank">
-            <i class="bi bi-download"></i> Descargar <?php echo pathinfo($documento['archivo'], PATHINFO_EXTENSION); ?>
+</div>
+
+<div class="card">
+    <div class="card-body text-center">
+        <h6 class="card-title"><i class="bi bi-download"></i> Descargar Documento</h6>
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+            <i class="bi bi-file-earmark-<?php echo in_array(strtolower($extension), ['pdf']) ? 'pdf' : 'text'; ?>" style="font-size: 3rem; color: #0d6efd;"></i>
+            <div class="text-start">
+                <div class="fw-bold"><?php echo htmlspecialchars(basename($documento['archivo'])); ?></div>
+                <small class="text-muted">Formato: <?php echo $extension; ?></small>
+            </div>
+        </div>
+        <a href="../usuario/descargar_documento.php?doc_id=<?php echo $documento['id']; ?>" 
+           class="btn btn-primary" target="_blank">
+            <i class="bi bi-download"></i> Descargar Documento
         </a>
     </div>
 </div>
