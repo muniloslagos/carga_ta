@@ -72,7 +72,7 @@ $extension = strtoupper(pathinfo($documento['archivo'], PATHINFO_EXTENSION));
                 <small class="text-muted">Formato: <?php echo $extension; ?></small>
             </div>
         </div>
-        <a href="../usuario/descargar_documento.php?doc_id=<?php echo $documento['id']; ?>" 
+        <a href="<?php echo SITE_URL; ?>usuario/descargar_documento.php?doc_id=<?php echo $documento['id']; ?>" 
            class="btn btn-primary" target="_blank">
             <i class="bi bi-download"></i> Descargar Documento
         </a>

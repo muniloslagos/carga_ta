@@ -172,6 +172,30 @@ while ($row = $resultado->fetch_assoc()) {
     </div>
 </div>
 
+<!-- PESTAÑAS: PENDIENTES / PUBLICADOS -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-pendientes" data-bs-toggle="tab" data-bs-target="#contenido-pendientes" type="button" role="tab">
+            <i class="bi bi-clock-history"></i> Pendientes
+            <?php if ($totalSinVerificador > 0): ?>
+                <span class="badge bg-warning text-dark ms-1"><?php echo $totalSinVerificador; ?></span>
+            <?php endif; ?>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-publicados" data-bs-toggle="tab" data-bs-target="#contenido-publicados" type="button" role="tab">
+            <i class="bi bi-check-circle"></i> Publicados
+            <?php if ($totalConVerificador > 0): ?>
+                <span class="badge bg-success ms-1"><?php echo $totalConVerificador; ?></span>
+            <?php endif; ?>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- TAB PENDIENTES -->
+    <div class="tab-pane fade show active" id="contenido-pendientes" role="tabpanel">
+
 <!-- TABLAS POR PERIODICIDAD -->
 <?php
 $periodosNombres = [
@@ -185,6 +209,13 @@ $periodosNombres = [
 foreach ($itemsPorPeriodicidad as $periodicidad => $items):
     if (count($items) === 0) continue;
     
+    // Filtrar: solo mostrar items CON documento Y SIN verificador (pendientes)
+    $itemsPendientes = array_filter($items, function($item) {
+        return $item['doc_id'] && !$item['verificador_id'];
+    });
+    
+    if (count($itemsPendientes) === 0) continue;
+    
     $config = $periodosNombres[$periodicidad];
 ?>
 
@@ -192,6 +223,7 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
     <div class="card-header" style="background: <?php echo $config['color']; ?>; color: white; font-weight: 600;">
         <i class="bi bi-<?php echo $config['icon']; ?>"></i> 
         <?php echo $config['nombre']; ?> - <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
+        <span class="badge bg-light text-dark ms-2"><?php echo count($itemsPendientes); ?> pendiente(s)</span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -206,7 +238,7 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($items as $item): ?>
+                <?php foreach ($itemsPendientes as $item): ?>
                 <tr>
                     <td><small class="text-muted"><?php echo htmlspecialchars($item['numeracion']); ?></small></td>
                     <td><strong><?php echo htmlspecialchars($item['item_nombre']); ?></strong></td>
@@ -234,25 +266,13 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if (!$item['doc_id']): ?>
-                            <small class="text-muted">Sin documento cargado</small>
-                        <?php elseif ($item['verificador_id']): ?>
-                            <!-- Documento ya publicado -->
-                            <button class="btn btn-sm btn-outline-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                                <i class="bi bi-file-earmark-text"></i> Ver Doc
-                            </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
-                                <i class="bi bi-patch-check"></i> Ver Verificador
-                            </button>
-                        <?php else: ?>
-                            <!-- Documento pendiente de verificador -->
-                            <button class="btn btn-sm btn-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                                <i class="bi bi-eye"></i> Ver Doc
-                            </button>
-                            <button class="btn btn-sm btn-primary" onclick="abrirModalVerificador(<?php echo $item['doc_id']; ?>, <?php echo $item['item_id']; ?>, <?php echo $item['usuario_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                                <i class="bi bi-cloud-upload"></i> Cargar Verificador
-                            </button>
-                        <?php endif; ?>
+                        <!-- Documento pendiente de verificador -->
+                        <button class="btn btn-sm btn-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
+                            <i class="bi bi-eye"></i> Ver Doc
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="abrirModalVerificador(<?php echo $item['doc_id']; ?>, <?php echo $item['item_id']; ?>, <?php echo $item['usuario_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
+                            <i class="bi bi-cloud-upload"></i> Cargar Verificador
+                        </button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -262,6 +282,94 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
 </div>
 
 <?php endforeach; ?>
+
+    </div> <!-- Fin tab-pane pendientes -->
+    
+    <!-- TAB PUBLICADOS -->
+    <div class="tab-pane fade" id="contenido-publicados" role="tabpanel">
+
+<?php
+foreach ($itemsPorPeriodicidad as $periodicidad => $items):
+    if (count($items) === 0) continue;
+    
+    // Filtrar: solo mostrar items CON documento Y CON verificador (publicados)
+    $itemsPublicados = array_filter($items, function($item) {
+        return $item['doc_id'] && $item['verificador_id'];
+    });
+    
+    if (count($itemsPublicados) === 0) continue;
+    
+    $config = $periodosNombres[$periodicidad];
+?>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header" style="background: <?php echo $config['color']; ?>; color: white; font-weight: 600;">
+        <i class="bi bi-<?php echo $config['icon']; ?>"></i> 
+        <?php echo $config['nombre']; ?> - <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
+        <span class="badge bg-light text-dark ms-2"><?php echo count($itemsPublicados); ?> publicado(s)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th width="8%">Núm.</th>
+                    <th width="25%">Item</th>
+                    <th width="10%">Estado</th>
+                    <th width="15%">Cargado Por</th>
+                    <th width="12%">Fecha Envío</th>
+                    <th width="12%">Fecha Publicación</th>
+                    <th width="23%">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($itemsPublicados as $item): ?>
+                <tr>
+                    <td><small class="text-muted"><?php echo htmlspecialchars($item['numeracion']); ?></small></td>
+                    <td><strong><?php echo htmlspecialchars($item['item_nombre']); ?></strong></td>
+                    <td>
+                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Publicado</span>
+                    </td>
+                    <td>
+                        <?php if ($item['usuario_nombre']): ?>
+                            <small><?php echo htmlspecialchars($item['usuario_nombre']); ?></small>
+                        <?php else: ?>
+                            <small class="text-muted">-</small>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($item['fecha_envio']): ?>
+                            <small><?php echo date('d/m/Y', strtotime($item['fecha_envio'])); ?></small>
+                        <?php else: ?>
+                            <small class="text-muted">-</small>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($item['fecha_carga_portal']): ?>
+                            <small class="text-success"><?php echo date('d/m/Y', strtotime($item['fecha_carga_portal'])); ?></small>
+                        <?php else: ?>
+                            <small class="text-muted">-</small>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <!-- Documento ya publicado -->
+                        <button class="btn btn-sm btn-outline-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
+                            <i class="bi bi-file-earmark-text"></i> Ver Doc
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
+                            <i class="bi bi-patch-check"></i> Ver Verificador
+                        </button>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<?php endforeach; ?>
+
+    </div> <!-- Fin tab-pane publicados -->
+</div> <!-- Fin tab-content -->
 
 <!-- MODAL: Ver Documento -->
 <div class="modal fade" id="modalVerDocumento" tabindex="-1">
