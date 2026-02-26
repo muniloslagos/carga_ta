@@ -72,7 +72,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $uploadResult = $documento->uploadFile($_FILES['archivo']);
     
     if (isset($uploadResult['error'])) {
+        // Log del error para debugging en producción
+        error_log("Error upload documento: " . $uploadResult['error'] . " - User: $user_id - Item: $item_id");
         $_SESSION['error'] = 'Error al cargar el documento: ' . $uploadResult['error'];
+        header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
+        exit;
+    }
+    
+    // Verificar que el archivo realmente se guardó
+    $filepath = $uploadResult['filepath'] ?? '';
+    if (!file_exists($filepath)) {
+        error_log("Error: Archivo no existe después de upload - Path: $filepath - User: $user_id");
+        $_SESSION['error'] = 'Error: El archivo no se pudo guardar en el servidor. Verifique permisos de la carpeta uploads/';
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;
     }
@@ -101,12 +112,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
         
+        // AGREGAR: Registrar en historial
+        $usuario_nombre = $_SESSION['user']['nombre'] ?? 'Usuario';
+        $item_nombre = $item['nombre'] ?? "Item #$item_id";
+        $descripcion_hist = "Documento '$titulo' cargado";
+        $detalle_hist = "Archivo: " . $uploadResult['filename'] . " | Mes: $mes_carga_calc | Año: $ano_actual";
+        
+        $sql_historial = "INSERT INTO historial 
+                         (item_id, documento_id, usuario_id, tipo, descripcion, detalle, fecha)
+                         VALUES (?, ?, ?, 'documento_cargado', ?, ?, NOW())";
+        
+        $stmt_hist = $db_conn->prepare($sql_historial);
+        $stmt_hist->bind_param("iiiss", $item_id, $resultado, $user_id, $descripcion_hist, $detalle_hist);
+        $stmt_hist->execute();
+        $stmt_hist->close();
+        
+        // Log exitoso para debugging
+        error_log("Documento cargado exitosamente - Doc ID: $resultado - User: $user_id - Item: $item_id - File: " . $uploadResult['filename']);
+        
         $_SESSION['success'] = 'Documento cargado exitosamente';
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;
     } else {
-        $_SESSION['error'] = 'Error al cargar el documento. Verifique que el formato sea correcto (PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG)';
+        // Log del error
+        error_log("Error al crear documento en BD - User: $user_id - Item: $item_id - File: " . $uploadResult['filename']);
+        
+        // Si falló la BD, eliminar el archivo subido
+        if (file_exists($filepath)) {
+            unlink($filepath);
+        }
+        
+        $_SESSION['error'] = 'Error al cargar el documento en la base de datos. Intente nuevamente.';
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga . '&ano=' . $ano_actual);
         exit;
