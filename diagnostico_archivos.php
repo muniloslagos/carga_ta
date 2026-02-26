@@ -106,13 +106,22 @@ if (is_dir($uploadsDir)) {
                 $size = filesize($uploadsDir . $archivo);
                 $sizeKB = round($size / 1024, 2);
                 
-                // Verificar si está en BD
+                // Verificar si está en BD (documentos o verificadores)
                 $sql_check = "SELECT id FROM documentos WHERE archivo = ?";
                 $stmt = $db_conn->prepare($sql_check);
                 $stmt->bind_param("s", $archivo);
                 $stmt->execute();
                 $result_check = $stmt->get_result();
-                $enBD = $result_check->num_rows > 0;
+                $enBD_doc = $result_check->num_rows > 0;
+                
+                $sql_check_verif = "SELECT id FROM verificadores_publicador WHERE archivo_verificador = ?";
+                $stmt = $db_conn->prepare($sql_check_verif);
+                $stmt->bind_param("s", $archivo);
+                $stmt->execute();
+                $result_check_verif = $stmt->get_result();
+                $enBD_verif = $result_check_verif->num_rows > 0;
+                
+                $enBD = $enBD_doc || $enBD_verif;
                 
                 if (!$enBD) {
                     $archivosOrfanos++;
@@ -120,7 +129,15 @@ if (is_dir($uploadsDir)) {
                     $estadoBD = '❌ Huérfano (no en BD)';
                 } else {
                     $class = 'ok';
-                    $estadoBD = '✅ Registrado';
+                    $tipo = '';
+                    if ($enBD_doc && $enBD_verif) {
+                        $tipo = ' (Doc + Verif)';
+                    } elseif ($enBD_doc) {
+                        $tipo = ' (Documento)';
+                    } elseif ($enBD_verif) {
+                        $tipo = ' (Verificador)';
+                    }
+                    $estadoBD = '✅ Registrado' . $tipo;
                 }
                 
                 echo "<tr class='$class'>";
