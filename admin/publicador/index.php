@@ -18,7 +18,17 @@ if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = (int)date(
 if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = (int)date('Y');
 
 $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// Obtener total global de documentos publicados (para badge de pestaña)
+$totalPublicadosGlobal = 0;
+$resTotal = $db->getConnection()->query("SELECT COUNT(*) as total FROM verificadores_publicador");
+if ($resTotal) {
+    $rowTotal = $resTotal->fetch_assoc();
+    $totalPublicadosGlobal = (int)$rowTotal['total'];
+}
+
+$db_conn = $db->getConnection();
 
 // Query principal: Obtener todos los items con sus documentos del período seleccionado
 $query = "
@@ -42,7 +52,7 @@ $query = "
         vp.fecha_carga_portal
     FROM items_transparencia i
     LEFT JOIN documentos d ON i.id = d.item_id 
-        AND d.estado IN ('pendiente', 'aprobado')
+        AND d.estado IN ('pendiente', 'aprobado', 'Publicado')
     LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
@@ -188,8 +198,8 @@ while ($row = $resultado->fetch_assoc()) {
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-publicados" data-bs-toggle="tab" data-bs-target="#contenido-publicados" type="button" role="tab">
             <i class="bi bi-check-circle"></i> Publicados
-            <?php if ($totalConVerificador > 0): ?>
-                <span class="badge bg-success ms-1"><?php echo $totalConVerificador; ?></span>
+            <?php if ($totalPublicadosGlobal > 0): ?>
+                <span class="badge bg-success ms-1"><?php echo $totalPublicadosGlobal; ?></span>
             <?php endif; ?>
         </button>
     </li>
@@ -317,7 +327,6 @@ $queryPublicados = "
     JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     WHERE i.activo = 1
-        AND d.estado IN ('pendiente', 'aprobado')
     ORDER BY vp.fecha_carga_portal DESC";
 
 $resultPublicados = $db->getConnection()->query($queryPublicados);
