@@ -112,20 +112,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
         
-        // AGREGAR: Registrar en historial
-        $usuario_nombre = $_SESSION['user']['nombre'] ?? 'Usuario';
-        $item_nombre = $item['nombre'] ?? "Item #$item_id";
-        $descripcion_hist = "Documento '$titulo' cargado";
-        $detalle_hist = "Archivo: " . $uploadResult['filename'] . " | Mes: $mes_carga_calc | Año: $ano_actual";
-        
-        $sql_historial = "INSERT INTO historial 
-                         (item_id, documento_id, usuario_id, tipo, descripcion, detalle, fecha)
-                         VALUES (?, ?, ?, 'documento_cargado', ?, ?, NOW())";
-        
-        $stmt_hist = $db_conn->prepare($sql_historial);
-        $stmt_hist->bind_param("iiiss", $item_id, $resultado, $user_id, $descripcion_hist, $detalle_hist);
-        $stmt_hist->execute();
-        $stmt_hist->close();
+        // AGREGAR: Registrar en historial (opcional - si la tabla existe)
+        try {
+            $usuario_nombre = $_SESSION['user']['nombre'] ?? 'Usuario';
+            $item_nombre = $item['nombre'] ?? "Item #$item_id";
+            $descripcion_hist = "Documento '$titulo' cargado";
+            $detalle_hist = "Archivo: " . $uploadResult['filename'] . " | Mes: $mes_carga_calc | Año: $ano_actual";
+            
+            $sql_historial = "INSERT INTO historial 
+                             (item_id, documento_id, usuario_id, tipo, descripcion, detalle, fecha)
+                             VALUES (?, ?, ?, 'documento_cargado', ?, ?, NOW())";
+            
+            $stmt_hist = $db_conn->prepare($sql_historial);
+            if ($stmt_hist) {
+                $stmt_hist->bind_param("iiiss", $item_id, $resultado, $user_id, $descripcion_hist, $detalle_hist);
+                $stmt_hist->execute();
+                $stmt_hist->close();
+            }
+        } catch (Exception $e) {
+            // Si falla historial, solo registrar error pero continuar
+            error_log("Advertencia: No se pudo registrar en historial - " . $e->getMessage());
+        }
         
         // Log exitoso para debugging
         error_log("Documento cargado exitosamente - Doc ID: $resultado - User: $user_id - Item: $item_id - File: " . $uploadResult['filename']);
