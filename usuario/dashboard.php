@@ -395,7 +395,7 @@ if ($error) unset($_SESSION['error']);
                                     
                                     $estadoBadge = !$item['doc_id'] ? '<span class="badge bg-secondary">Sin Cargar</span>' : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
                                 ?>
-                                <tr class="<?php echo $row Class; ?>">
+                                <tr class="<?php echo $rowClass; ?>">
                                     <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
                                     <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
                                     <td><?php echo $plazoTexto; ?></td>
