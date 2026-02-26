@@ -20,7 +20,7 @@ if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = (int)
 $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// Query principal: Obtener todos los documentos cargados (estado pendiente/aprobado) del mes seleccionado
+// Query principal: Obtener todos los items con sus documentos del período seleccionado
 $query = "
     SELECT 
         i.id as item_id,
@@ -44,24 +44,21 @@ $query = "
     LEFT JOIN documentos d ON i.id = d.item_id 
         AND d.estado IN ('pendiente', 'aprobado')
     LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
-        AND ds.mes = ? AND ds.ano = ?
-   LEFT JOIN usuarios u ON d.usuario_id = u.id
+    LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     WHERE (
-        (i.periodicidad = 'mensual' AND ds.mes = ? AND ds.ano = ?)
-        OR (i.periodicidad = 'trimestral' AND MOD(?, 3) = MOD(ds.mes, 3) AND ds.ano = ?)
-        OR (i.periodicidad = 'semestral' AND MOD(?, 6) = MOD(ds.mes, 6) AND ds.ano = ?)
-        OR (i.periodicidad = 'anual' AND ds.ano = ?)
-        OR (i.periodicidad = 'ocurrencia' AND ds.mes = ? AND ds.ano = ?)
-        OR (d.id IS NULL)
+        (i.periodicidad = 'mensual' AND (ds.mes = ? AND ds.ano = ? OR d.id IS NULL))
+        OR (i.periodicidad = 'trimestral' AND (MOD(?, 3) = MOD(ds.mes, 3) AND ds.ano = ? OR d.id IS NULL))
+        OR (i.periodicidad = 'semestral' AND (MOD(?, 6) = MOD(ds.mes, 6) AND ds.ano = ? OR d.id IS NULL))
+        OR (i.periodicidad = 'anual' AND (ds.ano = ? OR d.id IS NULL))
+        OR (i.periodicidad = 'ocurrencia' AND (ds.mes = ? AND ds.ano = ? OR d.id IS NULL))
     )
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
         i.numeracion";
 
 $stmt = $db->getConnection()->prepare($query);
-$stmt->bind_param("iiiiiiiiii", 
-    $mesSeleccionado, $anoSeleccionado,  // Para documento_seguimiento
+$stmt->bind_param("iiiiiiiii", 
     $mesSeleccionado, $anoSeleccionado,  // Para mensual
     $mesSeleccionado, $anoSeleccionado,  // Para trimestral
     $mesSeleccionado, $anoSeleccionado,  // Para semestral
