@@ -407,7 +407,7 @@ if ($error) unset($_SESSION['error']);
                                             <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
                                         <?php else: ?>
                                             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)">
+                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
                                                 <i class="bi bi-upload"></i> Cargar
                                             </button>
                                         <?php endif; ?>
@@ -460,7 +460,7 @@ if ($error) unset($_SESSION['error']);
                                             <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
                                         <?php else: ?>
                                             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)">
+                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
                                                 <i class="bi bi-upload"></i> Cargar
                                             </button>
                                         <?php endif; ?>
@@ -513,7 +513,7 @@ if ($error) unset($_SESSION['error']);
                                             <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
                                         <?php else: ?>
                                             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', null, <?php echo $anoActual; ?>)">
+                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
                                                 <i class="bi bi-upload"></i> Cargar
                                             </button>
                                         <?php endif; ?>
@@ -566,7 +566,7 @@ if ($error) unset($_SESSION['error']);
                                             <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
                                         <?php else: ?>
                                             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)">
+                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
                                                 <i class="bi bi-upload"></i> Cargar
                                             </button>
                                         <?php endif; ?>
