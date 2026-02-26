@@ -289,14 +289,20 @@ if (isset($_SESSION['success'])) {
                             if (!empty($itemsPorPeriodicidad['mensual'])) {
                                 foreach ($itemsPorPeriodicidad['mensual'] as $item) {
                                     try {
+                                    echo "<!-- DEBUG: Procesando item " . $item['id'] . " - " . htmlspecialchars($item['nombre']) . " -->";
+                                    
                                     $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoSeleccionado, $mesSeleccionado);
+                                    echo "<!-- DEBUG: itemInfo obtenido -->";
+                                    
                                     $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                                              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
                                     $mesCargaNombre = $meses[$mesSeleccionado];
                                     
                                     // Obtener documentos del mes
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoSeleccionado, $mesSeleccionado);
+                                    echo "<!-- DEBUG: docsResult obtenido -->";
                                     $ultimoDoc = $docsResult->fetch_assoc();
+                                    echo "<!-- DEBUG: ultimoDoc procesado -->";
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
@@ -305,12 +311,15 @@ if (isset($_SESSION['success'])) {
                                     }
                                     
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    echo "<!-- DEBUG: fechaEnvio calculado -->";
                                     
                                     // Calcular plazo final (automático o personalizado)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    echo "<!-- DEBUG: plazoFinal obtenido -->";
                                     $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
+                                    echo "<!-- DEBUG: Antes de renderizar TR -->";
                                     
                                     // Clase para fila con documento cargado
                                     $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
