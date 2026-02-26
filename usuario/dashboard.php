@@ -794,8 +794,9 @@ if ($error) unset($_SESSION['error']);
                     </table>
                 </div>
             </div>
-
-
+        </div>
+    </div>
+</div>
 
 <!-- MODAL CARGAR DOCUMENTO -->
 <div class="modal fade" id="modalCargar" tabindex="-1">
@@ -842,10 +843,6 @@ if ($error) unset($_SESSION['error']);
         </div>
     </div>
 </div>
-
-<?php
-
-?>
 
 <script>
 const meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
