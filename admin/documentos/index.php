@@ -155,7 +155,7 @@ $item_filtro = intval($_GET['item'] ?? 0);
                             <span class="state-badge <?php echo $estado_class; ?>"><?php echo ucfirst($doc['estado']); ?></span>
                         </td>
                         <td>
-                            <a href="<?php echo htmlspecialchars($doc['archivo']); ?>" class="btn btn-sm btn-info" target="_blank">
+                            <a href="<?php echo SITE_URL; ?>uploads/<?php echo htmlspecialchars($doc['archivo']); ?>" class="btn btn-sm btn-info" target="_blank" title="Descargar documento">
                                 <i class="bi bi-download"></i>
                             </a>
                             <?php if ($doc['estado'] === 'pendiente'): ?>

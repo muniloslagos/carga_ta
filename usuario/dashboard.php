@@ -113,17 +113,22 @@ while ($row = $resultado->fetch_assoc()) {
     $docMes = (int)$row['doc_mes'];
     $docAno = (int)$row['doc_ano'];
     
-    if ($row['doc_id']) {
-        if ($periodicidad === 'mensual' && $docMes === $mesSeleccionado && $docAno === $anoSeleccionado) {
-            $esDocumentoValido = true;
-        } elseif ($periodicidad === 'trimestral' && $docAno === $anoActual && (int)floor(($docMes - 1) / 3) === (int)floor(($mesActual - 1) / 3)) {
-            $esDocumentoValido = true;
-        } elseif ($periodicidad === 'semestral' && $docAno === $anoActual && (int)floor(($docMes - 1) / 6) === (int)floor(($mesActual - 1) / 6)) {
-            $esDocumentoValido = true;
-        } elseif ($periodicidad === 'anual' && $docAno === $anoActual) {
-            $esDocumentoValido = true;
-        } elseif ($periodicidad === 'ocurrencia' && $docMes === $mesActual && $docAno === $anoActual) {
-            $esDocumentoValido = true;
+    if ($row['doc_id'] && $docMes > 0 && $docAno > 0) {
+        if ($periodicidad === 'mensual') {
+            // Para mensual: comparar con mes/año seleccionado (del selector o actual)
+            $esDocumentoValido = ($docMes === $mesSeleccionado && $docAno === $anoSeleccionado);
+        } elseif ($periodicidad === 'trimestral') {
+            // Para trimestral: mismo trimestre del año actual
+            $esDocumentoValido = ($docAno === $anoActual && (int)floor(($docMes - 1) / 3) === (int)floor(($mesActual - 1) / 3));
+        } elseif ($periodicidad === 'semestral') {
+            // Para semestral: mismo semestre del año actual
+            $esDocumentoValido = ($docAno === $anoActual && (int)floor(($docMes - 1) / 6) === (int)floor(($mesActual - 1) / 6));
+        } elseif ($periodicidad === 'anual') {
+            // Para anual: mismo año actual
+            $esDocumentoValido = ($docAno === $anoActual);
+        } elseif ($periodicidad === 'ocurrencia') {
+            // Para ocurrencia: mes/año actual
+            $esDocumentoValido = ($docMes === $mesActual && $docAno === $anoActual);
         }
     }
     

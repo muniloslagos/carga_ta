@@ -20,14 +20,30 @@ if (!$doc_id) {
 // Conectar a BD
 $db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
-// Verificar que el documento pertenece al usuario actual
-$sql = "SELECT d.*, ds.estado 
-        FROM documentos d
-        LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
-        WHERE d.id = ? AND d.usuario_id = ?";
+// Verificar perfil del usuario
+$user_perfil = $_SESSION['user']['perfil'] ?? '';
 
-$stmt = $db_conn->prepare($sql);
-$stmt->bind_param("ii", $doc_id, $_SESSION['user_id']);
+// Admin y publicadores pueden ver todos los documentos
+// Cargadores solo sus propios documentos
+if ($user_perfil === 'administrativo' || $user_perfil === 'publicador' || $user_perfil === 'director_revisor') {
+    $sql = "SELECT d.*, ds.estado 
+            FROM documentos d
+            LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
+            WHERE d.id = ?";
+    
+    $stmt = $db_conn->prepare($sql);
+    $stmt->bind_param("i", $doc_id);
+} else {
+    // Cargador: solo sus documentos
+    $sql = "SELECT d.*, ds.estado 
+            FROM documentos d
+            LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
+            WHERE d.id = ? AND d.usuario_id = ?";
+    
+    $stmt = $db_conn->prepare($sql);
+    $stmt->bind_param("ii", $doc_id, $_SESSION['user_id']);
+}
+
 $stmt->execute();
 $result = $stmt->get_result();
 $documento = $result->fetch_assoc();
