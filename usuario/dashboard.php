@@ -29,14 +29,15 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 // Query SQL optimizado: Obtener items con sus documentos, plazos y verificadores
-// Filtrar por usuario si es cargador_informacion
-$whereUsuario = '';
+// Para cargadores: ver todos los items, pero solo sus documentos
+// Para publicadores: ver todos los items y todos los documentos
+$whereDocumento = '';
 $params = [];
 $types = '';
 
 if ($user_perfil === 'cargador_informacion') {
-    // Cargador solo ve items de su dirección
-    $whereUsuario = 'AND u_asig.id = ?';
+    // Cargador ve sus propios documentos solamente
+    $whereDocumento = 'AND (d.usuario_id = ? OR d.usuario_id IS NULL)';
     $params[] = $user_id;
     $types .= 'i';
 }
@@ -63,22 +64,21 @@ $query = "
         vp.fecha_carga_portal
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
-    LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id $whereUsuario
-    LEFT JOIN documentos d ON i.id = d.item_id
+    LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
+    LEFT JOIN documentos d ON i.id = d.item_id $whereDocumento
     LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN item_plazos ip ON i.id = ip.item_id 
         AND ip.ano = ? AND ip.mes = ?
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
-    WHERE (u_asig.id IS NOT NULL OR ? = 'publicador')
+    WHERE i.activo = 1
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
         i.numeracion";
 
 $params[] = $anoSeleccionado;
 $params[] = $mesSeleccionado;
-$params[] = $user_perfil;
-$types .= 'iis';
+$types .= 'ii';
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param($types, ...array_values($params));
