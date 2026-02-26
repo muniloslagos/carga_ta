@@ -18,6 +18,23 @@ if (!$documento) {
 
 $usuario = $usuarioClass->getById($documento['usuario_id']);
 $extension = strtoupper(pathinfo($documento['archivo'], PATHINFO_EXTENSION));
+
+// Obtener info del publicador (quien subió el verificador)
+$publicador = null;
+$fechaPublicacion = null;
+$sqlVerif = "SELECT vp.fecha_carga_portal, vp.publicador_id, u.nombre as publicador_nombre
+             FROM verificadores_publicador vp
+             LEFT JOIN usuarios u ON vp.publicador_id = u.id
+             WHERE vp.documento_id = ?
+             ORDER BY vp.fecha_carga_portal DESC LIMIT 1";
+$stmtVerif = $db_conn->prepare($sqlVerif);
+$stmtVerif->bind_param('i', $doc_id);
+$stmtVerif->execute();
+$resVerif = $stmtVerif->get_result();
+if ($rowVerif = $resVerif->fetch_assoc()) {
+    $publicador = $rowVerif['publicador_nombre'];
+    $fechaPublicacion = $rowVerif['fecha_carga_portal'];
+}
 ?>
 
 <div class="card mb-3">
@@ -47,11 +64,23 @@ $extension = strtoupper(pathinfo($documento['archivo'], PATHINFO_EXTENSION));
                         <span class="badge bg-warning text-dark">Pendiente</span>
                     <?php elseif ($documento['estado'] === 'aprobado'): ?>
                         <span class="badge bg-success">Aprobado</span>
+                    <?php elseif ($documento['estado'] === 'Publicado'): ?>
+                        <span class="badge bg-primary">Publicado</span>
                     <?php else: ?>
                         <span class="badge bg-secondary"><?php echo ucfirst($documento['estado']); ?></span>
                     <?php endif; ?>
                 </td>
             </tr>
+            <?php if ($publicador): ?>
+            <tr>
+                <td class="text-muted"><strong>Publicado por:</strong></td>
+                <td><?php echo htmlspecialchars($publicador); ?></td>
+            </tr>
+            <tr>
+                <td class="text-muted"><strong>Fecha Publicación:</strong></td>
+                <td><?php echo date('d/m/Y H:i', strtotime($fechaPublicacion)); ?></td>
+            </tr>
+            <?php endif; ?>
             <?php if ($documento['descripcion']): ?>
             <tr>
                 <td class="text-muted"><strong>Descripción:</strong></td>
