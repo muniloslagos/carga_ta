@@ -62,7 +62,7 @@ $query = "
         vp.id as verificador_id,
         vp.fecha_carga_portal
     FROM items_transparencia i
-    LEFT JOIN item_usuario iu ON i.id = iu.item_id
+    LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id $whereUsuario
     LEFT JOIN documentos d ON i.id = d.item_id
     LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
