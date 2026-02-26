@@ -29,18 +29,9 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 // Query SQL optimizado: Obtener items con sus documentos, plazos y verificadores
-// Para cargadores: ver todos los items, pero solo sus documentos
-// Para publicadores: ver todos los items y todos los documentos
-$whereDocumento = '';
+// Todos los usuarios ven todos los items y documentos (para transparencia)
 $params = [];
 $types = '';
-
-if ($user_perfil === 'cargador_informacion') {
-    // Cargador ve sus propios documentos solamente
-    $whereDocumento = 'AND (d.usuario_id = ? OR d.usuario_id IS NULL)';
-    $params[] = $user_id;
-    $types .= 'i';
-}
 
 $query = "
     SELECT 
@@ -65,7 +56,7 @@ $query = "
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
-    LEFT JOIN documentos d ON i.id = d.item_id $whereDocumento
+    LEFT JOIN documentos d ON i.id = d.item_id
     LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN item_plazos ip ON i.id = ip.item_id 
@@ -320,6 +311,10 @@ if ($error) unset($_SESSION['error']);
                                             $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
                                         } else {
                                             $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
+                                        }
+                                        // Agregar info de quién cargó (si no es el usuario actual)
+                                        if ($item['doc_usuario_id'] != $user_id && $item['usuario_nombre']) {
+                                            $estadoBadge .= '<br><small class="text-muted">Por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
                                         }
                                     }
                                 ?>
