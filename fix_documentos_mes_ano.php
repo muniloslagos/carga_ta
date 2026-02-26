@@ -202,7 +202,7 @@ if (!empty($documentos)) {
         if ($result_check->num_rows > 0) {
             // UPDATE
             $sql_update = "UPDATE documento_seguimiento 
-                          SET mes = ?, ano = ?, estado = 'Cargado'
+                          SET mes = ?, ano = ?
                           WHERE documento_id = ?";
             $stmt_upd = $conn->prepare($sql_update);
             $stmt_upd->bind_param("iii", $mes, $ano, $doc_id);
@@ -218,7 +218,7 @@ if (!empty($documentos)) {
             // INSERT (no debería pasar porque se inserta al cargar, pero por si acaso)
             $sql_insert = "INSERT INTO documento_seguimiento 
                           (documento_id, item_id, mes, ano, estado, fecha_creacion)
-                          VALUES (?, ?, ?, ?, 'Cargado', NOW())";
+                          VALUES (?, ?, ?, ?, 'pendiente', NOW())";
             $stmt_ins = $conn->prepare($sql_insert);
             $stmt_ins->bind_param("iiii", $doc_id, $item_id, $mes, $ano);
             

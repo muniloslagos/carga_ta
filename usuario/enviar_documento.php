@@ -98,14 +98,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     
     if ($resultado) {
-        // Registrar en documento_seguimiento con estado 'Cargado'
+        // Registrar en documento_seguimiento con estado 'pendiente'
         $fecha_envio = date('Y-m-d H:i:s');
         
         $sql_seguimiento = "INSERT INTO documento_seguimiento 
                           (documento_id, item_id, usuario_id, ano, mes, fecha_envio, estado, fecha_creacion)
-                          VALUES (?, ?, ?, ?, ?, ?, 'Cargado', NOW())
+                          VALUES (?, ?, ?, ?, ?, ?, 'pendiente', NOW())
                           ON DUPLICATE KEY UPDATE 
-                          fecha_envio = ?, estado = 'Cargado'";
+                          fecha_envio = ?, estado = 'pendiente'";
         
         $stmt = $db_conn->prepare($sql_seguimiento);
         $stmt->bind_param("iiiiiss", $resultado, $item_id, $user_id, $ano_actual, $mes_carga_calc, $fecha_envio, $fecha_envio);
