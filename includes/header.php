@@ -70,6 +70,14 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
                             </a>
                         </li>
                     </ul>
+                <?php elseif ($is_logged_in && $current_profile === 'auditor'): ?>
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/auditor/">
+                                <i class="bi bi-clipboard2-check"></i> Auditoría
+                            </a>
+                        </li>
+                    </ul>
                 <?php endif; ?>
                 <ul class="navbar-nav ms-auto align-items-center gap-3">
                     <?php if ($is_logged_in && $current_user): ?>

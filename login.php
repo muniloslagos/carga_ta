@@ -20,6 +20,8 @@ if ($is_logged_in && $current_profile) {
         header('Location: ' . SITE_URL . 'admin/index.php');
     } elseif ($current_profile === 'publicador') {
         header('Location: ' . SITE_URL . 'admin/publicador/');
+    } elseif ($current_profile === 'auditor') {
+        header('Location: ' . SITE_URL . 'admin/auditor/');
     } else {
         header('Location: ' . SITE_URL . 'usuario/dashboard.php');
     }
@@ -58,6 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ' . SITE_URL . 'admin/index.php');
             } elseif ($user['perfil'] === 'publicador') {
                 header('Location: ' . SITE_URL . 'admin/publicador/');
+            } elseif ($user['perfil'] === 'auditor') {
+                header('Location: ' . SITE_URL . 'admin/auditor/');
             } else {
                 header('Location: ' . SITE_URL . 'usuario/dashboard.php');
             }
