@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `nombre` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `perfil` enum('administrativo','director_revisor','cargador_informacion','publicador') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `perfil` enum('administrativo','director_revisor','cargador_informacion','publicador','auditor') COLLATE utf8mb4_unicode_ci NOT NULL,
   `direccion_id` int(11) DEFAULT NULL,
   `activo` tinyint(1) DEFAULT '1',
   `fecha_creacion` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
