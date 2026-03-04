@@ -134,6 +134,7 @@ while ($row = $resultado->fetch_assoc()) {
             'doc_id' => null,
             'doc_titulo' => null,
             'doc_estado' => null,
+            'doc_archivo' => null,
             'fecha_envio' => null,
             'usuario_nombre' => null,
             'verificador_id' => null,
@@ -154,6 +155,7 @@ while ($row = $resultado->fetch_assoc()) {
         $itemsCache[$itemId]['doc_id'] = $row['doc_id'];
         $itemsCache[$itemId]['doc_titulo'] = $row['doc_titulo'];
         $itemsCache[$itemId]['doc_estado'] = $row['doc_estado'];
+        $itemsCache[$itemId]['doc_archivo'] = $row['doc_archivo'];
         $itemsCache[$itemId]['fecha_envio'] = $row['fecha_envio'];
         $itemsCache[$itemId]['usuario_nombre'] = $row['usuario_nombre'];
         $itemsCache[$itemId]['verificador_id'] = $row['verificador_id'];
@@ -167,6 +169,20 @@ foreach ($itemsCache as $item) {
 }
 
 $documentosPendientes = $contadores;
+
+// Split items en Pendientes (sin doc O sin fecha_envio) / Enviados (con doc Y fecha_envio)
+$itemsPendientesPorPer = [];
+$itemsEnviadosPorPer   = [];
+foreach (['mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'] as $_per) {
+    $itemsPendientesPorPer[$_per] = array_values(array_filter(
+        $itemsPorPeriodicidad[$_per],
+        fn($i) => !($i['doc_id'] && $i['fecha_envio'])
+    ));
+    $itemsEnviadosPorPer[$_per] = array_values(array_filter(
+        $itemsPorPeriodicidad[$_per],
+        fn($i) => $i['doc_id'] && $i['fecha_envio']
+    ));
+}
 
 $success = isset($_SESSION['success']) ? $_SESSION['success'] : '';
 $error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
@@ -279,305 +295,301 @@ if ($error) unset($_SESSION['error']);
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="6%">Núm.</th>
-                                <th width="20%">Item</th>
-                                <th width="10%">Mes Carga</th>
-                                <th width="10%">Plazo Interno</th>
-                                <th width="10%">Estado</th>
-                                <th width="12%">Fecha Envío</th>
-                                <th width="12%">Carga Portal</th>
-                                <th width="20%">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($itemsPorPeriodicidad['mensual'])): ?>
-                                <tr><td colspan="8" class="text-center text-muted">No tienes items mensuales asignados</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($itemsPorPeriodicidad['mensual'] as $item): 
-                                    $rowClass = $item['doc_id'] ? 'table-success' : 'table-warning';
-                                    $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                    $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y H:i', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
-                                    $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y H:i', strtotime($item['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
-                                    
-                                    $estadoBadge = '<span class="badge bg-secondary">Sin Cargar</span>';
-                                    if ($item['doc_id']) {
-                                        if ($item['doc_estado'] === 'aprobado') {
-                                            $estadoBadge = '<span class="badge bg-success">Aprobado</span>';
-                                        } elseif ($item['doc_estado'] === 'rechazado') {
-                                            $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
-                                        } else {
-                                            $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
-                                        }
-                                        // Agregar info de quién cargó (si no es el usuario actual)
-                                        if ($item['doc_usuario_id'] != $user_id && $item['usuario_nombre']) {
-                                            $estadoBadge .= '<br><small class="text-muted">Por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
-                                        }
-                                    }
-                                ?>
-                                <tr class="<?php echo $rowClass; ?>">
-                                    <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                    <td>
-                                        <div><?php echo htmlspecialchars($item['item_nombre']); ?></div>
-                                        <button class="btn btn-xs btn-outline-secondary mt-1" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#modalHistorial"
-                                                onclick="mostrarHistorial(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
-                                            <i class="bi bi-clock-history"></i> Historial
-                                        </button>
-                                    </td>
-                                    <td><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></td>
-                                    <td><?php echo $plazoTexto; ?></td>
-                                    <td><?php echo $estadoBadge; ?></td>
-                                    <td><?php echo $fechaEnvio; ?></td>
-                                    <td><?php echo $cargaPortal; ?></td>
-                                    <td>
-                                        <div class="d-flex gap-1 flex-wrap">
-                                            <?php if ($item['doc_id']): ?>
-                                                <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" 
-                                                   class="btn btn-sm btn-success" target="_blank">
-                                                    <i class="bi bi-file-earmark-check"></i> Ver Doc
-                                                </a>
-                                                <?php if ($item['verificador_id']): ?>
-                                                    <button class="btn btn-sm btn-info" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#modalVerVerificador"
-                                                            onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
-                                                        <i class="bi bi-patch-check"></i> Ver Verif
-                                                    </button>
-                                                <?php endif; ?>
-                                            <?php else: ?>
-                                                <button class="btn btn-sm btn-primary" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalCargar"
-                                                        onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
-                                                    <i class="bi bi-cloud-upload"></i> Cargar Docto
+                <?php $penMen = $itemsPendientesPorPer['mensual']; $envMen = $itemsEnviadosPorPer['mensual']; ?>
+                <!-- Sub-tabs Pendientes / Enviados -->
+                <ul class="nav nav-pills mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-men-pend" type="button">
+                            <i class="bi bi-clock-history"></i> Documentos Pendientes
+                            <?php if (count($penMen) > 0): ?><span class="badge bg-danger ms-1"><?php echo count($penMen); ?></span><?php endif; ?>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-men-env" type="button">
+                            <i class="bi bi-check-circle"></i> Documentos Enviados
+                            <?php if (count($envMen) > 0): ?><span class="badge bg-success ms-1"><?php echo count($envMen); ?></span><?php endif; ?>
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <!-- Pendientes mensual -->
+                    <div class="tab-pane fade show active" id="pane-men-pend">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="6%">Núm.</th>
+                                        <th width="22%">Item</th>
+                                        <th width="10%">Mes Carga</th>
+                                        <th width="10%">Plazo Interno</th>
+                                        <th width="10%">Estado</th>
+                                        <th width="12%">Fecha Envío</th>
+                                        <th width="30%">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($penMen)): ?>
+                                        <tr><td colspan="7" class="text-center text-success"><i class="bi bi-check-circle"></i> Todos los documentos de este período han sido enviados.</td></tr>
+                                    <?php else: ?>
+                                        <?php foreach ($penMen as $item):
+                                            $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
+                                            $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y H:i', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
+                                        ?>
+                                        <tr class="table-warning">
+                                            <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                            <td>
+                                                <div><?php echo htmlspecialchars($item['item_nombre']); ?></div>
+                                                <button class="btn btn-xs btn-outline-secondary mt-1"
+                                                        data-bs-toggle="modal" data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
+                                                    <i class="bi bi-clock-history"></i> Historial
                                                 </button>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                            </td>
+                                            <td><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></td>
+                                            <td><?php echo $plazoTexto; ?></td>
+                                            <td><span class="badge bg-secondary">Sin Cargar</span></td>
+                                            <td><?php echo $fechaEnvio; ?></td>
+                                            <td>
+                                                <div class="d-flex gap-1 flex-wrap">
+                                                    <button class="btn btn-sm btn-primary"
+                                                            data-bs-toggle="modal" data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Docto
+                                                    </button>
+                                                    <?php if ($user_perfil === 'cargador_informacion'): ?>
+                                                    <button class="btn btn-sm btn-warning"
+                                                            data-bs-toggle="modal" data-bs-target="#modalSinMovimiento"
+                                                            onclick="seleccionarSinMovimiento(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
+                                                        <i class="bi bi-slash-circle"></i> Sin Movimiento
+                                                    </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Enviados mensual -->
+                    <div class="tab-pane fade" id="pane-men-env">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="6%">Núm.</th>
+                                        <th width="20%">Item</th>
+                                        <th width="9%">Mes Carga</th>
+                                        <th width="9%">Plazo Interno</th>
+                                        <th width="10%">Estado</th>
+                                        <th width="11%">Fecha Envío</th>
+                                        <th width="11%">Carga Portal</th>
+                                        <th width="24%">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($envMen)): ?>
+                                        <tr><td colspan="8" class="text-center text-muted">No hay documentos enviados en este período.</td></tr>
+                                    <?php else: ?>
+                                        <?php foreach ($envMen as $item):
+                                            $esSM = ($item['doc_archivo'] === 'sin_movimiento');
+                                            $plazoTexto  = $item['plazo_interno']      ? date('d/m/Y', strtotime($item['plazo_interno']))           : '<span class="text-muted">-</span>';
+                                            $fechaEnvio  = $item['fecha_envio']         ? date('d/m/Y H:i', strtotime($item['fecha_envio']))          : '<span class="text-muted">-</span>';
+                                            $cargaPortal = $item['fecha_carga_portal']  ? date('d/m/Y H:i', strtotime($item['fecha_carga_portal']))   : '<span class="text-muted">Pendiente</span>';
+                                            if ($esSM) {
+                                                $estadoBadge = '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>';
+                                            } elseif ($item['doc_estado'] === 'aprobado') {
+                                                $estadoBadge = '<span class="badge bg-success">Aprobado</span>';
+                                            } elseif ($item['doc_estado'] === 'rechazado') {
+                                                $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
+                                            } else {
+                                                $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
+                                            }
+                                            if (!$esSM && $item['usuario_nombre']) {
+                                                $estadoBadge .= '<br><small class="text-muted">Por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
+                                            }
+                                        ?>
+                                        <tr class="table-success">
+                                            <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                            <td>
+                                                <div><?php echo htmlspecialchars($item['item_nombre']); ?></div>
+                                                <button class="btn btn-xs btn-outline-secondary mt-1"
+                                                        data-bs-toggle="modal" data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
+                                                    <i class="bi bi-clock-history"></i> Historial
+                                                </button>
+                                            </td>
+                                            <td><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></td>
+                                            <td><?php echo $plazoTexto; ?></td>
+                                            <td><?php echo $estadoBadge; ?></td>
+                                            <td><?php echo $fechaEnvio; ?></td>
+                                            <td><?php echo $cargaPortal; ?></td>
+                                            <td>
+                                                <div class="d-flex gap-1 flex-wrap">
+                                                    <?php if (!$esSM): ?>
+                                                        <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>"
+                                                           class="btn btn-sm btn-success" target="_blank">
+                                                            <i class="bi bi-file-earmark-check"></i> Ver Doc
+                                                        </a>
+                                                        <?php if ($item['verificador_id']): ?>
+                                                            <button class="btn btn-sm btn-info"
+                                                                    data-bs-toggle="modal" data-bs-target="#modalVerVerificador"
+                                                                    onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
+                                                                <i class="bi bi-patch-check"></i> Ver Verif
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    <?php else: ?>
+                                                        <span class="text-muted small"><i class="bi bi-slash-circle"></i> Sin Movimiento declarado</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /inner tab-content mensual -->
+            </div><!-- /mensual tab-pane -->
 
             <!-- TAB TRIMESTRAL -->
-            <div class="tab-pane fade" id="trimestral" role="tabpanel">
-                <h5 class="mb-3"><i class="bi bi-calendar3 text-success"></i> Items Trimestrales</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="8%">Núm.</th>
-                                <th width="25%">Item</th>
-                                <th width="12%">Plazo Interno</th>
-                                <th width="12%">Estado</th>
-                                <th width="13%">Fecha Envío</th>
-                                <th width="13%">Carga Portal</th>
-                                <th width="17%">Acciones</th>
+            <?php
+            $penTrim = $itemsPendientesPorPer['trimestral']; $envTrim = $itemsEnviadosPorPer['trimestral'];
+            $penSem  = $itemsPendientesPorPer['semestral'];  $envSem  = $itemsEnviadosPorPer['semestral'];
+            $penAnu  = $itemsPendientesPorPer['anual'];      $envAnu  = $itemsEnviadosPorPer['anual'];
+            $penOcu  = $itemsPendientesPorPer['ocurrencia']; $envOcu  = $itemsEnviadosPorPer['ocurrencia'];
+            $tabsOtros = [
+                'trimestral' => ['id'=>'trimestral','icon'=>'bi-calendar3','color'=>'text-success','label'=>'Trimestrales','pen'=>$penTrim,'env'=>$envTrim,'prefix'=>'trim'],
+                'semestral'  => ['id'=>'semestral', 'icon'=>'bi-calendar2-range','color'=>'text-info',   'label'=>'Semestrales', 'pen'=>$penSem, 'env'=>$envSem, 'prefix'=>'sem'],
+                'anual'      => ['id'=>'anual',     'icon'=>'bi-calendar-event', 'color'=>'text-warning','label'=>'Anuales',     'pen'=>$penAnu, 'env'=>$envAnu, 'prefix'=>'anu'],
+                'ocurrencia' => ['id'=>'ocurrencia','icon'=>'bi-calendar-check', 'color'=>'text-danger', 'label'=>'Ocurrencia',  'pen'=>$penOcu, 'env'=>$envOcu, 'prefix'=>'ocu'],
+            ];
+            foreach ($tabsOtros as $tConf): ?>
+            <div class="tab-pane fade" id="<?php echo $tConf['id']; ?>" role="tabpanel">
+                <h5 class="mb-3"><i class="bi <?php echo $tConf['icon'].' '.$tConf['color']; ?>"></i> Items <?php echo $tConf['label']; ?></h5>
+                <ul class="nav nav-pills mb-3" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-<?php echo $tConf['prefix']; ?>-pend" type="button">
+                        <i class="bi bi-clock-history"></i> Documentos Pendientes
+                        <?php if (count($tConf['pen']) > 0): ?><span class="badge bg-danger ms-1"><?php echo count($tConf['pen']); ?></span><?php endif; ?>
+                    </button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-<?php echo $tConf['prefix']; ?>-env" type="button">
+                        <i class="bi bi-check-circle"></i> Documentos Enviados
+                        <?php if (count($tConf['env']) > 0): ?><span class="badge bg-success ms-1"><?php echo count($tConf['env']); ?></span><?php endif; ?>
+                    </button></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="pane-<?php echo $tConf['prefix']; ?>-pend">
+                        <div class="table-responsive"><table class="table table-hover table-bordered">
+                            <thead class="table-light"><tr>
+                                <th width="8%">Núm.</th><th width="28%">Item</th><th width="12%">Plazo Interno</th>
+                                <th width="12%">Estado</th><th width="13%">Fecha Envío</th><th width="27%">Acciones</th>
+                            </tr></thead>
+                            <tbody>
+                            <?php if (empty($tConf['pen'])): ?>
+                                <tr><td colspan="6" class="text-center text-success"><i class="bi bi-check-circle"></i> Todos los documentos de este período han sido enviados.</td></tr>
+                            <?php else: foreach ($tConf['pen'] as $item):
+                                $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
+                                $fechaEnvio = $item['fecha_envio']   ? date('d/m/Y', strtotime($item['fecha_envio']))   : '<span class="text-muted">-</span>';
+                            ?>
+                            <tr class="table-warning">
+                                <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
+                                <td><?php echo $plazoTexto; ?></td>
+                                <td><span class="badge bg-secondary">Sin Cargar</span></td>
+                                <td><?php echo $fechaEnvio; ?></td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
+                                            onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
+                                        <i class="bi bi-upload"></i> Cargar Docto
+                                    </button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($itemsPorPeriodicidad['trimestral'])): ?>
-                                <tr><td colspan="7" class="text-center text-muted">No tienes items trimestrales asignados</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($itemsPorPeriodicidad['trimestral'] as $item): 
-                                    $rowClass = $item['doc_id'] ? 'table-success' : 'table-warning';
-                                    $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                    $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
-                                    $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal'])) : '<span class="text-muted">-</span>';
-                                    
-                                    $estadoBadge = !$item['doc_id'] ? '<span class="badge bg-secondary">Sin Cargar</span>' : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
-                                ?>
-                                <tr class="<?php echo $rowClass; ?>">
-                                    <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                    <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
-                                    <td><?php echo $plazoTexto; ?></td>
-                                    <td><?php echo $estadoBadge; ?></td>
-                                    <td><?php echo $fechaEnvio; ?></td>
-                                    <td><?php echo $cargaPortal; ?></td>
-                                    <td>
-                                        <?php if ($item['doc_id']): ?>
-                                            <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
-                                        <?php else: ?>
-                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                                                <i class="bi bi-upload"></i> Cargar
+                            <?php endforeach; endif; ?>
+                            </tbody>
+                        </table></div>
+                    </div>
+                    <div class="tab-pane fade" id="pane-<?php echo $tConf['prefix']; ?>-env">
+                        <div class="table-responsive"><table class="table table-hover table-bordered">
+                            <thead class="table-light"><tr>
+                                <th width="8%">Núm.</th><th width="25%">Item</th><th width="11%">Plazo Interno</th>
+                                <th width="11%">Estado</th><th width="12%">Fecha Envío</th><th width="12%">Carga Portal</th><th width="21%">Acciones</th>
+                            </tr></thead>
+                            <tbody>
+                            <?php if (empty($tConf['env'])): ?>
+                                <tr><td colspan="7" class="text-center text-muted">No hay documentos enviados aún.</td></tr>
+                            <?php else: foreach ($tConf['env'] as $item):
+                                $esSM = ($item['doc_archivo'] === 'sin_movimiento');
+                                $plazoTexto  = $item['plazo_interno']     ? date('d/m/Y', strtotime($item['plazo_interno']))         : '<span class="text-muted">-</span>';
+                                $fechaEnvio  = $item['fecha_envio']        ? date('d/m/Y', strtotime($item['fecha_envio']))           : '<span class="text-muted">-</span>';
+                                $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal']))    : '<span class="text-muted">-</span>';
+                                $estadoBadge = $esSM ? '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>'
+                                    : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
+                            ?>
+                            <tr class="table-success">
+                                <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
+                                <td><?php echo $plazoTexto; ?></td>
+                                <td><?php echo $estadoBadge; ?></td>
+                                <td><?php echo $fechaEnvio; ?></td>
+                                <td><?php echo $cargaPortal; ?></td>
+                                <td>
+                                    <?php if (!$esSM): ?>
+                                        <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success" target="_blank">
+                                            <i class="bi bi-file-check"></i> Ver Doc
+                                        </a>
+                                        <?php if ($item['verificador_id']): ?>
+                                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalVerVerificador"
+                                                    onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
+                                                <i class="bi bi-patch-check"></i> Ver Verif
                                             </button>
                                         <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                                    <?php else: ?>
+                                        <span class="text-muted small"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                            </tbody>
+                        </table></div>
+                    </div>
                 </div>
             </div>
+            <?php endforeach; /* tabsOtros */ ?>
 
-            <!-- TAB SEMESTRAL -->
-            <div class="tab-pane fade" id="semestral" role="tabpanel">
-                <h5 class="mb-3"><i class="bi bi-calendar2-range text-info"></i> Items Semestrales</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="8%">Núm.</th>
-                                <th width="25%">Item</th>
-                                <th width="12%">Plazo Interno</th>
-                                <th width="12%">Estado</th>
-                                <th width="13%">Fecha Envío</th>
-                                <th width="13%">Carga Portal</th>
-                                <th width="17%">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($itemsPorPeriodicidad['semestral'])): ?>
-                                <tr><td colspan="7" class="text-center text-muted">No tienes items semestrales asignados</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($itemsPorPeriodicidad['semestral'] as $item): 
-                                    $rowClass = $item['doc_id'] ? 'table-success' : 'table-warning';
-                                    $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                    $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
-                                    $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal'])) : '<span class="text-muted">-</span>';
-                                    
-                                    $estadoBadge = !$item['doc_id'] ? '<span class="badge bg-secondary">Sin Cargar</span>' : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
-                                ?>
-                                <tr class="<?php echo $rowClass; ?>">
-                                    <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                    <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
-                                    <td><?php echo $plazoTexto; ?></td>
-                                    <td><?php echo $estadoBadge; ?></td>
-                                    <td><?php echo $fechaEnvio; ?></td>
-                                    <td><?php echo $cargaPortal; ?></td>
-                                    <td>
-                                        <?php if ($item['doc_id']): ?>
-                                            <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
-                                        <?php else: ?>
-                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                                                <i class="bi bi-upload"></i> Cargar
-                                            </button>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-             </div>
+        </div><!-- /tab-content periodicidad -->
+    </div>
+</div>
 
-            <!-- TAB ANUAL -->
-            <div class="tab-pane fade" id="anual" role="tabpanel">
-                <h5 class="mb-3"><i class="bi bi-calendar-event text-warning"></i> Items Anuales</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="8%">Núm.</th>
-                                <th width="25%">Item</th>
-                                <th width="12%">Plazo Interno</th>
-                                <th width="12%">Estado</th>
-                                <th width="13%">Fecha Envío</th>
-                                <th width="13%">Carga Portal</th>
-                                <th width="17%">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($itemsPorPeriodicidad['anual'])): ?>
-                                <tr><td colspan="7" class="text-center text-muted">No tienes items anuales asignados</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($itemsPorPeriodicidad['anual'] as $item): 
-                                    $rowClass = $item['doc_id'] ? 'table-success' : 'table-warning';
-                                    $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                    $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
-                                    $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal'])) : '<span class="text-muted">-</span>';
-                                    
-                                    $estadoBadge = !$item['doc_id'] ? '<span class="badge bg-secondary">Sin Cargar</span>' : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
-                                ?>
-                                <tr class="<?php echo $rowClass; ?>">
-                                    <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                    <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
-                                    <td><?php echo $plazoTexto; ?></td>
-                                    <td><?php echo $estadoBadge; ?></td>
-                                    <td><?php echo $fechaEnvio; ?></td>
-                                    <td><?php echo $cargaPortal; ?></td>
-                                    <td>
-                                        <?php if ($item['doc_id']): ?>
-                                            <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
-                                        <?php else: ?>
-                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                                                <i class="bi bi-upload"></i> Cargar
-                                            </button>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+<!-- MODAL SIN MOVIMIENTO -->
+<div class="modal fade" id="modalSinMovimiento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-slash-circle"></i> Confirmar Sin Movimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
-            <!-- TAB OCURRENCIA -->
-            <div class="tab-pane fade" id="ocurrencia" role="tabpanel">
-                <h5 class="mb-3"><i class="bi bi-calendar-check text-danger"></i> Items por Ocurrencia</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="8%">Núm.</th>
-                                <th width="25%">Item</th>
-                                <th width="12%">Plazo Interno</th>
-                                <th width="12%">Estado</th>
-                                <th width="13%">Fecha Envío</th>
-                                <th width="13%">Carga Portal</th>
-                                <th width="17%">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($itemsPorPeriodicidad['ocurrencia'])): ?>
-                                <tr><td colspan="7" class="text-center text-muted">No tienes items por ocurrencia asignados</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($itemsPorPeriodicidad['ocurrencia'] as $item): 
-                                    $rowClass = $item['doc_id'] ? 'table-success' : 'table-warning';
-                                    $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                    $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
-                                    $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal'])) : '<span class="text-muted">-</span>';
-                                    
-                                    $estadoBadge = !$item['doc_id'] ? '<span class="badge bg-secondary">Sin Cargar</span>' : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
-                                ?>
-                                <tr class="<?php echo $rowClass; ?>">
-                                    <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                    <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
-                                    <td><?php echo $plazoTexto; ?></td>
-                                    <td><?php echo $estadoBadge; ?></td>
-                                    <td><?php echo $fechaEnvio; ?></td>
-                                    <td><?php echo $cargaPortal; ?></td>
-                                    <td>
-                                        <?php if ($item['doc_id']): ?>
-                                            <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success"><i class="bi bi-file-check"></i> Ver</a>
-                                        <?php else: ?>
-                                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                                                <i class="bi bi-upload"></i> Cargar
-                                            </button>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+            <form method="POST" action="sin_movimiento.php">
+                <div class="modal-body">
+                    <input type="hidden" name="item_id"   id="smItemId">
+                    <input type="hidden" name="mes_carga" id="smMes">
+                    <input type="hidden" name="ano_carga" id="smAno">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>¿Confirma que no hay movimiento para este período?</strong>
+                    </div>
+                    <p>Item: <strong id="smItemNombre">—</strong></p>
+                    <p>Período: <strong id="smPeriodoTexto">—</strong></p>
+                    <p class="text-muted small">Esta acción registrará "Sin Movimiento" para el período seleccionado y moverá el item a la pestaña <em>Documentos Enviados</em>.</p>
                 </div>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-slash-circle"></i> Confirmar Sin Movimiento
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -658,6 +670,14 @@ function seleccionarItem(itemId, itemNombre, mesCarga = null) {
     } else {
         mesPeriodoSpan.innerHTML = '';
     }
+}
+
+function seleccionarSinMovimiento(itemId, itemNombre, mes, ano) {
+    document.getElementById('smItemId').value = itemId;
+    document.getElementById('smMes').value = mes;
+    document.getElementById('smAno').value = ano;
+    document.getElementById('smItemNombre').textContent = itemNombre;
+    document.getElementById('smPeriodoTexto').textContent = meses[mes] + ' ' + ano;
 }
 
 // Función para mostrar historial
