@@ -285,9 +285,13 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $items):
                     </td>
                     <td>
                         <!-- Documento pendiente de verificador -->
-                        <button class="btn btn-sm btn-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                            <i class="bi bi-eye"></i> Ver Doc
-                        </button>
+                        <?php if ($item['archivo'] === 'sin_movimiento'): ?>
+                            <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin movimiento declarado</span>
+                        <?php else: ?>
+                            <button class="btn btn-sm btn-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
+                                <i class="bi bi-eye"></i> Ver Doc
+                            </button>
+                        <?php endif; ?>
                         <button class="btn btn-sm btn-primary" onclick="abrirModalVerificador(<?php echo $item['doc_id']; ?>, <?php echo $item['item_id']; ?>, <?php echo $item['usuario_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
                             <i class="bi bi-cloud-upload"></i> Cargar Verificador
                         </button>
@@ -320,6 +324,7 @@ $queryPublicados = "
         i.periodicidad,
         d.id as doc_id,
         d.titulo,
+        d.archivo,
         ds.mes,
         ds.ano,
         ds.fecha_envio,
@@ -404,9 +409,13 @@ if (count($itemsPublicadosTodos) === 0) {
                         <?php endif; ?>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-outline-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                            <i class="bi bi-file-earmark-text"></i> Doc
-                        </button>
+                        <?php if ($item['archivo'] === 'sin_movimiento'): ?>
+                            <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin movimiento declarado</span>
+                        <?php else: ?>
+                            <button class="btn btn-sm btn-outline-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
+                                <i class="bi bi-file-earmark-text"></i> Doc
+                            </button>
+                        <?php endif; ?>
                         <button class="btn btn-sm btn-outline-success" onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
                             <i class="bi bi-patch-check"></i> Verif
                         </button>
