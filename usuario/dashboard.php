@@ -446,6 +446,14 @@ if ($error) unset($_SESSION['error']);
                                                                     onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
                                                                 <i class="bi bi-patch-check"></i> Ver Verif
                                                             </button>
+                                                        <?php elseif ($user_perfil === 'cargador_informacion'): ?>
+                                                            <!-- Botón Actualizar para documentos no publicados -->
+                                                            <button class="btn btn-sm btn-warning"
+                                                                    data-bs-toggle="modal" data-bs-target="#modalCargar"
+                                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                                    title="Solo puede actualizar los documentos que no han sido publicados">
+                                                                <i class="bi bi-arrow-repeat"></i> Actualizar
+                                                            </button>
                                                         <?php endif; ?>
                                                     <?php else: ?>
                                                         <span class="text-muted small"><i class="bi bi-slash-circle"></i> Sin Movimiento declarado</span>
@@ -565,6 +573,14 @@ if ($error) unset($_SESSION['error']);
                                             <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalVerVerificador"
                                                     onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
                                                 <i class="bi bi-patch-check"></i> Ver Verif
+                                            </button>
+                                        <?php elseif ($user_perfil === 'cargador_informacion'): ?>
+                                            <!-- Botón Actualizar para documentos no publicados -->
+                                            <button class="btn btn-sm btn-warning"
+                                                    data-bs-toggle="modal" data-bs-target="#modalCargar"
+                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')"
+                                                    title="Solo puede actualizar los documentos que no han sido publicados">
+                                                <i class="bi bi-arrow-repeat"></i> Actualizar
                                             </button>
                                         <?php endif; ?>
                                     <?php else: ?>
@@ -844,6 +860,16 @@ function verEnPantallaCompleta(imageSrc) {
         </div>
     </div>
 </div>
+
+<script>
+// Inicializar tooltips de Bootstrap
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>
 
