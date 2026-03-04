@@ -63,7 +63,7 @@ $query = "
     LEFT JOIN item_plazos ip ON i.id = ip.item_id 
         AND ip.ano = ? AND ip.mes = ?
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
-    LEFT JOIN usuarios u_pub ON vp.usuario_id = u_pub.id
+    LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id
     WHERE i.activo = 1
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
