@@ -38,7 +38,10 @@ function decimoDiaHabil(int $mes, int $ano): string {
     return sprintf('%04d-%02d-%02d', $ano, $mes, $dia);
 }
 
-$plazoLegal = decimoDiaHabil($mesSeleccionado, $anoSeleccionado);
+// El plazo legal es el 10° día hábil del MES SIGUIENTE al período seleccionado
+$mesSiguiente = $mesSeleccionado == 12 ? 1 : $mesSeleccionado + 1;
+$anoSiguiente  = $mesSeleccionado == 12 ? $anoSeleccionado + 1 : $anoSeleccionado;
+$plazoLegal = decimoDiaHabil($mesSiguiente, $anoSiguiente);
 $plazoLegalDisplay = date('d/m/Y', strtotime($plazoLegal));
 
 // =====================================================
@@ -162,7 +165,7 @@ $totalPublicados = count($itemsPublicados);
                 </form>
                 <small class="text-muted mt-2 d-block">
                     <i class="bi bi-info-circle"></i>
-                    Plazo legal (10° día hábil): <strong><?php echo $plazoLegalDisplay; ?></strong>
+                    Plazo legal publicación (10° día hábil de <?php echo $meses[$mesSiguiente] . ' ' . $anoSiguiente; ?>): <strong><?php echo $plazoLegalDisplay; ?></strong>
                 </small>
             </div>
         </div>
@@ -305,7 +308,7 @@ $totalPublicados = count($itemsPublicados);
 
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i>
-            Plazo legal para publicación (10° día hábil del mes seleccionado): <strong><?php echo $plazoLegalDisplay; ?></strong>
+            Los documentos de <strong><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></strong> debían publicarse antes del <strong><?php echo $plazoLegalDisplay; ?></strong> (10° día hábil de <?php echo $meses[$mesSiguiente] . ' ' . $anoSiguiente; ?>).
         </div>
 
         <?php if (count($itemsPublicados) === 0): ?>
