@@ -52,7 +52,8 @@ $query = "
         u.nombre as usuario_nombre,
         ip.plazo_interno,
         vp.id as verificador_id,
-        vp.fecha_carga_portal
+        vp.fecha_carga_portal,
+        u_pub.nombre as publicador_nombre
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
@@ -62,6 +63,7 @@ $query = "
     LEFT JOIN item_plazos ip ON i.id = ip.item_id 
         AND ip.ano = ? AND ip.mes = ?
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
+    LEFT JOIN usuarios u_pub ON vp.usuario_id = u_pub.id
     WHERE i.activo = 1
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
@@ -138,7 +140,8 @@ while ($row = $resultado->fetch_assoc()) {
             'fecha_envio' => null,
             'usuario_nombre' => null,
             'verificador_id' => null,
-            'fecha_carga_portal' => null
+            'fecha_carga_portal' => null,
+            'publicador_nombre' => null
         ];
         
         if (!$row['doc_id']) {
@@ -160,6 +163,7 @@ while ($row = $resultado->fetch_assoc()) {
         $itemsCache[$itemId]['usuario_nombre'] = $row['usuario_nombre'];
         $itemsCache[$itemId]['verificador_id'] = $row['verificador_id'];
         $itemsCache[$itemId]['fecha_carga_portal'] = $row['fecha_carga_portal'];
+        $itemsCache[$itemId]['publicador_nombre'] = $row['publicador_nombre'];
     }
 }
 
@@ -397,17 +401,21 @@ if ($error) unset($_SESSION['error']);
                                             $plazoTexto  = $item['plazo_interno']      ? date('d/m/Y', strtotime($item['plazo_interno']))           : '<span class="text-muted">-</span>';
                                             $fechaEnvio  = $item['fecha_envio']         ? date('d/m/Y H:i', strtotime($item['fecha_envio']))          : '<span class="text-muted">-</span>';
                                             $cargaPortal = $item['fecha_carga_portal']  ? date('d/m/Y H:i', strtotime($item['fecha_carga_portal']))   : '<span class="text-muted">Pendiente</span>';
+                                            
                                             if ($esSM) {
                                                 $estadoBadge = '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>';
-                                            } elseif ($item['doc_estado'] === 'aprobado') {
-                                                $estadoBadge = '<span class="badge bg-success">Aprobado</span>';
-                                            } elseif ($item['doc_estado'] === 'rechazado') {
-                                                $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
+                                            } elseif ($item['fecha_carga_portal']) {
+                                                // Ya está publicado en el portal
+                                                $estadoBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Publicado en portal TA</span>';
+                                                if ($item['publicador_nombre']) {
+                                                    $estadoBadge .= '<br><small class="text-muted">Publicado por: ' . htmlspecialchars($item['publicador_nombre']) . '</small>';
+                                                }
                                             } else {
+                                                // Enviado pero pendiente de publicación
                                                 $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
-                                            }
-                                            if (!$esSM && $item['usuario_nombre']) {
-                                                $estadoBadge .= '<br><small class="text-muted">Por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
+                                                if ($item['usuario_nombre']) {
+                                                    $estadoBadge .= '<br><small class="text-muted">Enviado por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
+                                                }
                                             }
                                         ?>
                                         <tr class="table-success">
@@ -524,8 +532,22 @@ if ($error) unset($_SESSION['error']);
                                 $plazoTexto  = $item['plazo_interno']     ? date('d/m/Y', strtotime($item['plazo_interno']))         : '<span class="text-muted">-</span>';
                                 $fechaEnvio  = $item['fecha_envio']        ? date('d/m/Y', strtotime($item['fecha_envio']))           : '<span class="text-muted">-</span>';
                                 $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal']))    : '<span class="text-muted">-</span>';
-                                $estadoBadge = $esSM ? '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>'
-                                    : ($item['doc_estado'] === 'aprobado' ? '<span class="badge bg-success">Aprobado</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>');
+                                
+                                if ($esSM) {
+                                    $estadoBadge = '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>';
+                                } elseif ($item['fecha_carga_portal']) {
+                                    // Ya está publicado en el portal
+                                    $estadoBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Publicado en portal TA</span>';
+                                    if ($item['publicador_nombre']) {
+                                        $estadoBadge .= '<br><small class="text-muted">Publicado por: ' . htmlspecialchars($item['publicador_nombre']) . '</small>';
+                                    }
+                                } else {
+                                    // Enviado pero pendiente de publicación
+                                    $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
+                                    if ($item['usuario_nombre']) {
+                                        $estadoBadge .= '<br><small class="text-muted">Enviado por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
+                                    }
+                                }
                             ?>
                             <tr class="table-success">
                                 <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
