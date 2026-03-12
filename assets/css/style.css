@@ -1,0 +1,135 @@
+/**
+ * Estilos Generales
+ * Sistema de Numeración - Municipalidad de Los Lagos
+ */
+
+/* Variables */
+:root {
+    --primary-color: #1e3c72;
+    --secondary-color: #2a5298;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+}
+
+/* General */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 10px;
+}
+
+.card-header {
+    border-bottom: none;
+    border-radius: 10px 10px 0 0 !important;
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-lg {
+    padding: 12px 30px;
+}
+
+/* Color preview */
+.color-preview {
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    border-radius: 5px;
+    vertical-align: middle;
+}
+
+/* Tables */
+.table th {
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+/* Navbar */
+.navbar-brand {
+    font-weight: 600;
+}
+
+/* Forms */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(30, 60, 114, 0.25);
+}
+
+/* Alerts */
+.alert {
+    border: none;
+    border-radius: 10px;
+}
+
+/* Modal */
+.modal-content {
+    border: none;
+    border-radius: 15px;
+}
+
+.modal-header {
+    border-radius: 15px 15px 0 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar, .btn, .no-print {
+        display: none !important;
+    }
+}

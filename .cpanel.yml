@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/appmuniloslagos/public_html/numeracion
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/chmod 755 $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/uploads
+    - /bin/chmod 777 $DEPLOYPATH/uploads

@@ -1,0 +1,60 @@
+# Configuración de Apache para el sistema de transparencia
+# Redirigir HTTP a HTTPS (descomenta en producción)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Deshabilitar listado de directorios
+Options -Indexes
+
+# Habilitar URL rewriting
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /cumplimiento/
+    
+    # Permitir acceso a archivos y directorios reales
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Redirigir a index.php si el archivo no existe
+    # RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?page=$1 [L,QSA]
+</IfModule>
+
+# Configurar tipos MIME
+AddType application/json .json
+AddType application/pdf .pdf
+
+# Seguridad - Prevenir acceso a archivos sensibles
+<FilesMatch "\.(env|config\.php|database\.yml|\.git)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Configurar compresión GZIP
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# Caché del navegador
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+</IfModule>
+
+# Encabezados de seguridad
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "no-referrer-when-downgrade"
+</IfModule>

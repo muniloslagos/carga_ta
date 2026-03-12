@@ -1,0 +1,135 @@
+================================================================================
+REDISEÑO DE INTERFAZ: GESTIÓN DE PLAZOS INTERNOS
+================================================================================
+
+ARCHIVO MODIFICADO:
+- admin/items/plazos.php
+
+CAMBIO PRINCIPAL:
+De interfaz por-item a interfaz por-periodicidad
+
+ANTES (Interfaz Item-by-Item):
+✗ Dropdown para seleccionar item individual
+✗ Dropdown para seleccionar año
+✗ Tabla con 12 meses (mes a mes manual)
+✗ Modal para editar cada mes del item seleccionado
+✗ Muy tedioso para configurar plazos masivamente
+
+DESPUÉS (Interfaz Agrupada por Periodicidad):
+✓ 4 secciones principales agrupadas por tipo
+✓ Items Mensual: Una sola forma para asignar plazo a TODOS a la vez
+✓ Items Trimestral: Solo información (plazos son fijos)
+✓ Items Semestral: Solo información (plazos son fijos)
+✓ Items Anual: Tabla listando cada item con botón Editar individual
+
+================================================================================
+LÓGICA DE PLAZOS IMPLEMENTADA
+================================================================================
+
+ITEMS MENSUAL:
+- Tipo: Configurable
+- Alcance: TODOS los items con periodicidad='mensual'
+- Interfaz: Un formulario con día del mes + año
+- Guardado: Crea/actualiza 12 registros en DB (uno por mes)
+- Efecto: Todos los items mensual reciben el mismo plazo
+
+ITEMS TRIMESTRAL:
+- Tipo: Fijo (no configurable)
+- Q1 (Ene-Mar): Vencimiento 7 de Abril
+- Q2 (Abr-Jun): Vencimiento 7 de Julio
+- Q3 (Jul-Sep): Vencimiento 7 de Noviembre
+- Q4 (Oct-Dic): Vencimiento 7 de Enero (año siguiente)
+- Interfaz: Solo informativa, sin formularios
+
+ITEMS SEMESTRAL:
+- Tipo: Fijo (no configurable)
+- S1 (Ene-Jun): Vencimiento 7 de Agosto
+- S2 (Jul-Dic): Vencimiento 7 de Enero (año siguiente)
+- Interfaz: Solo informativa, sin formularios
+
+ITEMS ANUAL:
+- Tipo: Configurable por item
+- Alcance: Cada item configurado individualmente
+- Interfaz: Tabla + Modal para editar
+- Guardado: Un registro por item por año (mes=1 como referencia)
+- Efecto: Cada item anual puede tener plazo diferente
+
+================================================================================
+TÉCNICA DE GUARDADO
+================================================================================
+
+MENSUAL (Múltiples registros):
+INSERT INTO item_plazos (item_id, ano, mes, plazo_interno, fecha_carga_portal)
+VALUES 
+  (item_1, 2025, 1, '15', NULL),  -- Item 1, Enero 2025
+  (item_1, 2025, 2, '15', NULL),  -- Item 1, Febrero 2025
+  ...
+  (item_2, 2025, 1, '15', NULL),  -- Item 2, Enero 2025
+  (item_2, 2025, 2, '15', NULL),  -- Item 2, Febrero 2025
+
+ANUAL (Un registro por item):
+INSERT INTO item_plazos (item_id, ano, mes, plazo_interno, fecha_carga_portal)
+VALUES 
+  (item_10, 2025, 1, '2025-06-30', NULL),  -- Item 10, Año 2025
+  (item_11, 2025, 1, '2025-07-31', NULL),  -- Item 11, Año 2025
+
+================================================================================
+FUNCIONALIDAD EN DASHBOARD
+================================================================================
+
+El dashboard usuario/dashboard.php ya integra:
+✓ getPlazoFinal() - Devuelve plazo personalizado o automático
+✓ Calcula automáticamente plazos trimestral/semestral
+✓ Permite plazos personalizados para mensual/anual
+✓ Muestra todos los plazos correctamente en 5 pestañas
+
+================================================================================
+CAMBIOS EN EL CÓDIGO
+================================================================================
+
+ANTES:
+1. POST: Guardaba un solo plazo (item + mes específico)
+2. GET: Required item_id y ano para mostrar tabla
+3. Modal: Editaba mes individual del item
+
+DESPUÉS:
+1. POST: Detecta tipo_plazo (mensual/anual) y guarda correspondientemente
+2. GET: No requiere parámetros, muestra todas las secciones
+3. Modal: Modal aparte para edición anual (no para mensual)
+4. Lógica: Para mensual = loop de 12 inserts automáticos
+
+================================================================================
+VALIDACIÓN
+================================================================================
+
+✓ PHP Syntax: No errors detected
+✓ ItemPlazo.php: Método getByItemAndMes() existe
+✓ Item.php: Parámetro periodicidad en getAll() funciona
+✓ PlazoCalculator.php: Métodos trimestral/semestral disponibles
+✓ HTML Bootstrap: Form groups, modals, badges funcionan correctamente
+
+================================================================================
+TESTING RECOMENDADO
+================================================================================
+
+1. TEST MENSUAL:
+   - Ingrese día 15, año 2025
+   - Verifique que se guardan 12 registros (1 por mes)
+   - Valide que el dashboard muestra "15" para items mensual
+
+2. TEST ANUAL:
+   - Seleccione un item anual
+   - Ingrese fecha 2025-06-30
+   - Verifique que se muestra en la tabla
+   - Valide que el dashboard muestra esa fecha
+
+3. TEST INFORMACIÓN:
+   - Verifique que Trimestral y Semestral muestren SOLO info
+   - Valide que NO hay formularios en esas secciones
+
+4. TEST PERSISTENCIA:
+   - Guarde plazos, recargue página
+   - Verifique que los datos persisten
+   - Valide acceso desde dashboard
+
+================================================================================

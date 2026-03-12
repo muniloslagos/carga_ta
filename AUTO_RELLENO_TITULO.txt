@@ -1,0 +1,58 @@
+# AUTO-RELLENO DE TÍTULO EN MODAL DE CARGA
+
+## Cambio Implementado
+
+Cuando el usuario cargador abre el modal para cargar un documento, el campo **"Título del Documento"** se rellena automáticamente con:
+
+**Nombre del Item + Mes + Año**
+
+## Ejemplo
+
+Si Marianela carga un documento para "Libro diario municipal" en noviembre 2025:
+
+### Antes:
+- Campo Título: [vacío - debe escribir manualmente]
+
+### Ahora:
+- Campo Título: `Libro diario municipal - Noviembre 2025` ← **Auto-relleno**
+
+## Cómo Funciona
+
+1. Usuario hace clic en botón "Enviar" en un item
+2. Se abre modal con datos del item
+3. Función JavaScript `seleccionarItem()` construye el título automáticamente
+4. El título aparece en el campo "Título del Documento"
+5. Usuario puede editar si desea, o dejar como está
+
+## Código Modificado
+
+**Archivo:** `usuario/dashboard.php` (línea ~752)
+
+```javascript
+function seleccionarItem(itemId, itemNombre, mesCarga = null) {
+    document.getElementById('itemIdInput').value = itemId;
+    document.getElementById('itemNombreModal').textContent = itemNombre;
+    
+    // Rellenar automáticamente el título con: Item Name + Mes
+    let titulo = itemNombre;
+    if (mesCarga) {
+        const anoActual = new Date().getFullYear();
+        titulo = itemNombre + ' - ' + meses[mesCarga] + ' ' + anoActual;
+    }
+    document.getElementById('titulo').value = titulo;
+    
+    // ... resto del código
+}
+```
+
+## Beneficios
+
+✓ **Más rápido:** El usuario no necesita escribir el título manualmente
+✓ **Consistente:** Todos los documentos siguen el mismo formato
+✓ **Flexible:** El usuario aún puede editar el título si lo necesita
+✓ **Informativo:** El título siempre incluye qué item es y para qué mes
+
+## Validación
+✓ Sintaxis PHP correcta
+✓ Lógica JavaScript funcional
+✓ Compatible con todos los navegadores

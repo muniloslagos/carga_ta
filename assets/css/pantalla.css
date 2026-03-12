@@ -1,0 +1,86 @@
+/**
+ * Estilos Pantalla Pública
+ * Sistema de Numeración - Municipalidad de Los Lagos
+ */
+
+/* Pantalla completa */
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Animaciones */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+@keyframes glow {
+    0%, 100% {
+        text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+    }
+    50% {
+        text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
+    }
+}
+
+/* Número principal */
+.numero-principal {
+    animation: slideIn 0.5s ease-out, pulse 2s infinite;
+}
+
+.numero-principal.nuevo {
+    animation: slideIn 0.5s ease-out, glow 1s ease-in-out 3;
+}
+
+/* Historial */
+.historial-scroll {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px 0;
+}
+
+/* Responsive para pantallas grandes */
+@media (min-width: 1920px) {
+    .numero-grande {
+        font-size: 20rem;
+    }
+    
+    .categoria-nombre {
+        font-size: 4rem;
+    }
+    
+    .modulo-info h2 {
+        font-size: 4rem;
+    }
+    
+    .modulo-info .funcionario {
+        font-size: 3rem;
+    }
+}
+
+/* Pantalla vertical (totem) */
+@media (orientation: portrait) {
+    .main-display {
+        flex-direction: column;
+    }
+    
+    .numero-grande {
+        font-size: 10rem;
+    }
+}

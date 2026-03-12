@@ -1,0 +1,67 @@
+# RECUADRO ROJO - Documentos Pendientes de Verificación
+
+## Cambio Implementado
+
+Se agregó un **recuadro rojo (alert)** en `/admin/publicador/index.php` que muestra cuando hay documentos sin verificación.
+
+### Ubicación
+Aparece debajo del selector de período (arriba de la tabla de documentos)
+
+### Comportamiento
+- **Si hay documentos sin verificador**: Muestra un alert rojo con icono de exclamación
+  - Mensaje: "¡Documentos Pendientes de Verificación!"
+  - Subtítulo: "Hay X documento(s) que requieren verificación"
+  
+- **Si todos los documentos están verificados**: No muestra nada (sin alert)
+
+### Estilo
+- Background: Rosa/rojo claro (#f8d7da)
+- Borde: Rojo (#dc3545)
+- Texto: Rojo oscuro (#721c24)
+- Icono: Círculo de exclamación
+
+### Datos Actuales (Noviembre 2025)
+✓ Documento: "libro" (ID 15)
+✓ Cargado por: Marianela Jaramillo
+✓ Item: Libro diario municipal
+✓ Estado: Aprobado
+✓ Verificación: **PENDIENTE** ← Por esto aparece el recuadro rojo
+
+## Lo Que Ve Juan Ahora
+
+```
+[Recuadro Rojo] ← ¡Documentos Pendientes de Verificación!
+                  Hay 1 documento(s) que requieren verificación
+                  
+Tabla con documentos para verificar
+- Libro diario municipal | "libro" | Marianela | [Ver Doc] [Cargar Verif]
+```
+
+## Código Agregado
+
+```php
+<?php
+// Contar documentos sin verificación
+$docsSinVerif = 0;
+foreach ($items as $item) {
+    $docsResult = $documentoClass->getByItemFollowUpAprobados($item['id'], $mesSeleccionado, $anoSeleccionado);
+    if ($docsResult && $docsResult->num_rows > 0) {
+        while ($doc = $docsResult->fetch_assoc()) {
+            $verificador = $verificadorClass->getByDocumento($doc['documento_id']);
+            if (!$verificador) {
+                $docsSinVerif++;
+            }
+        }
+    }
+}
+
+if ($docsSinVerif > 0) {
+    // Mostrar alert rojo
+}
+?>
+```
+
+## Validación
+✓ Sintaxis PHP correcta
+✓ Lógica de conteo funcionando
+✓ Recuadro se mostrará cuando hay documentos sin verificación

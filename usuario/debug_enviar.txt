@@ -1,0 +1,6 @@
+2025-12-15 07:44:19 - Script ejecutado
+POST data: {"item_id":"1","mes_carga":"11","titulo":"Capacitacion","descripcion":""}
+FILES data: {"archivo":{"name":"Remuneracion Personal a Honorario.csv","full_path":"Remuneracion Personal a Honorario.csv","type":"application\/vnd.ms-excel","tmp_name":"C:\\xampp\\tmp\\php354.tmp","error":0,"size":74539}}
+2025-12-15 07:44:58 - Script ejecutado
+POST data: {"item_id":"1","mes_carga":"12","titulo":"Capacitacion","descripcion":""}
+FILES data: {"archivo":{"name":"Remuneracion Personal a Honorario.csv","full_path":"Remuneracion Personal a Honorario.csv","type":"application\/vnd.ms-excel","tmp_name":"C:\\xampp\\tmp\\php9E3D.tmp","error":0,"size":74539}}

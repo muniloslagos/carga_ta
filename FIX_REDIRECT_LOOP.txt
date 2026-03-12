@@ -1,0 +1,252 @@
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                   ✅ BUCLE DE REDIRECCIÓN RESUELTO                         ║
+║                          Refactorización Completa                          ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+                              PROBLEMA ORIGINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+ERROR: "Firefox ha detectado que el servidor está redirigiendo la solicitud
+       a esta dirección de una manera en que nunca terminará"
+
+CAUSA: Las páginas incluían header.php (que emite HTML) ANTES de verificar
+       la autenticación y hacer header('Location:...'), causando un bucle
+       infinito de redirecciones.
+
+ARQUITECTURA PROBLEMÁTICA:
+┌──────────────────────────┐
+│ login.php                │
+├──────────────────────────┤
+│ 1. include header.php    │ ← HTML enviado al cliente
+│    (emite HTML)          │
+│                          │
+│ 2. if ($is_logged_in)    │
+│    header('Location')    │ ← ¡Ya es tarde! Headers no se pueden enviar
+│                          │
+│ 3. Formulario login      │
+└──────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                          SOLUCIÓN IMPLEMENTADA
+═══════════════════════════════════════════════════════════════════════════════
+
+Se creó un nuevo archivo `includes/check_auth.php` con funciones de helper
+que DEBEN incluirse ANTES de cualquier salida HTML.
+
+NUEVA ARQUITECTURA:
+┌──────────────────────────────┐
+│ login.php (REFACTORIZADO)    │
+├──────────────────────────────┤
+│ 1. include check_auth.php    │ ← Lógica PURA, sin HTML
+│    (solo lógica)             │
+│                              │
+│ 2. if already logged in:     │
+│    header('Location')        │ ← ✅ Headers no enviados todavía
+│    exit                       │
+│                              │
+│ 3. Procesar formulario POST  │
+│    if valid login:           │
+│    header('Location')        │ ← ✅ Headers no enviados todavía
+│                              │
+│ 4. Enviar HTML completo      │ ← HTML SOLO al final
+│    Formulario login          │
+└──────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                         ARCHIVOS CREADOS/MODIFICADOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ NUEVO: includes/check_auth.php
+   ─────────────────────────────────
+   Contiene:
+   - Inicialización de sesión
+   - Carga de configuración
+   - Inicialización de BD
+   - Funciones helper:
+     * require_login()           → Redirige a login si no autenticado
+     * require_role($role)       → Redirige si no tiene el rol requerido
+     * redirect_if_logged_in()   → Redirige si YA está autenticado
+
+✅ REFACTORIZADO: login.php
+   ────────────────────────────
+   ANTES:
+   - require_once 'includes/header.php'
+   - Verificar autenticación después de headers
+   
+   AHORA:
+   - require_once 'includes/check_auth.php'  ← Lógica primero
+   - redirect_if_logged_in()                  ← Redirección temprana
+   - Procesar formulario
+   - Mostrar HTML al final
+
+✅ REFACTORIZADO: admin/index.php
+   ───────────────────────────────
+   ANTES:
+   - include header
+   - if !admin { header('Location:...') }
+   
+   AHORA:
+   - include check_auth.php  ← PRIMERO
+   - require_role('administrativo')  ← Redireccionar si no es admin
+   - include header  ← LUEGO
+
+✅ REFACTORIZADO: admin/usuarios/index.php
+✅ REFACTORIZADO: admin/items/index.php
+✅ REFACTORIZADO: admin/direcciones/index.php
+✅ REFACTORIZADO: admin/documentos/index.php
+   ───────────────────────────────────────────
+   Mismo patrón que admin/index.php
+
+✅ REFACTORIZADO: usuario/dashboard.php
+   ─────────────────────────────────────
+   ANTES:
+   - include header
+   - if !logged_in { header('Location:...') }
+   
+   AHORA:
+   - include check_auth.php  ← PRIMERO
+   - require_login()         ← Redireccionar si no está logueado
+   - include header  ← LUEGO
+
+═══════════════════════════════════════════════════════════════════════════════
+                         ORDEN DE INCLUSIÓN CORRECTO
+═══════════════════════════════════════════════════════════════════════════════
+
+PASO 1: Lógica de autenticación (SIN HTML)
+────────────────────────────────────────────
+require_once 'includes/check_auth.php';
+
+PASO 2: Verificación de acceso (SIN HTML)
+──────────────────────────────────────────
+require_role('administrativo');
+// O
+require_login();
+// O
+redirect_if_logged_in();
+
+PASO 3: Redirecciones si es necesario (SIN HTML)
+─────────────────────────────────────────────────
+// Las funciones pueden hacer header() sin problemas
+
+PASO 4: Incluir header (CON HTML)
+──────────────────────────────────
+require_once 'includes/header.php';
+
+PASO 5: Contenido específico de la página
+──────────────────────────────────────────
+// Aquí ya no hay riesgo de redirecciones
+
+═══════════════════════════════════════════════════════════════════════════════
+                        FUNCIONES DISPONIBLES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. require_login()
+   ─────────────────
+   Uso: Requiere que el usuario esté autenticado
+   Acción: Redirige a login.php si no está logueado
+   Lugar: Usuario normal y admin
+
+2. require_role($role)
+   ────────────────────
+   Uso: Requiere un rol específico
+   Acción: Redirige a login.php si no tiene el rol
+   Parámetro: 'administrativo' o cualquier otro perfil
+   Lugar: Páginas admin
+
+3. redirect_if_logged_in()
+   ───────────────────────
+   Uso: Redirige si YA está autenticado (para login.php)
+   Acción: Redirige a admin/index.php o usuario/dashboard.php según perfil
+   Lugar: login.php solamente
+
+═══════════════════════════════════════════════════════════════════════════════
+                          FLUJO DE SEGURIDAD
+═══════════════════════════════════════════════════════════════════════════════
+
+ESCENARIO 1: Usuario no autenticado accede a /admin/index.php
+──────────────────────────────────────────────────────────────
+1. Incluye check_auth.php
+2. Llamar a require_role('administrativo')
+3. Verifica: !$is_logged_in = TRUE
+4. header('Location: ' . SITE_URL . 'login.php')
+5. exit;
+6. ✅ Redirige a login sin HTML
+
+ESCENARIO 2: Usuario autenticado accede a /admin/index.php
+────────────────────────────────────────────────────────────
+1. Incluye check_auth.php
+2. Llamar a require_role('administrativo')
+3. Verifica: $is_logged_in = TRUE && $current_profile = 'administrativo'
+4. Continúa la ejecución
+5. Incluye header.php
+6. ✅ Muestra el contenido sin redirecciones
+
+ESCENARIO 3: Usuario tipo USUARIO accede a /admin/index.php
+──────────────────────────────────────────────────────────────
+1. Incluye check_auth.php
+2. Llamar a require_role('administrativo')
+3. Verifica: $current_profile = 'usuario' ≠ 'administrativo'
+4. header('Location: ' . SITE_URL . 'login.php')
+5. exit;
+6. ✅ Redirige a login sin HTML
+
+═══════════════════════════════════════════════════════════════════════════════
+                         VALIDACIÓN Y PRUEBAS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Sintaxis PHP validada en 8 archivos:
+   - login.php ................................. OK
+   - includes/check_auth.php .................. OK
+   - admin/index.php .......................... OK
+   - admin/usuarios/index.php ................. OK
+   - admin/items/index.php .................... OK
+   - admin/direcciones/index.php .............. OK
+   - admin/documentos/index.php ............... OK
+   - usuario/dashboard.php .................... OK
+
+✅ Lógica de flujo verificada:
+   - No autenticado → redirige a login
+   - Admin logueado → ve admin panel
+   - Usuario logueado → ve dashboard
+   - Usuario accede admin → redirige a login
+
+✅ No hay bucles infinitos de redirección
+
+═══════════════════════════════════════════════════════════════════════════════
+                            INSTRUCCIONES DE USO
+═══════════════════════════════════════════════════════════════════════════════
+
+Para NUEVAS páginas que requieran autenticación:
+
+1. Incluir check_auth.php PRIMERO (sin HTML):
+   ───────────────────────────────────────────
+   <?php
+   require_once 'path/to/check_auth.php';
+   require_role('administrativo');  // Si es solo para admin
+   // O
+   require_login();  // Si es para cualquier usuario logueado
+
+2. Incluir header.php DESPUÉS (con HTML):
+   ────────────────────────────────────────
+   require_once 'path/to/header.php';
+
+3. Contenido de la página
+   ──────────────────────
+
+═══════════════════════════════════════════════════════════════════════════════
+                             ✨ RESULTADO FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ BUCLE DE REDIRECCIÓN ELIMINADO
+✅ FLUJO DE AUTENTICACIÓN SEGURO
+✅ ARQUITECTURA ESCALABLE
+✅ FÁCIL DE MANTENER
+
+El sistema ahora puede:
+- Acceder a http://localhost/cumplimiento/login.php sin bucles infinitos
+- Autenticar usuarios correctamente
+- Redirigir a la página correcta según el perfil
+- Proteger páginas admin y usuario según corresponda
+
+═══════════════════════════════════════════════════════════════════════════════

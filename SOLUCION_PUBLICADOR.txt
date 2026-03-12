@@ -1,0 +1,55 @@
+<?php
+require_once 'config/config.php';
+require_once 'config/Database.php';
+
+$db = new Database();
+$c = $db->getConnection();
+
+echo "=== PROBLEMA IDENTIFICADO Y SOLUCIÓN ===\n\n";
+
+echo "PROBLEMA:\n";
+echo "  Juan Fica (Publicador) NO VE el documento de Marianela Jaramillo\n";
+echo "  Item: Libro diario municipal (ID 20)\n";
+echo "  Documento: 'libro' cargado por Marianela (ID 6)\n\n";
+
+echo "RAZÓN:\n";
+echo "  El documento está en estado 'pendiente'\n";
+echo "  Publicador solo debe ver documentos en estado 'aprobado'\n";
+echo "  Flujo correcto:\n";
+echo "    1. Usuario carga documento → estado = 'pendiente'\n";
+echo "    2. Administrador revisa y aprueba → estado = 'aprobado'\n";
+echo "    3. Publicador ve y puede cargar verificador\n\n";
+
+echo "VERIFICACIÓN ACTUAL:\n";
+
+$result = $c->query("
+    SELECT d.id, d.titulo, d.estado, d.usuario_id, u.nombre
+    FROM documentos d
+    JOIN usuarios u ON d.usuario_id = u.id
+    WHERE d.id = 15
+");
+
+$doc = $result->fetch_assoc();
+echo "  Documento ID 15:\n";
+echo "    - Título: {$doc['titulo']}\n";
+echo "    - Estado: {$doc['estado']} ← PROBLEMA: Debe ser 'aprobado'\n";
+echo "    - Usuario: {$doc['nombre']}\n\n";
+
+echo "SOLUCIÓN IMPLEMENTADA:\n";
+echo "  ✓ Agregadas nuevas funciones en Documento.php:\n";
+echo "    - getByItemFollowUpAprobados()\n";
+echo "    - getByItemFollowUpAprobadosAnual()\n";
+echo "  ✓ Actualizado admin/publicador/index.php\n";
+echo "    - Usa getByItemFollowUpAprobados() en lugar de getByItemFollowUp()\n";
+echo "    - Juan solo verá documentos APROBADOS\n\n";
+
+echo "PASOS A SEGUIR:\n";
+echo "  1. ADMINISTRADOR debe revisar el documento en /admin/documentos/\n";
+echo "  2. ADMINISTRADOR debe cambiar estado a 'aprobado'\n";
+echo "  3. PUBLICADOR (Juan) verá el documento inmediatamente\n";
+echo "  4. PUBLICADOR puede cargar la verificación\n\n";
+
+echo "PARA APROBAR AHORA:\n";
+echo "  Ejecute: php approve_document.php\n";
+
+?>

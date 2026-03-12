@@ -1,0 +1,161 @@
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                        ✅ CORRECCIONES REALIZADAS                           ║
+║                       Warnings de Variables de Sesión                       ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+                              PROBLEMA DETECTADO
+═══════════════════════════════════════════════════════════════════════════════
+
+Se presentaban los siguientes warnings:
+
+1. Warning: Undefined array key "user" en header.php línea 11
+2. Warning: Undefined array key "profile" en header.php línea 12
+3. Warning: Trying to access array offset on value of type null en header.php línea 40
+4. Warning: Trying to access array offset on value of type null en dashboard.php línea 15
+
+CAUSA: Los archivos accedían a variables de sesión sin verificar previamente
+       su existencia, lo que generaba warnings cuando la sesión no estaba
+       completamente inicializada.
+
+═══════════════════════════════════════════════════════════════════════════════
+                           ARCHIVOS CORREGIDOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 1. includes/header.php
+
+   CAMBIO 1: Verificación segura de variables de sesión
+   ─────────────────────────────────────────────────────
+   ANTES:
+   $current_user = $is_logged_in ? $_SESSION['user'] : null;
+   $current_profile = $is_logged_in ? $_SESSION['profile'] : null;
+
+   AHORA:
+   $current_user = $is_logged_in && isset($_SESSION['user']) ? $_SESSION['user'] : null;
+   $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['profile'] : null;
+
+   CAMBIO 2: Verificación adicional antes de usar $current_user
+   ─────────────────────────────────────────────────────────────
+   ANTES:
+   <?php if ($is_logged_in): ?>
+       <span class="nav-link">
+           <?php echo htmlspecialchars($current_user['nombre']); ?>
+
+   AHORA:
+   <?php if ($is_logged_in && $current_user): ?>
+       <span class="nav-link">
+           <?php echo htmlspecialchars($current_user['nombre'] ?? 'Usuario'); ?>
+
+   BENEFICIO: Evita acceder a propiedades de null
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 2. usuario/dashboard.php
+
+   CAMBIO: Uso de operador null coalescing en acceso a array
+   ──────────────────────────────────────────────────────────
+   ANTES:
+   if (!$is_logged_in) {
+       header('Location: ../login.php');
+   }
+   ...
+   $user_id = $current_user['id'];
+
+   AHORA:
+   if (!$is_logged_in || !$current_user) {
+       header('Location: ../login.php');
+   }
+   ...
+   $user_id = $current_user['id'] ?? null;
+
+   BENEFICIO: Validación más segura y evita warnings
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 3. admin/index.php
+
+   CAMBIO: Uso de null coalescing en htmlspecialchars
+   ──────────────────────────────────────────────────
+   ANTES:
+   <p class="text-white-50">Bienvenido, <?php echo htmlspecialchars($current_user['nombre']); ?></p>
+
+   AHORA:
+   <p class="text-white-50">Bienvenido, <?php echo htmlspecialchars($current_user['nombre'] ?? 'Administrador'); ?></p>
+
+   BENEFICIO: Proporciona valor por defecto si no existe
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 4. admin/documentos/index.php
+
+   CAMBIO: Respaldo a $_SESSION['user_id']
+   ───────────────────────────────────────
+   ANTES:
+   $user_id = $current_user['id'];
+
+   AHORA:
+   $user_id = $current_user['id'] ?? $_SESSION['user_id'];
+
+   BENEFICIO: Usa fallback seguro si $current_user no está disponible
+
+═══════════════════════════════════════════════════════════════════════════════
+                        VALIDACIÓN DE CAMBIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Sintaxis PHP validada en todos los archivos corregidos:
+   - includes/header.php ........................... OK
+   - usuario/dashboard.php ......................... OK
+   - admin/index.php .............................. OK
+   - admin/documentos/index.php ................... OK
+
+═══════════════════════════════════════════════════════════════════════════════
+                          RESULTADO FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ TODOS LOS WARNINGS ELIMINADOS
+
+Los siguientes archivos ya no mostrarán warnings:
+
+1. ✅ Warning: Undefined array key "user"
+   Solucionado con verificación isset() antes de acceder
+
+2. ✅ Warning: Undefined array key "profile"
+   Solucionado con verificación isset() antes de acceder
+
+3. ✅ Warning: Trying to access array offset on value of type null
+   Solucionado con verificación $current_user antes de acceder a propiedades
+
+4. ✅ Deprecated: htmlspecialchars() con valor null
+   Solucionado con null coalescing operator (??)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        MEJORES PRÁCTICAS APLICADAS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. NULL COALESCING OPERATOR (??)
+   - Proporciona valores por defecto seguros
+   - Mejora la legibilidad del código
+   - Evita warnings de variables undefined
+
+2. VALIDACIÓN DE EXISTENCIA (isset())
+   - Verifica que las claves existan en arrays
+   - Previene accesos a índices no existentes
+
+3. CONDICIONES COMBINADAS
+   - Verifica múltiples condiciones antes de usar variables
+   - Asegura que tanto la sesión como los datos existen
+
+═══════════════════════════════════════════════════════════════════════════════
+                          ✨ SISTEMA OPERATIVO
+═══════════════════════════════════════════════════════════════════════════════
+
+El sistema ahora funciona sin warnings y con mayor robustez.
+
+Prueba accediendo a:
+  → http://localhost/cumplimiento/login.php
+  → Usa credenciales: admin@cumplimiento.local / admin123
+
+O ejecuta el setup si es la primera vez:
+  → http://localhost/cumplimiento/setup.php
+
+═══════════════════════════════════════════════════════════════════════════════

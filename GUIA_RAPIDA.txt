@@ -1,0 +1,293 @@
+================================================================================
+    SISTEMA DE CONTROL DE TRANSPARENCIA ACTIVA - GUÍA RÁPIDA
+================================================================================
+
+UBICACIÓN: C:\xampp\htdocs\cumplimiento\
+
+================================================================================
+PASO 1: ACCEDER AL SISTEMA
+================================================================================
+
+1. Abra el navegador web
+2. Vaya a: http://localhost/cumplimiento/
+3. Haga clic en "Verificar Sistema" para validar requisitos
+4. Haga clic en "Configurar BD" para crear la base de datos
+
+La contraseña del admin será: admin123
+
+================================================================================
+PASO 2: CREDENCIALES DE ACCESO INICIAL
+================================================================================
+
+Email:      admin@cumplimiento.local
+Contraseña: admin123
+
+Cambiar esta contraseña después del primer acceso es OBLIGATORIO.
+
+================================================================================
+PASO 3: CREAR DATOS DE EJEMPLO (OPCIONAL)
+================================================================================
+
+Para insertar usuarios, direcciones e items de ejemplo:
+
+Acceda a: http://localhost/cumplimiento/ejemplo_datos.php
+
+Esto crea:
+- 5 direcciones
+- 4 usuarios adicionales de prueba
+- 15 items de transparencia
+- Asignaciones de usuarios a items
+
+================================================================================
+ESTRUCTURA DEL PROYECTO
+================================================================================
+
+📂 cumplimiento/
+   ├─ admin/                 → Panel de administración
+   ├─ usuario/               → Panel de usuarios
+   ├─ config/                → Configuración
+   ├─ classes/               → Clases PHP
+   ├─ includes/              → Encabezados/pies
+   ├─ css/                   → Estilos
+   ├─ js/                    → Scripts JavaScript
+   ├─ uploads/               → Almacenamiento de documentos
+   ├─ login.php              → Página de login
+   ├─ index.php              → Página de inicio
+   ├─ setup.php              → Crear BD
+   ├─ check.php              → Validar requisitos
+   ├─ ejemplo_datos.php      → Datos de prueba
+   ├─ README.md              → Documentación técnica
+   ├─ GUIA_USUARIOS.md       → Guía para usuarios
+   ├─ RESUMEN_PROYECTO.md    → Resumen del proyecto
+   └─ database.sql           → Dump de BD
+
+================================================================================
+ACCESOS RÁPIDOS
+================================================================================
+
+Página de Inicio:       http://localhost/cumplimiento/
+Validar Sistema:        http://localhost/cumplimiento/check.php
+Crear BD:              http://localhost/cumplimiento/setup.php
+Datos de Ejemplo:      http://localhost/cumplimiento/ejemplo_datos.php
+Iniciar Sesión:        http://localhost/cumplimiento/login.php
+
+Panel de Admin:        http://localhost/cumplimiento/admin/
+  ├─ Usuarios:         http://localhost/cumplimiento/admin/usuarios/
+  ├─ Direcciones:      http://localhost/cumplimiento/admin/direcciones/
+  ├─ Items:            http://localhost/cumplimiento/admin/items/
+  └─ Documentos:       http://localhost/cumplimiento/admin/documentos/
+
+Panel de Usuario:      http://localhost/cumplimiento/usuario/dashboard.php
+
+================================================================================
+PERFILES DE USUARIO
+================================================================================
+
+1. ADMINISTRATIVO (admin@cumplimiento.local)
+   Acceso: Panel completo
+   Funciones:
+   - Crear y gestionar usuarios
+   - Crear y gestionar direcciones
+   - Crear y gestionar items
+   - Revisar y aprobar documentos
+   - Ver logs del sistema
+
+2. DIRECTOR REVISOR
+   Acceso: Panel de usuario
+   Funciones:
+   - Ver documentos pendientes
+   - Revisar documentos
+   - Aprobar o rechazar documentos
+   - Agregar comentarios
+
+3. CARGADOR DE INFORMACIÓN
+   Acceso: Panel de usuario
+   Funciones:
+   - Ver items asignados
+   - Subir documentos
+   - Ver estado de sus documentos
+
+4. PUBLICADOR
+   Acceso: Panel de usuario (base)
+   Funciones:
+   - Ver documentos aprobados
+   - Preparar publicación
+
+================================================================================
+CARACTERÍSTICAS PRINCIPALES
+================================================================================
+
+✅ Gestión de usuarios con 4 perfiles diferentes
+✅ Creación de items con numeración jerárquica (1, 1.1, 1.2, etc)
+✅ Asignación de usuarios a items
+✅ Carga de documentos con validación
+✅ Sistema de revisión y aprobación
+✅ Soporte para múltiples periodicidades:
+   - Mensual (seleccionar mes)
+   - Trimestral (Marzo, Junio, Septiembre, Diciembre)
+   - Semestral
+   - Anual (Enero)
+   - Ocurrencia (libre)
+✅ Registro de actividad (auditoría)
+✅ Interfaz responsive con Bootstrap
+✅ Contraseñas encriptadas
+✅ Protección contra SQL Injection
+
+================================================================================
+FORMATO DE ARCHIVOS PERMITIDOS
+================================================================================
+
+- PDF (.pdf)
+- Documentos de Word (.doc, .docx)
+- Hojas de Cálculo (.xls, .xlsx)
+- Archivos CSV (.csv)
+- Imágenes (.jpg, .jpeg, .png)
+
+Tamaño máximo: 10 MB por archivo
+
+================================================================================
+FLUJO DE TRABAJO TÍPICO
+================================================================================
+
+1. ADMINISTRADOR CONFIGURA:
+   ├─ Crea dirección/departamentos
+   ├─ Crea usuarios y asigna perfiles
+   ├─ Crea items de transparencia
+   └─ Asigna usuarios a items
+
+2. CARGADOR DE INFORMACIÓN:
+   ├─ Ingresa con su usuario
+   ├─ Ve sus items asignados
+   ├─ Sube documentos
+   └─ Espera revisión
+
+3. DIRECTOR REVISOR:
+   ├─ Ve documentos pendientes
+   ├─ Revisa archivos
+   └─ Aprueba o rechaza
+
+4. PUBLICADOR:
+   ├─ Ve documentos aprobados
+   └─ Prepara publicación
+
+================================================================================
+SOLUCIÓN DE PROBLEMAS
+================================================================================
+
+PROBLEMA: "Error de conexión a base de datos"
+SOLUCIÓN:
+- Verifique que MySQL esté ejecutándose
+- Compruebe credenciales en config/config.php
+- Ejecute setup.php si la BD no existe
+
+PROBLEMA: "No puedo subir archivos"
+SOLUCIÓN:
+- Verifique permisos de la carpeta uploads/
+- Asegúrese que el archivo no exceda 10 MB
+- Confirme que el formato sea permitido
+
+PROBLEMA: "Permiso denegado"
+SOLUCIÓN:
+- Verifique que su usuario tenga el perfil correcto
+- Revise que no esté desactivado el usuario
+- Compruebe que tenga items asignados
+
+================================================================================
+CONFIGURACIÓN DE BASE DE DATOS
+================================================================================
+
+Archivo: config/config.php
+
+Configuración por defecto:
+  HOST: localhost
+  USUARIO: root
+  CONTRASEÑA: (en blanco)
+  BASE DE DATOS: cumplimiento_db
+
+Si necesita cambiar estas credenciales, edite config/config.php
+
+================================================================================
+SEGURIDAD
+================================================================================
+
+IMPORTANTE:
+1. Cambiar la contraseña de admin INMEDIATAMENTE después del setup
+2. No compartir credenciales de administrador
+3. Crear usuarios individuales para cada persona
+4. Revisar logs regularmente para auditoría
+5. Hacer backups periódicos de la BD
+
+Recomendaciones:
+- Usar contraseñas fuertes (mínimo 8 caracteres)
+- Incluir mayúsculas, minúsculas y números
+- Cambiar contraseñas regularmente
+- Respaldar datos con frecuencia
+
+================================================================================
+MANTENIMIENTO
+================================================================================
+
+Tareas regulares:
+1. Revisar logs del sistema (tabla logs)
+2. Hacer backups de la BD
+3. Respaldar carpeta uploads/
+4. Limpiar documentos rechazados (archivos orfandos)
+5. Actualizar contraseñas de usuarios inactivos
+6. Verificar espacio en disco
+
+Script de backup:
+mysqldump -u root cumplimiento_db > backup_$(date +%Y%m%d).sql
+
+================================================================================
+CONTACTO Y SOPORTE
+================================================================================
+
+Para problemas técnicos:
+1. Revise el archivo README.md
+2. Consulte GUIA_USUARIOS.md
+3. Verifique la configuración en check.php
+4. Revise los logs del sistema
+5. Contacte al administrador del sistema
+
+================================================================================
+PRÓXIMAS MEJORAS
+================================================================================
+
+Planeado para versiones futuras:
+- Notificaciones por email
+- API REST
+- Reportes automáticos
+- Integración LDAP
+- Control de versiones
+- Firma digital
+- Multi-idioma
+- Panel de publicación
+
+================================================================================
+INFORMACIÓN ADICIONAL
+================================================================================
+
+Versión del Sistema:  1.0.0
+Fecha de Creación:    Diciembre 2025
+PHP Requerido:        7.4 o superior
+MySQL Requerido:      5.7 o superior
+Bootstrap:            5.3.0
+jQuery:               3.6.0
+
+Tecnologías:
+- PHP (Backend)
+- MySQL (Base de datos)
+- HTML5/CSS3 (Frontend)
+- JavaScript (Interactividad)
+- Bootstrap (Interfaz)
+
+================================================================================
+FIN DE LA GUÍA RÁPIDA
+================================================================================
+
+Para más información, revise los archivos:
+- README.md - Documentación técnica completa
+- GUIA_USUARIOS.md - Guía detallada para usuarios
+- RESUMEN_PROYECTO.md - Resumen de funcionalidades
+
+¡Gracias por usar el Sistema de Control de Transparencia Activa!

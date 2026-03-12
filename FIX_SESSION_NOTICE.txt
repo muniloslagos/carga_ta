@@ -1,0 +1,282 @@
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                  ✅ SESSION_START() DUPLICADO CORREGIDO                     ║
+║                        Gestión Inteligente de Sesiones                      ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+                              PROBLEMA DETECTADO
+═══════════════════════════════════════════════════════════════════════════════
+
+NOTICE: "session_start(): Ignoring session_start() because a session is
+        already active"
+
+CAUSA: Múltiples archivos llamaban a session_start() de manera secuencial:
+       
+       1. check_auth.php → session_start()
+       2. header.php    → session_start()  ← Conflicto
+
+RESULTADO: El navegador mostraba una notice indicando que la sesión ya
+          estaba iniciada cuando se intentaba iniciar de nuevo.
+
+═══════════════════════════════════════════════════════════════════════════════
+                          SOLUCIÓN IMPLEMENTADA
+═══════════════════════════════════════════════════════════════════════════════
+
+CONCEPTO: Usar PHP_SESSION_NONE para verificar estado ANTES de iniciar
+
+PATRÓN CORRECTO:
+───────────────
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+VENTAJAS:
+─────────
+✅ No genera notices si la sesión ya existe
+✅ No intenta iniciar dos veces
+✅ Permite múltiples include de archivos con sesión
+✅ Compatible con PHP 5.4+ (función session_status())
+
+═══════════════════════════════════════════════════════════════════════════════
+                      ARCHIVOS MODIFICADOS (9 TOTAL)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ includes/check_auth.php
+   ──────────────────────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+2. ✅ includes/header.php
+   ─────────────────────
+   ANTES:
+   session_start();
+   require_once dirname(__DIR__) . '/config/config.php';
+   require_once dirname(__DIR__) . '/config/Database.php';
+   
+   AHORA:
+   // Iniciar sesión si no está activa
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+   
+   // Cargar configuración si no está disponible
+   if (!defined('SITE_NAME')) {
+       require_once dirname(__DIR__) . '/config/config.php';
+   }
+   
+   // Inicializar base de datos si no existe
+   if (!isset($db)) {
+       require_once dirname(__DIR__) . '/config/Database.php';
+       $db = new Database();
+   }
+
+   MEJORA ADICIONAL: También verifica si config y Database ya están cargadas
+
+3. ✅ login.php
+   ──────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+4. ✅ logout.php
+   ───────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+5. ✅ admin/usuarios/get_usuario.php
+   ────────────────────────────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+6. ✅ admin/items/get_item.php
+   ─────────────────────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+7. ✅ admin/direcciones/get_direccion.php
+   ────────────────────────────────────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+8. ✅ admin/items/get_usuarios_item.php
+   ───────────────────────────────────
+   ANTES:
+   session_start();
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+
+9. ✅ usuario/enviar_documento.php
+   ──────────────────────────────
+   ANTES:
+   session_start();
+   require_once dirname(__DIR__) . '/config/config.php';
+   
+   AHORA:
+   if (session_status() === PHP_SESSION_NONE) {
+       session_start();
+   }
+   require_once dirname(__DIR__) . '/config/config.php';
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CÓMO FUNCIONA SESSION_STATUS()
+═══════════════════════════════════════════════════════════════════════════════
+
+Valores posibles:
+─────────────────
+
+1. PHP_SESSION_DISABLED
+   - La extensión de sesión está deshabilitada en php.ini
+   - Acción: No usar sesiones
+
+2. PHP_SESSION_NONE
+   - Las sesiones están habilitadas pero no se ha iniciado aún
+   - Acción: Llamar a session_start()
+
+3. PHP_SESSION_ACTIVE
+   - Una sesión ya está activa
+   - Acción: No hacer nada, la sesión ya funciona
+
+═══════════════════════════════════════════════════════════════════════════════
+                            PATRÓN DE USO SEGURO
+═══════════════════════════════════════════════════════════════════════════════
+
+CORRECTO:
+─────────
+
+<?php
+// En CUALQUIER archivo que necesite sesión:
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Ahora puedes usar $_SESSION de forma segura
+$_SESSION['user_id'] = 1;
+$user = $_SESSION['user'] ?? null;
+
+INCORRECTO (puede generar notices):
+──────────────────────────────────────
+
+<?php
+session_start();  // Puede fallar si ya hay sesión activa
+session_start();  // Segundo intento → NOTICE
+session_start();  // Tercer intento → NOTICE
+
+═══════════════════════════════════════════════════════════════════════════════
+                        FLUJO DE INICIALIZACIÓN CORRECTO
+═══════════════════════════════════════════════════════════════════════════════
+
+Página admin/index.php:
+───────────────────────
+
+1. include check_auth.php
+   ├─ if (session_status === NONE) → session_start()  ✅
+   ├─ Cargar config.php
+   ├─ Cargar Database.php
+   ├─ Funciones helper
+   └─ Fin: Sesión ACTIVA, Config cargada
+
+2. require_role('administrativo')
+   ├─ Verifica $_SESSION['profile']
+   ├─ Si es incorrecto → header('Location...')
+   └─ exit
+
+3. include header.php
+   ├─ if (session_status === NONE) → session_start()  ✅ (ya activa)
+   ├─ if (!defined('SITE_NAME')) → require config    ✅ (ya cargada)
+   ├─ if (!isset($db)) → require Database             ✅ (ya existe)
+   ├─ Verificar $_SESSION
+   ├─ HTML navbar
+   └─ Fin: HTML enviado
+
+4. Contenido de la página
+   └─ $_SESSION disponible, sin notices
+
+═══════════════════════════════════════════════════════════════════════════════
+                         VENTAJAS DE ESTA SOLUCIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ SIN NOTICES
+   No genera "session_start() Ignoring..." notices
+
+✅ REUTILIZABLE
+   El mismo archivo puede incluirse múltiples veces sin problemas
+
+✅ FLEXIBLE
+   Funciona independientemente del orden de includes
+
+✅ SEGURO
+   Verifica estado real de la sesión antes de actuar
+
+✅ ESTÁNDAR
+   Patrón recomendado en PHP 5.4+
+
+✅ MANTENIBLE
+   Código claro y fácil de entender
+
+═══════════════════════════════════════════════════════════════════════════════
+                          VALIDACIÓN Y PRUEBAS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Sintaxis PHP validada en 9 archivos:
+   - includes/check_auth.php ................... OK
+   - includes/header.php ....................... OK
+   - login.php ................................ OK
+   - logout.php ............................... OK
+   - admin/usuarios/get_usuario.php ............ OK
+   - admin/items/get_item.php ................. OK
+   - admin/direcciones/get_direccion.php ...... OK
+   - admin/items/get_usuarios_item.php ........ OK
+   - usuario/enviar_documento.php ............. OK
+
+✅ No se generan notices de session_start()
+✅ Sistema de sesiones funciona correctamente
+✅ Multiple includes funcionan sin conflictos
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ✨ RESULTADO FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ NOTICE ELIMINADO
+✅ CÓDIGO MÁS ROBUSTO
+✅ SESIONES MANEJADAS CORRECTAMENTE
+
+El sistema ahora:
+- No genera notices de sesión
+- Maneja múltiples includes sin conflictos
+- Verifica inteligentemente el estado de sesión
+- Sigue mejores prácticas de PHP
+
+═══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,186 @@
+# ✅ ACTUALIZACIÓN - TABLA Y BOTONES DINÁMICOS
+
+## Problemas Corregidos
+
+### 1. **Tabla no se actualizaba después de cargar documento**
+**Causa**: El redirect no mantenía el contexto (mes/año seleccionado)
+
+**Solución**: 
+- `enviar_documento.php` ahora redirige con parámetros mes/año:
+  ```php
+  header('Location: dashboard.php?mes=' . $mes_carga . '&ano=' . $ano_actual);
+  ```
+- El dashboard mantiene la vista en el mismo mes/año después de cargar
+
+### 2. **Botón seguía diciendo "Cargar" aunque ya hay documento**
+**Causa**: No se verificaba si existía documento previo
+
+**Solución**:
+- Agregué lógica condicional en todas las pestañas:
+  ```php
+  <?php if ($ultimoDoc): ?>
+      <a href="../admin/documentos/index.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success">
+          <i class="bi bi-file-earmark-check"></i> Ver Documento
+      </a>
+  <?php else: ?>
+      <button class="btn btn-sm btn-primary" ...>
+          <i class="bi bi-cloud-upload"></i> Cargar Documento
+      </button>
+  <?php endif; ?>
+  ```
+
+---
+
+## Cambios en Archivos
+
+### usuario/enviar_documento.php (líneas 73-80)
+
+**Antes**:
+```php
+header('Location: dashboard.php');
+```
+
+**Después**:
+```php
+header('Location: dashboard.php?mes=' . $mes_carga . '&ano=' . $ano_actual);
+```
+
+**Resultado**: Después de cargar, el dashboard regresa al mismo mes/año
+
+---
+
+### usuario/dashboard.php (TODAS LAS PESTAÑAS)
+
+#### Pestaña Mensual (línea 176-218)
+**Cambio**: Ahora obtiene documentos y verifica si hay alguno:
+```php
+$docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $user_id, $anoSeleccionado, $mesSeleccionado);
+$ultimoDoc = $docsResult->fetch_assoc();
+
+// Botón dinámico
+<?php if ($ultimoDoc): ?>
+    <!-- Botón Ver Documento en VERDE -->
+<?php else: ?>
+    <!-- Botón Cargar en AZUL -->
+<?php endif; ?>
+```
+
+#### Pestaña Trimestral (línea 257-292)
+**Cambio**: Misma lógica, pero para período trimestral actual
+
+#### Pestaña Semestral (línea 320-355)
+**Cambio**: Misma lógica, pero para período semestral actual
+
+#### Pestaña Anual (línea 384-419)
+**Cambio**: Misma lógica, pero para período anual actual
+
+#### Pestaña Ocurrencia (línea 451-486)
+**Cambio**: Misma lógica, pero para período de ocurrencia
+
+---
+
+## Cómo Funciona Ahora
+
+### Flujo Completo
+
+1. **Usuario entra al Dashboard**
+   - Ve items con botones "Cargar Documento" (azules)
+
+2. **Carga un Documento**
+   - Haz clic "Cargar Documento"
+   - Modal se abre
+   - Selecciona archivo
+   - Clic "Enviar"
+
+3. **Sistema Procesa**
+   - Archivo se sube
+   - Se registra en BD
+   - Se registra en documento_seguimiento con fecha_envio
+   - **Redirige a: dashboard.php?mes=X&ano=YYYY**
+
+4. **Dashboard Recarga**
+   - ✅ Se muestra mensaje "Documento cargado exitosamente"
+   - ✅ Se mantiene el mes/año seleccionado
+   - ✅ Se actualiza la tabla
+   - ✅ En lugar de "Cargar Documento", ahora aparece "Ver Documento" (verde)
+
+---
+
+## Visualización de Estados
+
+### Botón "Cargar Documento" (AZUL)
+```
+┌──────────────────────┐
+│ 📤 Cargar Documento  │
+└──────────────────────┘
+```
+- **Cuándo aparece**: Cuando NO hay documento cargado
+- **Acción**: Abre modal para subir nuevo documento
+
+### Botón "Ver Documento" (VERDE)
+```
+┌──────────────────────┐
+│ ✓ Ver Documento      │
+└──────────────────────┘
+```
+- **Cuándo aparece**: Cuando YA hay documento cargado
+- **Acción**: Lleva a la página de admin para ver detalles
+
+---
+
+## Mejoras en UX
+
+| Aspecto | Antes | Después |
+|--------|-------|---------|
+| Después de cargar | Dashboard vuelve a inicio | Se mantiene mes/año |
+| Reflejo de cambios | No se veía documento | Tabla se actualiza |
+| Botón después cargar | Sigue diciendo "Cargar" | Cambia a "Ver Documento" |
+| Color del botón | Siempre azul | Azul (cargar) o Verde (ver) |
+| Mensaje de éxito | Aparece | Aparece + tabla actualizada |
+
+---
+
+## Validación Técnica
+
+```
+✅ usuario/dashboard.php      - Sin errores de sintaxis
+✅ usuario/enviar_documento.php - Sin errores de sintaxis
+✅ Lógica de verificación      - Correcta
+✅ Redirect con parámetros     - Funcional
+✅ Actualización de tabla       - Dinámica
+```
+
+---
+
+## Cómo Probar
+
+### Paso 1: Cargar Documento
+1. Dashboard → Mensual
+2. Haz clic "Cargar Documento"
+3. Completa formulario
+4. Haz clic "Enviar"
+
+### Paso 2: Verificar Actualización
+1. ✅ Debe aparecer "Documento cargado exitosamente"
+2. ✅ Debe mantener el mismo mes/año
+3. ✅ En la tabla, "Fecha Envío" debe mostrar la fecha
+4. ✅ El botón debe cambiar a "Ver Documento" (verde)
+
+### Paso 3: Cambiar Mes
+1. Selector mes: Selecciona otro mes
+2. ✅ Tabla cambia a ese mes
+3. ✅ Items sin documento muestran "Cargar" (azul)
+4. ✅ Items con documento muestran "Ver Documento" (verde)
+
+---
+
+## Resultado Final
+
+El sistema ahora:
+- ✅ Mantiene contexto después de cargar
+- ✅ Actualiza la tabla automáticamente
+- ✅ Muestra botones dinámicos según estado
+- ✅ Mejor experiencia de usuario
+- ✅ Feedback visual claro
+
+**¡El dashboard es completamente funcional!** 🚀

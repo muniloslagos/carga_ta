@@ -1,0 +1,397 @@
+════════════════════════════════════════════════════════════════════════════════
+           INSTRUCCIONES DE DESPLIEGUE - SISTEMA DE TRANSPARENCIA
+════════════════════════════════════════════════════════════════════════════════
+
+Este documento proporciona instrucciones para desplegar el Sistema de Control
+de Transparencia Activa en diferentes entornos.
+
+════════════════════════════════════════════════════════════════════════════════
+                    DESPLIEGUE LOCAL (DESARROLLO)
+════════════════════════════════════════════════════════════════════════════════
+
+REQUISITOS:
+  - XAMPP instalado
+  - MySQL corriendo
+  - Apache corriendo
+
+PASOS:
+
+1. Copiar archivos al directorio web:
+   Copiar carpeta 'cumplimiento' a: C:\xampp\htdocs\
+
+2. Crear base de datos:
+   - Acceder a: http://localhost/cumplimiento/check.php
+   - Verificar que todos los requisitos estén OK
+   - Acceder a: http://localhost/cumplimiento/setup.php
+   - Esperar a que se cree la BD
+
+3. (Opcional) Insertar datos de ejemplo:
+   - Acceder a: http://localhost/cumplimiento/ejemplo_datos.php
+   - Esto creará usuarios y items de prueba
+
+4. Iniciar sesión:
+   - URL: http://localhost/cumplimiento/
+   - Email: admin@cumplimiento.local
+   - Contraseña: admin123
+
+════════════════════════════════════════════════════════════════════════════════
+                  DESPLIEGUE EN SERVIDOR (PRODUCCIÓN)
+════════════════════════════════════════════════════════════════════════════════
+
+REQUISITOS PREVIOS:
+  - Servidor web (Apache, Nginx)
+  - PHP 7.4 o superior
+  - MySQL 5.7 o superior
+  - SSH o FTP para acceso
+  - Certificado SSL/TLS
+
+PASOS:
+
+1. PREPARAR EL SERVIDOR:
+   
+   a) Conectarse vía SSH:
+      ssh usuario@ip-servidor
+   
+   b) Navegar a documentroot:
+      cd /var/www/html
+   
+   c) Crear directorio para el proyecto:
+      mkdir cumplimiento
+      cd cumplimiento
+
+2. SUBIR ARCHIVOS:
+   
+   a) Vía SCP:
+      scp -r cumplimiento/* usuario@ip-servidor:/var/www/html/cumplimiento/
+   
+   b) Vía FTP:
+      Usar cliente FTP (FileZilla, WinSCP, etc)
+      Subir todos los archivos manteniendo estructura
+
+3. CONFIGURAR PERMISOS:
+   
+   chmod 755 /var/www/html/cumplimiento
+   chmod 755 /var/www/html/cumplimiento/uploads
+   chmod 644 /var/www/html/cumplimiento/*.php
+   chmod 644 /var/www/html/cumplimiento/*.md
+   chmod 644 /var/www/html/cumplimiento/.htaccess
+   
+   # Permitir escritura en uploads:
+   chown -R www-data:www-data /var/www/html/cumplimiento/uploads
+
+4. CONFIGURAR BASE DE DATOS:
+   
+   a) Crear BD:
+      mysql -u root -p < database.sql
+   
+   b) Crear usuario MySQL:
+      mysql -u root -p
+      
+      CREATE USER 'cumplimiento'@'localhost' IDENTIFIED BY 'contraseña_segura';
+      GRANT ALL PRIVILEGES ON cumplimiento_db.* TO 'cumplimiento'@'localhost';
+      FLUSH PRIVILEGES;
+      EXIT;
+
+5. ACTUALIZAR CONFIGURACIÓN:
+   
+   a) Editar config/config.php:
+      - DB_HOST: 'localhost'
+      - DB_USER: 'cumplimiento'
+      - DB_PASS: 'contraseña_segura'
+      - DB_NAME: 'cumplimiento_db'
+      - SITE_URL: 'https://dominio.com/cumplimiento/'
+   
+   b) Cambiar DEBUG (comentar en producción):
+      // ini_set('display_errors', 1);
+      // error_reporting(E_ALL);
+
+6. CONFIGURAR SSL/HTTPS:
+   
+   a) En .htaccess, descomentar redirección:
+      RewriteCond %{HTTPS} off
+      RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+   
+   b) Configurar certificado en Apache/Nginx
+   
+   c) Usar Let's Encrypt (gratuito):
+      sudo certbot certonly --apache -d dominio.com
+
+7. CONFIGURAR APACHE:
+   
+   a) Crear archivo de configuración:
+      /etc/apache2/sites-available/cumplimiento.conf
+   
+   b) Contenido:
+      <VirtualHost *:443>
+          ServerName cumplimiento.dominio.com
+          DocumentRoot /var/www/html/cumplimiento
+          
+          <Directory /var/www/html/cumplimiento>
+              AllowOverride All
+              Require all granted
+          </Directory>
+          
+          SSLEngine on
+          SSLCertificateFile /etc/letsencrypt/live/dominio.com/fullchain.pem
+          SSLCertificateKeyFile /etc/letsencrypt/live/dominio.com/privkey.pem
+      </VirtualHost>
+   
+   c) Habilitar sitio:
+      a2ensite cumplimiento.conf
+      a2enmod ssl
+      a2enmod rewrite
+      systemctl reload apache2
+
+8. CONFIGURAR NGINX (Alternativa):
+   
+   a) Crear archivo de configuración:
+      /etc/nginx/sites-available/cumplimiento
+   
+   b) Contenido:
+      server {
+          listen 443 ssl http2;
+          server_name cumplimiento.dominio.com;
+          root /var/www/html/cumplimiento;
+          
+          index index.php;
+          
+          location ~ \.php$ {
+              fastcgi_pass unix:/var/run/php-fpm.sock;
+              fastcgi_index index.php;
+              include fastcgi_params;
+          }
+          
+          ssl_certificate /etc/letsencrypt/live/dominio.com/fullchain.pem;
+          ssl_certificate_key /etc/letsencrypt/live/dominio.com/privkey.pem;
+      }
+   
+   c) Habilitar sitio:
+      ln -s /etc/nginx/sites-available/cumplimiento /etc/nginx/sites-enabled/
+      nginx -t
+      systemctl reload nginx
+
+9. VERIFICAR INSTALACIÓN:
+   
+   - Acceder a: https://dominio.com/cumplimiento/check.php
+   - Acceder a: https://dominio.com/cumplimiento/
+   - Verificar que todo funcione correctamente
+
+════════════════════════════════════════════════════════════════════════════════
+                   CONFIGURACIÓN DE SEGURIDAD
+════════════════════════════════════════════════════════════════════════════════
+
+1. CONTRASEÑAS:
+   
+   a) Cambiar admin password inmediatamente
+   b) Usar contraseña fuerte (12+ caracteres)
+   c) Incluir mayúsculas, minúsculas, números, símbolos
+
+2. BASE DE DATOS:
+   
+   a) Cambiar credenciales default
+   b) Usar usuario con permisos limitados
+   c) Hacer backup regular
+   d) Encriptar conexión (SSL)
+
+3. ARCHIVOS:
+   
+   a) Cambiar permisos de archivos sensibles
+   b) Deshabilitar ejecución en uploads:
+      
+      <FilesMatch "\.(?:jpg|jpeg|png|pdf|doc|docx)$">
+          Allow from all
+      </FilesMatch>
+   
+   c) Proteger config:
+      
+      <FilesMatch "^config/">
+          Deny from all
+      </FilesMatch>
+
+4. SISTEMA:
+   
+   a) Mantener PHP actualizado
+   b) Actualizar MySQL/MariaDB
+   c) Parchear el SO regularmente
+   d) Usar firewall
+   e) Monitorear logs
+
+════════════════════════════════════════════════════════════════════════════════
+                    MANTENIMIENTO EN PRODUCCIÓN
+════════════════════════════════════════════════════════════════════════════════
+
+DIARIO:
+  - Revisar logs de error (error_log)
+  - Verificar espacio en disco
+  - Verificar que BD esté funcionando
+
+SEMANAL:
+  - Revisar logs del sistema (tabla logs)
+  - Verificar integridad de archivos
+  - Validar backups
+
+MENSUAL:
+  - Hacer backup completo
+  - Revisar uso de recursos
+  - Actualizar contraseñas administrativas
+  - Auditar accesos
+
+ANUAL:
+  - Renovar certificado SSL
+  - Revisar seguridad completa
+  - Actualizar dependencias
+  - Planear mejoras
+
+SCRIPTS DE MANTENIMIENTO:
+
+# Backup automático:
+#!/bin/bash
+BACKUP_DIR="/backups/cumplimiento"
+DATE=$(date +%Y%m%d_%H%M%S)
+mysqldump -u cumplimiento -p cumplimiento_db > \
+    $BACKUP_DIR/cumplimiento_db_$DATE.sql
+tar -czf $BACKUP_DIR/uploads_$DATE.tar.gz /var/www/html/cumplimiento/uploads
+find $BACKUP_DIR -mtime +30 -delete
+
+# Limpiar archivos temporales:
+find /var/www/html/cumplimiento/uploads -type f -mtime +90 -delete
+
+════════════════════════════════════════════════════════════════════════════════
+                      MONITOREO Y ALERTAS
+════════════════════════════════════════════════════════════════════════════════
+
+1. MONITOREO CON NETDATA:
+   
+   curl https://get.netdata.cloud/kickstart.sh | sh
+   
+   Luego acceder a: http://localhost:19999
+
+2. LOGS CON ELK:
+   
+   - Elasticsearch: Almacenar logs
+   - Logstash: Procesar logs
+   - Kibana: Visualizar logs
+   
+   Integrar /var/log/cumplimiento.log
+
+3. ALERTAS:
+   
+   - Configurar alertas por email en logs
+   - Monitorear espacio en disco
+   - Alertar si BD se cae
+   - Notificar errores críticos
+
+════════════════════════════════════════════════════════════════════════════════
+                    RECUPERACIÓN DE DESASTRES
+════════════════════════════════════════════════════════════════════════════════
+
+1. PÉRDIDA DE BD:
+   
+   a) Restaurar desde backup:
+      mysql -u root -p cumplimiento_db < backup_db.sql
+   
+   b) Verificar integridad:
+      mysql -u root -p cumplimiento_db -e "CHECK TABLE * LIKE '%';"
+
+2. PÉRDIDA DE ARCHIVOS:
+   
+   a) Restaurar desde backup:
+      tar -xzf backup_uploads.tar.gz -C /
+   
+   b) Verificar permisos:
+      chown -R www-data:www-data /var/www/html/cumplimiento
+
+3. COMPROMISO DE SEGURIDAD:
+   
+   a) Cambiar todas las contraseñas
+   b) Revisar logs para detectar acceso no autorizado
+   c) Restaurar desde backup limpio
+   d) Parchear vulnerabilidades
+
+════════════════════════════════════════════════════════════════════════════════
+                   ACTUALIZACIÓN A NUEVAS VERSIONES
+════════════════════════════════════════════════════════════════════════════════
+
+1. ANTES DE ACTUALIZAR:
+   
+   a) Hacer backup completo
+   b) Documentar configuración actual
+   c) Probar en entorno de prueba primero
+
+2. PROCESO DE ACTUALIZACIÓN:
+   
+   a) Descargar nueva versión
+   b) Comparar archivos de configuración
+   c) Respaldar archivos actuales
+   d) Copiar nuevos archivos (excepto config)
+   e) Ejecutar scripts de migración si hay
+   f) Probar funcionalidades
+   g) Verificar logs
+
+3. REVERSIÓN:
+   
+   Si hay problemas:
+   
+   a) Restaurar archivos de backup
+   b) Restaurar BD si fue modificada
+   c) Verificar nuevamente
+
+════════════════════════════════════════════════════════════════════════════════
+                      OPTIMIZACIÓN DE RENDIMIENTO
+════════════════════════════════════════════════════════════════════════════════
+
+1. BASE DE DATOS:
+   
+   - Configurar buffer_pool_size (50-80% RAM)
+   - Aumentar max_connections si es necesario
+   - Habilitar query cache
+   - Actualizar estadísticas regularmente
+
+2. PHP:
+   
+   - Aumentar memory_limit a 256M
+   - Configurar opcache (recompilación de código)
+   - Usar persistent connections
+
+3. SERVIDOR:
+   
+   - Habilitar gzip en Apache/Nginx
+   - Configurar cache del navegador
+   - Usar CDN para archivos estáticos
+
+4. APLICACIÓN:
+   
+   - Optimizar consultas SQL
+   - Agregar índices donde sea necesario
+   - Implementar caché de sesión
+
+════════════════════════════════════════════════════════════════════════════════
+                         SOPORTE TÉCNICO
+════════════════════════════════════════════════════════════════════════════════
+
+PARA PROBLEMAS EN PRODUCCIÓN:
+
+1. Verificar logs:
+   - /var/log/apache2/error.log
+   - /var/log/mysql/error.log
+   - /var/www/html/cumplimiento/logs/
+
+2. Ejecutar diagnóstico:
+   - check.php
+   - Verificar conexión BD
+   - Verificar permisos
+
+3. Contactar soporte si:
+   - Error en BD
+   - Archivos corruptos
+   - Problema de seguridad
+   - Pérdida de datos
+
+════════════════════════════════════════════════════════════════════════════════
+
+Este documento se debe revisar y actualizar regularmente según sea necesario.
+
+Última actualización: Diciembre 2025
+Versión: 1.0.0
+
+════════════════════════════════════════════════════════════════════════════════

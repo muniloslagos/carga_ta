@@ -1,0 +1,252 @@
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                  ✅ FORMATO CSV AHORA PERMITIDO                            ║
+║                  Actualización de Tipos de Archivo Aceptados               ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+                              PROBLEMA DETECTADO
+═══════════════════════════════════════════════════════════════════════════════
+
+MENSAJE DE ERROR: "Tipo de archivo no permitido"
+TIPO DE ARCHIVO: CSV (.csv)
+INTENCIÓN DEL USUARIO: Cargar archivo CSV con datos
+
+CAUSA: La lista de tipos permitidos en la clase Documento no incluía el
+       formato CSV, aunque es un formato común para datos tabulares.
+
+═══════════════════════════════════════════════════════════════════════════════
+                          SOLUCIÓN IMPLEMENTADA
+═══════════════════════════════════════════════════════════════════════════════
+
+Se agregó CSV a la lista de tipos permitidos en el sistema:
+
+1. ✅ classes/Documento.php - Clase de validación
+2. ✅ usuario/dashboard.php - Interfaz de carga
+3. ✅ README.md - Documentación técnica
+4. ✅ GUIA_USUARIOS.md - Guía de usuarios
+5. ✅ GUIA_RAPIDA.txt - Referencia rápida
+
+═══════════════════════════════════════════════════════════════════════════════
+                     ARCHIVOS ACTUALIZADOS EN DETALLE
+═══════════════════════════════════════════════════════════════════════════════
+
+1. 📄 classes/Documento.php (Línea 114-116)
+   ──────────────────────────────────────
+   
+   ANTES:
+   ──────
+   $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
+   
+   DESPUÉS:
+   ────────
+   // Tipos permitidos: PDF, documentos Word, Excel y CSV, e imágenes
+   $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'jpg', 'jpeg', 'png'];
+   
+   CAMBIO: Se agregó 'csv' a la lista de extensiones permitidas
+
+2. 📄 usuario/dashboard.php (Línea 297)
+   ──────────────────────────
+   
+   ANTES:
+   ──────
+   <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (máx. 10MB)</small>
+   
+   DESPUÉS:
+   ────────
+   <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG (máx. 10MB)</small>
+   
+   CAMBIO: Se agregó CSV al mensaje de ayuda visible al usuario
+
+3. 📄 README.md (Sección "Formatos de Archivo Permitidos")
+   ──────────────────────────────────────────────────────
+   
+   ANTES:
+   ──────
+   ## Formatos de Archivo Permitidos
+   - PDF
+   - DOC, DOCX
+   - XLS, XLSX
+   - JPG, JPEG
+   - PNG
+   
+   DESPUÉS:
+   ────────
+   ## Formatos de Archivo Permitidos
+   - PDF
+   - DOC, DOCX
+   - XLS, XLSX
+   - CSV
+   - JPG, JPEG
+   - PNG
+   
+   CAMBIO: Se agregó CSV a la lista en la documentación técnica
+
+4. 📄 GUIA_USUARIOS.md (Sección "Formatos permitidos")
+   ───────────────────────────────────────────────────
+   
+   ANTES:
+   ──────
+   **Formatos permitidos:**
+   - PDF, DOC, DOCX
+   - XLS, XLSX
+   - JPG, JPEG, PNG
+   
+   DESPUÉS:
+   ────────
+   **Formatos permitidos:**
+   - PDF, DOC, DOCX
+   - XLS, XLSX, CSV
+   - JPG, JPEG, PNG
+   
+   CAMBIO: Se agregó CSV a la guía de usuarios
+
+5. 📄 GUIA_RAPIDA.txt (Sección "FORMATO DE ARCHIVOS PERMITIDOS")
+   ─────────────────────────────────────────────────────────────
+   
+   ANTES:
+   ──────
+   - PDF (.pdf)
+   - Documentos de Word (.doc, .docx)
+   - Hojas de Cálculo (.xls, .xlsx)
+   - Imágenes (.jpg, .jpeg, .png)
+   
+   DESPUÉS:
+   ────────
+   - PDF (.pdf)
+   - Documentos de Word (.doc, .docx)
+   - Hojas de Cálculo (.xls, .xlsx)
+   - Archivos CSV (.csv)
+   - Imágenes (.jpg, .jpeg, .png)
+   
+   CAMBIO: Se agregó CSV a la referencia rápida
+
+═══════════════════════════════════════════════════════════════════════════════
+                      LISTA COMPLETA DE TIPOS PERMITIDOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ DOCUMENTOS
+
+• PDF (.pdf)
+  Archivos de documento portátil
+  Uso: Reportes, formularios, documentación
+  
+• DOC / DOCX (.doc, .docx)
+  Documentos de Microsoft Word
+  Uso: Informes, comunicados, actas
+  
+• XLS / XLSX (.xls, .xlsx)
+  Hojas de cálculo Excel
+  Uso: Datos, estadísticas, registros
+
+• CSV (.csv) ← NUEVO
+  Archivos de valores separados por comas
+  Uso: Datos tabulares, importación/exportación
+
+✅ IMÁGENES
+
+• JPG / JPEG (.jpg, .jpeg)
+  Imágenes comprimidas
+  Uso: Fotografías, capturas de pantalla
+  
+• PNG (.png)
+  Imágenes sin pérdida de calidad
+  Uso: Gráficos, diagramas, imágenes con transparencia
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CÓMO FUNCIONA LA VALIDACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+PASO 1: Usuario selecciona archivo en el navegador
+───────────────────────────────────────────────────
+
+<input type="file" class="form-control" id="archivo" name="archivo" required>
+
+PASO 2: Usuario envía el formulario
+────────────────────────────────────
+
+POST /usuario/enviar_documento.php
+├─ archivo: documento.csv ← Archivo seleccionado
+├─ item_id: 1
+├─ titulo: "Datos de Remuneraciones"
+└─ descripcion: "Archivo de datos"
+
+PASO 3: Servidor valida la extensión
+──────────────────────────────────────
+
+$fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+// $fileExt = 'csv'
+
+if (!in_array($fileExt, $allowedTypes)) {
+    // ANTES: true (CSV no estaba en la lista) → ERROR
+    // AHORA: false (CSV está en la lista) → PERMITIDO
+    return ['error' => 'Tipo de archivo no permitido'];
+}
+
+PASO 4: Se valida el tamaño
+─────────────────────────────
+
+if ($file['size'] > $maxSize) {
+    return ['error' => 'El archivo es demasiado grande (máximo 10MB)'];
+}
+
+PASO 5: Se sube el archivo
+──────────────────────────
+
+move_uploaded_file($file['tmp_name'], $filepath);
+// Archivo guardado en: uploads/doc_[timestamp].csv
+
+PASO 6: Se registra en la base de datos
+────────────────────────────────────────
+
+INSERT INTO documentos (item_id, usuario_id, archivo, ...)
+VALUES (1, 5, 'uploads/doc_[timestamp].csv', ...)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        VENTAJAS DE PERMITIR CSV
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ DATOS ESTRUCTURADOS
+   CSV es formato estándar para datos tabulares
+
+✅ FÁCIL DE PROCESAR
+   Puede importarse a cualquier programa de hojas de cálculo
+
+✅ UNIVERSALMENTE COMPATIBLE
+   Abierto, sin dependencias de software específico
+
+✅ PEQUEÑO EN TAMAÑO
+   Ideal para transferencias y almacenamiento
+
+✅ LEGIBLE POR HUMANOS
+   Se puede abrir en cualquier editor de texto
+
+═══════════════════════════════════════════════════════════════════════════════
+                         VALIDACIÓN Y PRUEBAS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Sintaxis PHP validada:
+   - classes/Documento.php ................... OK
+   - usuario/dashboard.php .................. OK
+
+✅ Cambios en documentación verificados:
+   - README.md ........................... ACTUALIZADO
+   - GUIA_USUARIOS.md .................... ACTUALIZADO
+   - GUIA_RAPIDA.txt ..................... ACTUALIZADO
+
+✅ Consistencia entre código y documentación verificada
+
+═══════════════════════════════════════════════════════════════════════════════
+                            ✨ RESULTADO FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ CSV AHORA PERMITIDO
+✅ DOCUMENTACIÓN ACTUALIZADA
+✅ CONSISTENCIA MANTENIDA
+
+Ahora los usuarios pueden:
+- Cargar archivos CSV sin restricción
+- Ver el formato CSV en la lista de permitidos
+- Usar datos tabulares directamente en el sistema
+- Importar/exportar datos fácilmente
+
+═══════════════════════════════════════════════════════════════════════════════

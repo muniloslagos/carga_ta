@@ -1,0 +1,478 @@
+═══════════════════════════════════════════════════════════════════════════════
+    ÍNDICE DE DOCUMENTACIÓN - SISTEMA DE CONTROL DE TRANSPARENCIA ACTIVA
+═══════════════════════════════════════════════════════════════════════════════
+
+Bienvenido al Sistema de Control de Transparencia Activa (v1.0.0)
+
+A continuación encontrará un índice completo de toda la documentación disponible.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        DOCUMENTACIÓN PRINCIPAL
+═══════════════════════════════════════════════════════════════════════════════
+
+📄 README.md
+   Documentación técnica completa del proyecto
+   - Descripción del sistema
+   - Requisitos de instalación
+   - Estructura del proyecto
+   - Base de datos y tablas
+   - Funcionalidades
+   - Tecnologías utilizadas
+   - Próximas mejoras
+   → Para: Desarrolladores y administradores técnicos
+   → Ubicación: /cumplimiento/README.md
+
+📄 GUIA_USUARIOS.md
+   Guía completa para los usuarios del sistema
+   - Instrucciones de inicio rápido
+   - Descripción de perfiles
+   - Funciones por perfil
+   - Cómo cargar documentos
+   - Estructura de items
+   - Tabla de responsabilidades
+   - Troubleshooting
+   → Para: Usuarios finales de todos los perfiles
+   → Ubicación: /cumplimiento/GUIA_USUARIOS.md
+
+📄 GUIA_RAPIDA.txt
+   Instrucciones rápidas y referencias
+   - Pasos de inicio rápido
+   - Accesos rápidos (URLs)
+   - Perfiles de usuario
+   - Características principales
+   - Formato de archivos permitidos
+   - Flujo de trabajo
+   - Tabla de responsabilidades
+   → Para: Consulta rápida de información
+   → Ubicación: /cumplimiento/GUIA_RAPIDA.txt
+
+📄 RESUMEN_PROYECTO.md
+   Resumen ejecutivo del proyecto
+   - Estructura de archivos
+   - Funcionalidades implementadas
+   - Tablas de base de datos
+   - Diagrama de flujo
+   - Tecnologías utilizadas
+   - Características de seguridad
+   - Estadísticas del proyecto
+   → Para: Gerentes y supervisores
+   → Ubicación: /cumplimiento/RESUMEN_PROYECTO.md
+
+📄 ESTADO_PROYECTO.txt
+   Reporte de estado final del proyecto
+   - Resumen ejecutivo
+   - Checklist de funcionalidades
+   - Estructura de archivos completa
+   - Características técnicas
+   - Instrucciones de inicio rápido
+   - Usuarios de prueba
+   - Próximas mejoras
+   → Para: Revisión general del proyecto
+   → Ubicación: /cumplimiento/ESTADO_PROYECTO.txt
+
+📄 DESPLIEGUE.txt
+   Instrucciones de despliegue y producción
+   - Despliegue local (desarrollo)
+   - Despliegue en servidor (producción)
+   - Configuración de seguridad
+   - Mantenimiento en producción
+   - Monitoreo y alertas
+   - Recuperación de desastres
+   - Actualización a nuevas versiones
+   - Optimización de rendimiento
+   → Para: Administradores de sistemas
+   → Ubicación: /cumplimiento/DESPLIEGUE.txt
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ARCHIVOS DE CONFIGURACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+🔧 check.php
+   Validador de requisitos del sistema
+   - Verifica versión de PHP
+   - Verifica extensiones necesarias
+   - Comprueba permisos de archivos
+   - Valida conectividad a BD
+   → Acceso: http://localhost/cumplimiento/check.php
+   → Usar: Antes de setup.php
+
+🔧 setup.php
+   Script de instalación y creación de BD
+   - Crea base de datos
+   - Crea todas las tablas
+   - Inserta usuario administrativo
+   - Crea índices
+   → Acceso: http://localhost/cumplimiento/setup.php
+   → Usar: Después de check.php (primera vez)
+
+🔧 ejemplo_datos.php
+   Script para insertar datos de ejemplo
+   - Crea 5 direcciones
+   - Crea 4 usuarios de prueba
+   - Crea 15 items de transparencia
+   - Asigna usuarios a items
+   → Acceso: http://localhost/cumplimiento/ejemplo_datos.php
+   → Usar: Opcional, para pruebas
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ARCHIVOS DE CÓDIGO
+═══════════════════════════════════════════════════════════════════════════════
+
+📂 config/
+   └─ config.php              Configuración global del sistema
+      - Credenciales de BD
+      - URL del sitio
+      - Constantes de perfil
+      - Configuración de periodicidades
+   
+   └─ Database.php            Clase para conexión a BD
+      - Métodos de conexión
+      - Métodos de query
+      - Métodos de transacciones
+
+📂 classes/
+   └─ Usuario.php             Modelo de Usuario
+      - CRUD de usuarios
+      - Autenticación
+      - Cambio de contraseña
+   
+   └─ Direccion.php           Modelo de Dirección
+      - CRUD de direcciones
+      - Gestión de usuarios por dirección
+   
+   └─ Item.php                Modelo de Item de Transparencia
+      - CRUD de items
+      - Asignación de usuarios
+      - Obtención de items por usuario
+   
+   └─ Documento.php           Modelo de Documento
+      - CRUD de documentos
+      - Validación de archivos
+      - Gestión de estado
+
+📂 admin/                     Panel de Administración
+   └─ index.php               Dashboard administrativo
+   
+   └─ usuarios/
+      ├─ index.php            Gestión de usuarios
+      └─ get_usuario.php      API JSON de usuario
+   
+   └─ direcciones/
+      ├─ index.php            Gestión de direcciones
+      └─ get_direccion.php    API JSON de dirección
+   
+   └─ items/
+      ├─ index.php            Gestión de items
+      ├─ get_item.php         API JSON de item
+      └─ get_usuarios_item.php API JSON de usuarios asignados
+   
+   └─ documentos/
+      └─ index.php            Revisión de documentos
+
+📂 usuario/                   Panel de Usuario
+   ├─ dashboard.php           Panel principal
+   └─ enviar_documento.php    Procesamiento de carga de documentos
+
+📂 includes/
+   ├─ header.php              Encabezado común (navbar)
+   └─ footer.php              Pie de página
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ARCHIVOS DE RECURSOS
+═══════════════════════════════════════════════════════════════════════════════
+
+🎨 css/
+   └─ style.css              Estilos personalizados
+      - Estilos del navbar
+      - Estilos de cards
+      - Estilos de badges
+      - Estilos responsive
+
+⚙️ js/
+   └─ main.js                Scripts de cliente
+      - Validación de formularios
+      - Funciones auxiliares
+      - Tooltips y popovers
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ARCHIVOS DE DATOS
+═══════════════════════════════════════════════════════════════════════════════
+
+💾 database.sql
+   Dump SQL de base de datos
+   - Estructura completa
+   - Tablas con relaciones
+   - Índices
+   - Usuario administrativo
+   → Usar: Para restaurar o respaldar BD
+
+═══════════════════════════════════════════════════════════════════════════════
+                        PÁGINAS DE INICIO
+═══════════════════════════════════════════════════════════════════════════════
+
+🏠 index.php
+   Página de inicio del sistema
+   - Información general
+   - Links a documentación
+   - Botones de inicio rápido
+   → Acceso: http://localhost/cumplimiento/
+
+🔐 login.php
+   Página de autenticación
+   - Formulario de email/contraseña
+   - Redirección según perfil
+   → Acceso: http://localhost/cumplimiento/login.php
+
+═══════════════════════════════════════════════════════════════════════════════
+                    GUÍA POR TIPO DE USUARIO
+═══════════════════════════════════════════════════════════════════════════════
+
+🔑 ADMINISTRADOR DEL SISTEMA
+
+Documentos a revisar:
+  1. README.md (conocer arquitectura)
+  2. GUIA_RAPIDA.txt (referencias rápidas)
+  3. DESPLIEGUE.txt (configuración de servidor)
+  4. config/config.php (personalizar configuración)
+
+Primeros pasos:
+  1. Ejecutar check.php
+  2. Ejecutar setup.php
+  3. Cambiar contraseña de admin
+  4. Crear direcciones y usuarios
+  5. Crear items de transparencia
+
+👥 USUARIO ADMINISTRATIVO
+
+Documentos a revisar:
+  1. GUIA_USUARIOS.md (funciones por perfil)
+  2. GUIA_RAPIDA.txt (referencia rápida)
+
+Funciones principales:
+  1. Gestionar usuarios
+  2. Crear direcciones
+  3. Crear items de transparencia
+  4. Asignar usuarios a items
+  5. Revisar documentos
+
+📤 CARGADOR DE INFORMACIÓN
+
+Documentos a revisar:
+  1. GUIA_USUARIOS.md (tu perfil)
+  2. GUIA_RAPIDA.txt (instrucciones de carga)
+
+Funciones principales:
+  1. Ver mis items asignados
+  2. Subir documentos
+  3. Ver estado de mis documentos
+  4. Recibir comentarios de revisión
+
+📋 DIRECTOR REVISOR
+
+Documentos a revisar:
+  1. GUIA_USUARIOS.md (tu perfil)
+  2. GUIA_RAPIDA.txt (flujo de revisión)
+
+Funciones principales:
+  1. Ver documentos pendientes
+  2. Revisar documentos
+  3. Aprobar o rechazar
+  4. Agregar comentarios
+
+🌐 PUBLICADOR
+
+Documentos a revisar:
+  1. GUIA_USUARIOS.md (tu perfil)
+
+Funciones principales:
+  1. Ver documentos aprobados
+  2. Preparar para publicación
+
+═══════════════════════════════════════════════════════════════════════════════
+                        REFERENCIA RÁPIDA DE URLs
+═══════════════════════════════════════════════════════════════════════════════
+
+PÁGINAS PÚBLICAS:
+  http://localhost/cumplimiento/             → Inicio
+  http://localhost/cumplimiento/login.php    → Login
+  http://localhost/cumplimiento/check.php    → Verificar requisitos
+  http://localhost/cumplimiento/setup.php    → Crear BD
+  http://localhost/cumplimiento/ejemplo_datos.php → Datos de prueba
+
+PANEL DE ADMINISTRACIÓN:
+  http://localhost/cumplimiento/admin/                  → Dashboard
+  http://localhost/cumplimiento/admin/usuarios/         → Gestión de usuarios
+  http://localhost/cumplimiento/admin/direcciones/      → Gestión de direcciones
+  http://localhost/cumplimiento/admin/items/            → Gestión de items
+  http://localhost/cumplimiento/admin/documentos/       → Revisión de documentos
+
+PANEL DE USUARIO:
+  http://localhost/cumplimiento/usuario/dashboard.php   → Mi panel
+
+═══════════════════════════════════════════════════════════════════════════════
+                        TABLA DE CONTENIDOS
+═══════════════════════════════════════════════════════════════════════════════
+
+README.md
+  ├─ Descripción
+  ├─ Requisitos
+  ├─ Instalación
+  ├─ Estructura
+  ├─ Base de Datos
+  ├─ Funcionalidades
+  ├─ Perfiles de Usuario
+  ├─ Periodicidades
+  ├─ Formatos Permitidos
+  ├─ Próximas Mejoras
+  └─ Soporte
+
+GUIA_USUARIOS.md
+  ├─ Inicio Rápido
+  ├─ Guía por Perfil
+  ├─ Estructura de Items
+  ├─ Tabla de Responsabilidades
+  ├─ Configuración Técnica
+  ├─ Seguridad
+  ├─ Troubleshooting
+  └─ Próximas Versiones
+
+GUIA_RAPIDA.txt
+  ├─ Inicio Rápido
+  ├─ Estructura
+  ├─ Características
+  ├─ Perfiles
+  ├─ Periodos
+  ├─ Formatos
+  ├─ Flujo de Trabajo
+  ├─ Solución de Problemas
+  ├─ Configuración
+  └─ Seguridad
+
+═══════════════════════════════════════════════════════════════════════════════
+                        BÚSQUEDA RÁPIDA
+═══════════════════════════════════════════════════════════════════════════════
+
+¿Cómo instalo el sistema?
+  → GUIA_RAPIDA.txt - PASO 1
+
+¿Cuál es mi contraseña?
+  → GUIA_RAPIDA.txt - Usuarios de prueba
+
+¿Cómo cargo un documento?
+  → GUIA_USUARIOS.md - CARGADOR DE INFORMACIÓN
+
+¿Cómo reviso documentos?
+  → GUIA_USUARIOS.md - DIRECTOR REVISOR
+
+¿Cómo creo un nuevo usuario?
+  → GUIA_USUARIOS.md - ADMINISTRATIVO
+
+¿Cómo creo un item de transparencia?
+  → GUIA_USUARIOS.md - ADMINISTRATIVO
+
+¿Cuáles son los requisitos?
+  → README.md - Requisitos
+
+¿Cómo despliego en producción?
+  → DESPLIEGUE.txt
+
+¿Cómo mantengo el sistema?
+  → DESPLIEGUE.txt - Mantenimiento
+
+═══════════════════════════════════════════════════════════════════════════════
+                        INFORMACIÓN DE SOPORTE
+═══════════════════════════════════════════════════════════════════════════════
+
+PARA PROBLEMAS TÉCNICOS:
+  1. Ejecute check.php
+  2. Revise los logs
+  3. Consulte README.md
+  4. Revise GUIA_USUARIOS.md
+
+PARA CONSULTAS DE FUNCIONAMIENTO:
+  1. Revise GUIA_USUARIOS.md
+  2. Revise GUIA_RAPIDA.txt
+  3. Busque en sección "Troubleshooting"
+
+PARA PREGUNTAS DE IMPLEMENTACIÓN:
+  1. Revise README.md
+  2. Revise DESPLIEGUE.txt
+  3. Contacte al administrador de sistemas
+
+═══════════════════════════════════════════════════════════════════════════════
+                        LISTA COMPLETA DE ARCHIVOS
+═══════════════════════════════════════════════════════════════════════════════
+
+DOCUMENTACIÓN (7):
+  ✓ README.md
+  ✓ GUIA_USUARIOS.md
+  ✓ GUIA_RAPIDA.txt
+  ✓ RESUMEN_PROYECTO.md
+  ✓ ESTADO_PROYECTO.txt
+  ✓ DESPLIEGUE.txt
+  ✓ INDICE_DOCUMENTACION.txt (este archivo)
+
+CONFIGURACIÓN (2):
+  ✓ config/config.php
+  ✓ config/Database.php
+
+CLASES (4):
+  ✓ classes/Usuario.php
+  ✓ classes/Direccion.php
+  ✓ classes/Item.php
+  ✓ classes/Documento.php
+
+VISTAS ADMIN (9):
+  ✓ admin/index.php
+  ✓ admin/usuarios/index.php
+  ✓ admin/usuarios/get_usuario.php
+  ✓ admin/direcciones/index.php
+  ✓ admin/direcciones/get_direccion.php
+  ✓ admin/items/index.php
+  ✓ admin/items/get_item.php
+  ✓ admin/items/get_usuarios_item.php
+  ✓ admin/documentos/index.php
+
+VISTAS USUARIO (2):
+  ✓ usuario/dashboard.php
+  ✓ usuario/enviar_documento.php
+
+PÁGINAS PÚBLICAS (5):
+  ✓ index.php
+  ✓ login.php
+  ✓ logout.php
+  ✓ check.php
+  ✓ setup.php
+
+DATOS (3):
+  ✓ ejemplo_datos.php
+  ✓ database.sql
+  ✓ .htaccess
+
+INCLUDES (2):
+  ✓ includes/header.php
+  ✓ includes/footer.php
+
+RECURSOS (2):
+  ✓ css/style.css
+  ✓ js/main.js
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CAMBIOS RECIENTES
+═══════════════════════════════════════════════════════════════════════════════
+
+Versión 1.0.0 (Diciembre 2025)
+  ✓ Sistema completamente funcional
+  ✓ Todas las funcionalidades implementadas
+  ✓ Documentación completa
+  ✓ Datos de ejemplo incluidos
+  ✓ Scripts de instalación automática
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Este índice se actualizará con cada nueva versión.
+
+Última actualización: Diciembre 2025
+Versión del Sistema: 1.0.0
+
+═══════════════════════════════════════════════════════════════════════════════

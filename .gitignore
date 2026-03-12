@@ -1,0 +1,60 @@
+# Archivos de configuración local
+config/database.php
+
+# Archivos de sesión de PHP
+*.session
+
+# Logs
+*.log
+logs/
+error_log
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs y editores
+.vscode/
+.idea/
+*.sublime-*
+
+# Dependencias (si usas composer)
+/vendor/
+composer.lock
+
+# Backups de base de datos
+*.sql.backup
+*.sql.gz
+
+# Archivos de prueba
+test_*.php
+prueba_*.php
+debug_*.php
+
+# Node modules (si usas npm)
+node_modules/
+package-lock.json
+
+# Archivos generados
+*.cache
+
+# Archivos personales
+notas.txt
+TODO.txt
+
+emisor/
+girador/
+pantalla/
+herramientas/
+api/
+git-push.ps1
+git-setup.ps1
+install.php
