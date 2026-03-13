@@ -93,7 +93,8 @@ class ItemConPlazo {
      * @return Resultado de query
      */
     public function getDocumentosPorMes($item_id, $usuario_id, $ano, $mes) {
-        // Consulta directa a documentos (sin depender de documento_seguimiento)
+        // Obtiene el documento más reciente del item (sin filtrar por mes/año
+        // porque fecha_subida puede ser distinto al período lógico del documento)
         if ($usuario_id === null) {
             $sql = "SELECT 
                     d.*,
@@ -102,14 +103,12 @@ class ItemConPlazo {
                     FROM documentos d
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
                     WHERE d.item_id = ?
-                    AND YEAR(d.fecha_subida) = ?
-                    AND MONTH(d.fecha_subida) = ?
                     ORDER BY d.fecha_subida DESC
                     LIMIT 1";
 
             $stmt = $this->db->prepare($sql);
             if (!$stmt) return null;
-            $stmt->bind_param("iii", $item_id, $ano, $mes);
+            $stmt->bind_param("i", $item_id);
         } else {
             $sql = "SELECT 
                     d.*,
@@ -119,14 +118,12 @@ class ItemConPlazo {
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
                     WHERE d.item_id = ?
                     AND d.usuario_id = ?
-                    AND YEAR(d.fecha_subida) = ?
-                    AND MONTH(d.fecha_subida) = ?
                     ORDER BY d.fecha_subida DESC
                     LIMIT 1";
 
             $stmt = $this->db->prepare($sql);
             if (!$stmt) return null;
-            $stmt->bind_param("iiii", $item_id, $usuario_id, $ano, $mes);
+            $stmt->bind_param("ii", $item_id, $usuario_id);
         }
         
         $stmt->execute();

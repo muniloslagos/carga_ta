@@ -96,14 +96,18 @@ class Documento {
 
     // Obtener documentos por item usando documento_seguimiento (MÁS CONFIABLE)
     public function getByItemFollowUp($item_id, $mes, $ano) {
+        // Busca documentos recientes del item (últimos 60 días desde inicio del mes)
+        // No filtramos estrictamente por mes porque fecha_subida (upload)
+        // puede ser distinta al período lógico del documento
         $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo
                 FROM {$this->table} d
-                WHERE d.item_id = ? AND MONTH(d.fecha_subida) = ? AND YEAR(d.fecha_subida) = ?
+                WHERE d.item_id = ?
+                AND d.fecha_subida >= DATE_SUB(CONCAT(?, '-', LPAD(?, 2, '0'), '-01'), INTERVAL 60 DAY)
                 ORDER BY d.fecha_subida DESC";
         
         $stmt = $this->db->prepare($sql);
         if (!$stmt) return null;
-        $stmt->bind_param("iii", $item_id, $mes, $ano);
+        $stmt->bind_param("iii", $item_id, $ano, $mes);
         $stmt->execute();
         return $stmt->get_result();
     }
