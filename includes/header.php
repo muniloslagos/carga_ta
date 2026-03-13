@@ -34,29 +34,68 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
     <!-- Navbar Mejorada -->
     <nav class="navbar navbar-expand-lg" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
         <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold" href="<?php echo SITE_URL; ?>" style="font-size: 1.1rem; letter-spacing: 0.5px;">
-                <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.4rem;"></i> 
-                <span style="color: #ffffff;"><?php echo SITE_NAME; ?></span>
+            <a class="navbar-brand fw-bold" href="<?php echo SITE_URL; ?>" style="font-size: 1rem; letter-spacing: 0.5px;">
+                <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.3rem;"></i> 
+                <span style="color: #ffffff;">Transparencia Activa</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center gap-3">
+                <!-- Nav links según perfil -->
+                <ul class="navbar-nav me-auto">
+                    <?php if ($is_logged_in && $current_profile === 'administrativo'): ?>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-light" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-gear"></i> Administración
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/"><i class="bi bi-speedometer2"></i> Panel Admin</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/items/"><i class="bi bi-file-text"></i> Items</a></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/usuarios/"><i class="bi bi-people"></i> Usuarios</a></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/direcciones/"><i class="bi bi-building"></i> Direcciones</a></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/documentos/"><i class="bi bi-file-earmark"></i> Documentos</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/publicador/"><i class="bi bi-check-circle"></i> Publicador</a></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/auditor/"><i class="bi bi-search"></i> Auditor</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
+                                <i class="bi bi-house"></i> Mi Panel
+                            </a>
+                        </li>
+                    <?php elseif ($is_logged_in && $current_profile === 'publicador'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
+                                <i class="bi bi-house"></i> Mi Panel
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/publicador/">
+                                <i class="bi bi-check-circle"></i> Publicación
+                            </a>
+                        </li>
+                    <?php elseif ($is_logged_in): ?>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
+                                <i class="bi bi-house"></i> Mi Panel
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                </ul>
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
                     <?php if ($is_logged_in && $current_user): ?>
                         <li class="nav-item">
-                            <span class="nav-link text-light" style="cursor: default;">
-                                <i class="bi bi-person-circle" style="font-size: 1.2rem; color: #3498db;"></i> 
+                            <span class="nav-link text-light" style="cursor: default; font-size: 0.9rem;">
+                                <i class="bi bi-person-circle" style="color: #3498db;"></i>
                                 <strong><?php echo htmlspecialchars($current_user['nombre'] ?? 'Usuario'); ?></strong>
-                                <br>
-                                <small style="color: #95a5a6; font-size: 0.85rem;"><?php echo $PROFILES[$current_profile] ?? $current_profile; ?></small>
+                                <span class="badge ms-1" style="background:#3d5a7a; font-size:0.75rem;"><?php echo $PROFILES[$current_profile] ?? $current_profile; ?></span>
                             </span>
                         </li>
                         <li class="nav-item">
-                            <div class="vr" style="height: 2rem; opacity: 0.3;"></div>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>logout.php" style="transition: all 0.3s;">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>logout.php">
                                 <i class="bi bi-box-arrow-right" style="color: #e74c3c;"></i> Salir
                             </a>
                         </li>
@@ -71,8 +110,5 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
             </div>
         </div>
     </nav>
-
-    <!-- Línea separadora -->
-    <div style="border-bottom: 2px solid rgba(255, 255, 255, 0.2); margin: 0;"></div>
 
     <div class="container-fluid">

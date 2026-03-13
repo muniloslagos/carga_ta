@@ -53,14 +53,13 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 $mesBusqueda = $mesSeleccionado;
 ?>
 
-<div class="page-header" style="background: linear-gradient(135deg, #8e44ad 0%, #3a0f5c 100%); color: white; padding: 2.5rem 2rem; margin: -1rem -1rem 2rem -1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    <h1 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem;">
-        <i class="bi bi-check-circle" style="color: #f39c12; margin-right: 0.5rem;"></i> 
-        Centro de Publicación y Transparencia Activa
-    </h1>
-    <p style="margin: 0; color: #ecf0f1; font-size: 1.05rem;">
-        Revise los documentos cargados por los usuarios y publíquelos en Transparencia Activa
-    </p>
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1><i class="bi bi-check-circle" style="color: #8e44ad;"></i> Centro de Publicación y Transparencia Activa</h1>
+            <small class="text-muted">Revise los documentos cargados por los usuarios y publíquelos en Transparencia Activa</small>
+        </div>
+    </div>
 </div>
 
 <!-- NOTA INFORMATIVA -->

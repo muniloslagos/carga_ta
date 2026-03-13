@@ -216,15 +216,13 @@ if (isset($_SESSION['success'])) {
 }
 ?>
 
-<div class="page-header" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 2.5rem 2rem; margin: -1rem -1rem 2rem -1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    <h1 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem;">
-        <i class="bi bi-inbox" style="color: #3498db; margin-right: 0.5rem;"></i> 
-        Mi Panel de Carga
-    </h1>
-    <p style="margin: 0; color: #bdc3c7; font-size: 1.05rem;">
-        <i class="bi bi-check-circle" style="color: #27ae60;"></i> 
-        Bienvenido, gestiona tus documentos de transparencia
-    </p>
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1><i class="bi bi-inbox" style="color: #3498db;"></i> Mi Panel de Carga</h1>
+            <small class="text-muted">Gestiona tus documentos de transparencia</small>
+        </div>
+    </div>
 </div>
 
 <?php if ($success): ?>
