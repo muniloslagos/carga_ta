@@ -378,7 +378,7 @@ if (isset($_SESSION['success'])) {
                                     
                                     // Obtener documentos del mes
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoSeleccionado, $mesSeleccionado);
-                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
@@ -510,7 +510,7 @@ if (isset($_SESSION['success'])) {
                                     
                                     // Obtener documentos
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
-                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
@@ -626,7 +626,7 @@ if (isset($_SESSION['success'])) {
                                     
                                     // Obtener último documento
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
-                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
@@ -868,7 +868,7 @@ if (isset($_SESSION['success'])) {
                                     
                                     // Obtener último documento (ocurrencia)
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $user_id, $anoActual, $mesActual);
-                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
