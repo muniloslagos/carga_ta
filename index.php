@@ -3,21 +3,21 @@
  * Página principal - Redirige al login o panel correspondiente
  */
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/config/config.php';
 
-if (isLoggedIn()) {
-    switch ($_SESSION['user_rol']) {
-        case 'admin':
-            header('Location: ' . BASE_URL . '/admin/');
-            break;
-        case 'girador':
-            header('Location: ' . BASE_URL . '/girador/');
-            break;
-        case 'emisor':
-            header('Location: ' . BASE_URL . '/emisor/');
-            break;
+if (isset($_SESSION['user_id'])) {
+    // Usuario autenticado: redirigir según perfil
+    $perfil = $_SESSION['profile'] ?? '';
+    if ($perfil === 'administrativo' || $perfil === 'publicador') {
+        header('Location: ' . SITE_URL . 'admin/index.php');
+    } else {
+        header('Location: ' . SITE_URL . 'usuario/dashboard.php');
     }
 } else {
-    header('Location: ' . BASE_URL . '/login.php');
+    // No autenticado: ir al login
+    header('Location: ' . SITE_URL . 'login.php');
 }
 exit;
