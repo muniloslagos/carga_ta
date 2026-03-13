@@ -11,7 +11,7 @@ $usuarioClass = new Usuario($db->getConnection());
 
 // Definir perfiles disponibles
 $PROFILES = [
-    'administrativo' => 'Administrativo',
+    'administrativo' => 'Administrador',
     'cargador_informacion' => 'Cargador de Información',
     'publicador' => 'Publicador',
     'auditor' => 'Auditor'

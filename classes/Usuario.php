@@ -64,7 +64,7 @@ class Usuario {
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
         
         $stmt->bind_param(
-            "sssii",
+            "ssssi",
             $data['nombre'],
             $data['email'],
             $hashedPassword,

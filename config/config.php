@@ -23,7 +23,7 @@ define('PROFILE_CARGADOR', 'cargador_informacion');
 define('PROFILE_PUBLICADOR', 'publicador');
 
 $PROFILES = [
-    'administrativo' => 'Administrativo',
+    'administrativo' => 'Administrador',
     'director_revisor' => 'Director Revisor',
     'cargador_informacion' => 'Cargador de Información',
     'publicador' => 'Publicador'
