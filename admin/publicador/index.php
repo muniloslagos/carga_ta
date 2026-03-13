@@ -1,87 +1,167 @@
 <?php
+// PRIMERO: Verificar autenticación ANTES de cualquier salida
 require_once dirname(dirname(__DIR__)) . '/includes/check_auth.php';
-
-// Verificar permisos
+// Permitir acceso a administrativo, director y publicador
 if ($current_profile !== 'administrativo' && $current_profile !== 'director_revisor' && $current_profile !== 'publicador') {
     header('Location: ' . SITE_URL . 'login.php');
     exit;
 }
 
+// LUEGO: Incluir header con HTML
 require_once dirname(dirname(__DIR__)) . '/includes/header.php';
 
-// Obtener mes y año seleccionado
-$mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : (int)date('m');
-$anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : (int)date('Y');
+require_once dirname(dirname(__DIR__)) . '/classes/Documento.php';
+require_once dirname(dirname(__DIR__)) . '/classes/Item.php';
+require_once dirname(dirname(__DIR__)) . '/classes/Usuario.php';
+require_once dirname(dirname(__DIR__)) . '/classes/Verificador.php';
+
+$documentoClass = new Documento($db->getConnection());
+$itemClass = new Item($db->getConnection());
+$usuarioClass = new Usuario($db->getConnection());
+$verificadorClass = new Verificador($db->getConnection());
+
+// Obtener mes y año actual
+$mesActual = (int)date('m');
+$anoActual = (int)date('Y');
+
+// Permitir seleccionar mes
+$mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : $mesActual;
+$anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : $anoActual;
+$direccionSeleccionada = isset($_GET['direccion']) ? (int)$_GET['direccion'] : 0;
 
 // Validar mes y año
-if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = (int)date('m');
-if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = (int)date('Y');
+if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = $mesActual;
+if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = $anoActual;
 
-$meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
-// Obtener total global de documentos publicados (para badge de pestaña)
-$totalPublicadosGlobal = 0;
-$resTotal = $db->getConnection()->query("SELECT COUNT(*) as total FROM verificadores_publicador");
-if ($resTotal) {
-    $rowTotal = $resTotal->fetch_assoc();
-    $totalPublicadosGlobal = (int)$rowTotal['total'];
+// Obtener todas las direcciones para el filtro
+$conn = $db->getConnection();
+$direccionesResult = $conn->query("SELECT id, nombre FROM direcciones WHERE activa = 1 ORDER BY nombre");
+$direcciones = [];
+while ($dir = $direccionesResult->fetch_assoc()) {
+    $direcciones[] = $dir;
 }
 
-$db_conn = $db->getConnection();
+// Obtener items (filtrado por dirección si aplica)
+$itemsResult = $itemClass->getAll($direccionSeleccionada ?: null);
+$items = [];
+while ($item = $itemsResult->fetch_assoc()) {
+    $items[] = $item;
+}
 
-// Query principal: Obtener todos los items con sus documentos del período seleccionado
-$query = "
-    SELECT 
-        i.id as item_id,
-        i.numeracion,
-        i.nombre as item_nombre,
-        i.periodicidad,
-        d.id as doc_id,
-        d.titulo,
-        d.archivo,
-        d.estado as doc_estado,
-        d.fecha_subida,
-        ds.fecha_envio,
-        ds.mes,
-        ds.ano,
-        u.id as usuario_id,
-        u.nombre as usuario_nombre,
-        vp.id as verificador_id,
-        vp.archivo_verificador,
-        vp.fecha_carga_portal
-    FROM items_transparencia i
-    LEFT JOIN documentos d ON i.id = d.item_id 
-        AND d.estado IN ('pendiente', 'aprobado', 'Publicado')
-    LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
-    LEFT JOIN usuarios u ON d.usuario_id = u.id
-    LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
-    WHERE i.activo = 1
-        AND (
-            -- Solo items con documento del período, o sin documento
-            d.id IS NULL
-            OR (i.periodicidad = 'mensual' AND ds.mes = ? AND ds.ano = ?)
-            OR (i.periodicidad = 'trimestral' AND FLOOR((ds.mes-1)/3) = FLOOR((?-1)/3) AND ds.ano = ?)
-            OR (i.periodicidad = 'semestral' AND FLOOR((ds.mes-1)/6) = FLOOR((?-1)/6) AND ds.ano = ?)
-            OR (i.periodicidad = 'anual' AND ds.ano = ?)
-            OR (i.periodicidad = 'ocurrencia' AND ds.mes = ? AND ds.ano = ?)
-        )
-    ORDER BY 
-        FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
-        i.numeracion";
+$meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+$mesBusqueda = $mesSeleccionado;
+?>
 
-$stmt = $db->getConnection()->prepare($query);
-$stmt->bind_param("iiiiiiiii", 
-    $mesSeleccionado, $anoSeleccionado,  // Para mensual
-    $mesSeleccionado, $anoSeleccionado,  // Para trimestral
-    $mesSeleccionado, $anoSeleccionado,  // Para semestral
-    $anoSeleccionado,                    // Para anual
-    $mesSeleccionado, $anoSeleccionado   // Para ocurrencia
-);
-$stmt->execute();
-$resultado = $stmt->get_result();
+<div class="page-header" style="background: linear-gradient(135deg, #8e44ad 0%, #3a0f5c 100%); color: white; padding: 2.5rem 2rem; margin: -1rem -1rem 2rem -1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h1 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem;">
+        <i class="bi bi-check-circle" style="color: #f39c12; margin-right: 0.5rem;"></i> 
+        Centro de Publicación y Transparencia Activa
+    </h1>
+    <p style="margin: 0; color: #ecf0f1; font-size: 1.05rem;">
+        Revise los documentos cargados por los usuarios y publíquelos en Transparencia Activa
+    </p>
+</div>
 
-// Agrupar resultados por periodicidad
+<!-- NOTA INFORMATIVA -->
+<div class="alert alert-info border-2" style="margin-bottom: 2rem;">
+    <i class="bi bi-info-circle-fill" style="font-size: 1.3rem; margin-right: 0.5rem;"></i>
+    <strong>Proceso de Publicación:</strong>
+    <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+        <li><strong>Estado "Cargado":</strong> Documento subido por el usuario, lista para publicar en Transparencia Activa</li>
+        <li><strong>Agregar Verificador:</strong> Al cargar la imagen de verificación, el documento pasa a estado "Publicado"</li>
+        <li><strong>Estado "Publicado":</strong> Documento publicado y disponible en el Portal de Transparencia Activa</li>
+    </ul>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-calendar3"></i> Seleccionar Período
+            </div>
+            <div class="card-body">
+                <form method="GET" class="d-flex gap-2 flex-wrap">
+                    <select name="mes" class="form-select" onchange="this.form.submit()">
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <option value="<?php echo $m; ?>" <?php echo ($m === $mesSeleccionado) ? 'selected' : ''; ?>>
+                                <?php echo $meses[$m]; ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+                    
+                    <select name="ano" class="form-select" onchange="this.form.submit()">
+                        <?php for ($a = 2024; $a <= 2026; $a++): ?>
+                            <option value="<?php echo $a; ?>" <?php echo ($a === $anoSeleccionado) ? 'selected' : ''; ?>>
+                                <?php echo $a; ?>
+                            </option>
+                        <?php endfor; ?>
+                    </select>
+
+                    <select name="direccion" class="form-select" onchange="this.form.submit()" style="min-width: 220px;">
+                        <option value="0">-- Todas las Direcciones --</option>
+                        <?php foreach ($direcciones as $dir): ?>
+                            <option value="<?php echo $dir['id']; ?>" <?php echo ($dir['id'] == $direccionSeleccionada) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($dir['nombre']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <?php
+    // Contar documentos sin verificación para el mes seleccionado
+    $docsSinVerif = 0;
+    $docsConVerif = 0;
+    $itemsConDoc = [];
+    
+    foreach ($items as $item) {
+        // Para mensuales, buscar por mes; para anuales, por año
+        if ($item['periodicidad'] === 'anual') {
+            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], 1, $anoSeleccionado);
+        } else {
+            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesSeleccionado, $anoSeleccionado);
+        }
+        
+        if ($docsResult && $docsResult->num_rows > 0) {
+            while ($doc = $docsResult->fetch_assoc()) {
+                $verificador = $verificadorClass->getByDocumento($doc['documento_id']);
+                if (!$verificador) {
+                    $docsSinVerif++;
+                } else {
+                    $docsConVerif++;
+                }
+                $itemsConDoc[$item['id']] = $doc;
+            }
+        }
+    }
+    
+    if ($docsSinVerif > 0 || $docsConVerif > 0) {
+        echo '<div class="col-md-6">';
+        if ($docsSinVerif > 0) {
+            echo '<div class="alert alert-warning border-2" style="border-color: #ff9800 !important; background-color: #fff3cd; color: #856404; margin-bottom: 0.5rem;">';
+            echo '<i class="bi bi-clock-history" style="font-size: 1.3rem; margin-right: 0.5rem;"></i>';
+            echo '<strong>¡Documentos Pendientes!</strong><br>';
+            echo '<span style="font-size: 0.95rem;"><strong>' . $docsSinVerif . ' documento(s)</strong> sin verificador</span>';
+            echo '</div>';
+        }
+        if ($docsConVerif > 0) {
+            echo '<div class="alert alert-success border-2" style="border-color: #28a745 !important; background-color: #d4edda; color: #155724;">';
+            echo '<i class="bi bi-check-circle-fill" style="font-size: 1.3rem; margin-right: 0.5rem;"></i>';
+            echo '<strong>¡Documentos Publicados!</strong><br>';
+            echo '<span style="font-size: 0.95rem;"><strong>' . $docsConVerif . ' documento(s)</strong> ya publicados</span>';
+            echo '</div>';
+        }
+        echo '</div>';
+    }
+    ?>
+</div>
+
+<!-- TABLA POR PERIODICIDAD -->
+<?php
+// Agrupar items por periodicidad
 $itemsPorPeriodicidad = [
     'mensual' => [],
     'trimestral' => [],
@@ -90,375 +170,133 @@ $itemsPorPeriodicidad = [
     'ocurrencia' => []
 ];
 
-$totalSinVerificador = 0;
-$totalConVerificador = 0;
-
-while ($row = $resultado->fetch_assoc()) {
-    $periodicidad = $row['periodicidad'] ?? 'ocurrencia';
-    
-    if ($row['doc_id']) {
-        if ($row['verificador_id']) {
-            $totalConVerificador++;
-        } else {
-            $totalSinVerificador++;
-        }
-    }
-    
-    $itemsPorPeriodicidad[$periodicidad][] = $row;
+foreach ($items as $item) {
+    $periodicidad = $item['periodicidad'] ?? 'ocurrencia';
+    $itemsPorPeriodicidad[$periodicidad][] = $item;
 }
-?>
 
-<!-- HEADER UNIFICADO -->
-<div style="display: flex; align-items: center; gap: 0; margin-bottom: 1.75rem; border-bottom: 2px solid #e9ecef; padding-bottom: 1rem;">
-    <div style="display: flex; align-items: center; gap: 0.5rem; color: #6c757d; font-size: 0.9rem; white-space: nowrap;">
-        <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.1rem;"></i>
-        <span style="font-weight: 500;">Control de Transparencia</span>
-    </div>
-    <div style="width: 1px; height: 36px; background: #ced4da; margin: 0 1.25rem; flex-shrink: 0;"></div>
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-            <i class="bi bi-cloud-upload-fill" style="font-size: 1.1rem; color: white;"></i>
-        </div>
-        <div>
-            <h1 style="font-size: 1.25rem; font-weight: 600; color: #2c3e50; margin: 0; line-height: 1.2;">
-                Centro de Publicación y Verificación
-            </h1>
-            <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">
-                Gestión de documentos en Transparencia Activa
-            </p>
-        </div>
-    </div>
-</div>
-
-<!-- CONTROLES Y ESTADÍSTICAS -->
-<div class="row mb-4">
-    <!-- Selector de período -->
-    <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h6 class="card-title mb-3"><i class="bi bi-calendar3"></i> Período</h6>
-                <form method="GET" class="d-flex gap-2">
-                    <select name="mes" class="form-select" onchange="this.form.submit()">
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
-                            <option value="<?php echo $m; ?>" <?php echo ($m === $mesSeleccionado) ? 'selected' : ''; ?>>
-                                <?php echo $meses[$m]; ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                    <select name="ano" class="form-select" onchange="this.form.submit()">
-                        <?php for ($a = 2024; $a <= 2026; $a++): ?>
-                            <option value="<?php echo $a; ?>" <?php echo ($a === $anoSeleccionado) ? 'selected' : ''; ?>>
-                                <?php echo $a; ?>
-                            </option>
-                        <?php endfor; ?>
-                    </select>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Estadísticas -->
-    <div class="col-md-8">
-        <div class="row">
-            <div class="col-md-6">
-                <?php if ($totalSinVerificador > 0): ?>
-                <div class="alert alert-warning mb-2" style="border-left: 4px solid #ff9800;">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.5rem; margin-right: 0.75rem;"></i>
-                        <div>
-                            <strong>Pendientes de Publicar</strong>
-                            <div><?php echo $totalSinVerificador; ?> documento(s) sin verificador</div>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-            <div class="col-md-6">
-                <?php if ($totalConVerificador > 0): ?>
-                <div class="alert alert-success mb-2" style="border-left: 4px solid #28a745;">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-check-circle-fill" style="font-size: 1.5rem; margin-right: 0.75rem;"></i>
-                        <div>
-                            <strong>Ya Publicados</strong>
-                            <div><?php echo $totalConVerificador; ?> documento(s) con verificador</div>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- PESTAÑAS: PENDIENTES / PUBLICADOS -->
-<ul class="nav nav-tabs mb-4" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-pendientes" data-bs-toggle="tab" data-bs-target="#contenido-pendientes" type="button" role="tab">
-            <i class="bi bi-clock-history"></i> Pendientes
-            <?php if ($totalSinVerificador > 0): ?>
-                <span class="badge bg-warning text-dark ms-1"><?php echo $totalSinVerificador; ?></span>
-            <?php endif; ?>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-publicados" data-bs-toggle="tab" data-bs-target="#contenido-publicados" type="button" role="tab">
-            <i class="bi bi-check-circle"></i> Publicados
-            <?php if ($totalPublicadosGlobal > 0): ?>
-                <span class="badge bg-success ms-1"><?php echo $totalPublicadosGlobal; ?></span>
-            <?php endif; ?>
-        </button>
-    </li>
-</ul>
-
-<div class="tab-content">
-    <!-- TAB PENDIENTES -->
-    <div class="tab-pane fade show active" id="contenido-pendientes" role="tabpanel">
-
-<!-- TABLAS POR PERIODICIDAD -->
-<?php
 $periodosNombres = [
-    'mensual' => ['nombre' => 'Items Mensuales', 'icon' => 'calendar-month', 'color' => '#3498db'],
-    'trimestral' => ['nombre' => 'Items Trimestrales', 'icon' => 'calendar3', 'color' => '#9b59b6'],
-    'semestral' => ['nombre' => 'Items Semestrales', 'icon' => 'calendar2-range', 'color' => '#e74c3c'],
-    'anual' => ['nombre' => 'Items Anuales', 'icon' => 'calendar-event', 'color' => '#f39c12'],
-    'ocurrencia' => ['nombre' => 'Items por Ocurrencia', 'icon' => 'calendar-check', 'color' => '#1abc9c']
+    'mensual' => 'Items Mensuales',
+    'trimestral' => 'Items Trimestrales',
+    'semestral' => 'Items Semestrales',
+    'anual' => 'Items Anuales',
+    'ocurrencia' => 'Items por Ocurrencia'
 ];
 
-foreach ($itemsPorPeriodicidad as $periodicidad => $items):
-    if (count($items) === 0) continue;
+foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
+    if (count($itemsGrupo) === 0) continue;
     
-    // Filtrar: solo mostrar items CON documento Y SIN verificador (pendientes)
-    $itemsPendientes = array_filter($items, function($item) {
-        return $item['doc_id'] && !$item['verificador_id'];
-    });
+    echo '<div class="card mt-4">';
+    echo '<div class="card-header bg-secondary text-white">';
+    echo '<i class="bi bi-list"></i> ' . $periodosNombres[$periodicidad] . ' - ' . $meses[$mesSeleccionado] . ' ' . $anoSeleccionado;
+    if ($direccionSeleccionada) {
+        $nomDir = '';
+        foreach ($direcciones as $d) { if ($d['id'] == $direccionSeleccionada) $nomDir = $d['nombre']; }
+        echo ' &nbsp;<span class="badge bg-warning text-dark"><i class="bi bi-funnel"></i> ' . htmlspecialchars($nomDir) . '</span>';
+    }
+    echo '</div>';
     
-    if (count($itemsPendientes) === 0) continue;
+    echo '<div class="table-responsive">';
+    echo '<table class="table table-hover mb-0">';
+    echo '<thead class="table-light">';
+    echo '<tr>';
+    echo '<th width="8%">Num</th>';
+    echo '<th width="18%">Item</th>';
+    echo '<th width="18%">Dirección</th>';
+    echo '<th width="10%">Estado</th>';
+    echo '<th width="18%">Cargado Por</th>';
+    echo '<th width="10%">Fecha</th>';
+    echo '<th width="18%">Acciones</th>';
+    echo '</tr>';
+    echo '</thead>';
+    echo '<tbody>';
     
-    $config = $periodosNombres[$periodicidad];
-?>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-header" style="background: <?php echo $config['color']; ?>; color: white; font-weight: 600;">
-        <i class="bi bi-<?php echo $config['icon']; ?>"></i> 
-        <?php echo $config['nombre']; ?> - <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
-        <span class="badge bg-light text-dark ms-2"><?php echo count($itemsPendientes); ?> pendiente(s)</span>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th width="8%">Núm.</th>
-                    <th width="25%">Item</th>
-                    <th width="10%">Estado</th>
-                    <th width="15%">Cargado Por</th>
-                    <th width="12%">Fecha Envío</th>
-                    <th width="30%">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($itemsPendientes as $item): ?>
-                <tr>
-                    <td><small class="text-muted"><?php echo htmlspecialchars($item['numeracion']); ?></small></td>
-                    <td><strong><?php echo htmlspecialchars($item['item_nombre']); ?></strong></td>
-                    <td>
-                        <?php if (!$item['doc_id']): ?>
-                            <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Cargar</span>
-                        <?php elseif ($item['verificador_id']): ?>
-                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Publicado</span>
-                        <?php else: ?>
-                            <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pendiente</span>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($item['doc_id']): ?>
-                            <small><?php echo htmlspecialchars($item['usuario_nombre']); ?></small>
-                        <?php else: ?>
-                            <small class="text-muted">-</small>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($item['fecha_envio']): ?>
-                            <small><?php echo date('d/m/Y H:i', strtotime($item['fecha_envio'])); ?></small>
-                        <?php else: ?>
-                            <small class="text-muted">-</small>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <!-- Documento pendiente de verificador -->
-                        <?php if ($item['archivo'] === 'sin_movimiento'): ?>
-                            <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin movimiento declarado</span>
-                        <?php else: ?>
-                            <button class="btn btn-sm btn-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                                <i class="bi bi-eye"></i> Ver Doc
-                            </button>
-                        <?php endif; ?>
-                        <button class="btn btn-sm btn-primary" onclick="abrirModalVerificador(<?php echo $item['doc_id']; ?>, <?php echo $item['item_id']; ?>, <?php echo $item['usuario_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                            <i class="bi bi-cloud-upload"></i> Cargar Verificador
-                        </button>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<?php endforeach; ?>
-
-    </div> <!-- Fin tab-pane pendientes -->
-    
-    <!-- TAB PUBLICADOS -->
-    <div class="tab-pane fade" id="contenido-publicados" role="tabpanel">
+    foreach ($itemsGrupo as $item) {
+        // Verificar si tiene documento
+        if ($item['periodicidad'] === 'anual') {
+            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], 1, $anoSeleccionado);
+        } else {
+            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesSeleccionado, $anoSeleccionado);
+        }
         
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Mostrando todos los documentos publicados (con verificador cargado) de todos los períodos.
-        </div>
-
-<?php
-// Para publicados, traer TODOS los documentos con verificador (sin filtro de período)
-$queryPublicados = "
-    SELECT 
-        i.id as item_id,
-        i.numeracion,
-        i.nombre as item_nombre,
-        i.periodicidad,
-        d.id as doc_id,
-        d.titulo,
-        d.archivo,
-        ds.mes,
-        ds.ano,
-        ds.fecha_envio,
-        u.nombre as usuario_nombre,
-        vp.id as verificador_id,
-        vp.fecha_carga_portal
-    FROM items_transparencia i
-    JOIN documentos d ON i.id = d.item_id 
-    JOIN documento_seguimiento ds ON d.id = ds.documento_id
-    JOIN verificadores_publicador vp ON d.id = vp.documento_id
-    LEFT JOIN usuarios u ON d.usuario_id = u.id
-    WHERE i.activo = 1
-    ORDER BY vp.fecha_carga_portal DESC";
-
-$resultPublicados = $db->getConnection()->query($queryPublicados);
-$itemsPublicadosTodos = [];
-
-while ($row = $resultPublicados->fetch_assoc()) {
-    $itemsPublicadosTodos[] = $row;
-}
-
-if (count($itemsPublicadosTodos) === 0) {
-    echo '<div class="alert alert-warning"><i class="bi bi-inbox"></i> No hay documentos publicados aún.</div>';
-} else {
-?>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-success text-white">
-        <i class="bi bi-check-circle"></i> Documentos Publicados
-        <span class="badge bg-light text-dark ms-2"><?php echo count($itemsPublicadosTodos); ?> total</span>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th width="8%">Núm.</th>
-                    <th width="22%">Item</th>
-                    <th width="10%">Periodicidad</th>
-                    <th width="8%">Período</th>
-                    <th width="12%">Cargado Por</th>
-                    <th width="12%">Fecha Envío</th>
-                    <th width="10%">Publicación</th>
-                    <th width="18%">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($itemsPublicadosTodos as $item): ?>
-                <tr>
-                    <td><small class="text-muted"><?php echo htmlspecialchars($item['numeracion']); ?></small></td>
-                    <td><strong><?php echo htmlspecialchars($item['item_nombre']); ?></strong></td>
-                    <td><small><?php echo ucfirst($item['periodicidad']); ?></small></td>
-                    <td>
-                        <small class="text-primary">
-                            <?php 
-                            if ($item['periodicidad'] === 'anual') {
-                                echo $item['ano'];
-                            } else {
-                                echo $meses[$item['mes']] . ' ' . $item['ano'];
-                            }
-                            ?>
-                        </small>
-                    </td>
-                    <td>
-                        <?php if ($item['usuario_nombre']): ?>
-                            <small><?php echo htmlspecialchars($item['usuario_nombre']); ?></small>
-                        <?php else: ?>
-                            <small class="text-muted">-</small>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($item['fecha_envio']): ?>
-                            <small><?php echo date('d/m/Y', strtotime($item['fecha_envio'])); ?></small>
-                        <?php else: ?>
-                            <small class="text-muted">-</small>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($item['fecha_carga_portal']): ?>
-                            <small class="text-success"><?php echo date('d/m/Y', strtotime($item['fecha_carga_portal'])); ?></small>
-                        <?php else: ?>
-                            <small class="text-muted">-</small>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if ($item['archivo'] === 'sin_movimiento'): ?>
-                            <span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin movimiento declarado</span>
-                        <?php else: ?>
-                            <button class="btn btn-sm btn-outline-info" onclick="verDocumento(<?php echo $item['doc_id']; ?>)">
-                                <i class="bi bi-file-earmark-text"></i> Doc
-                            </button>
-                        <?php endif; ?>
-                        <button class="btn btn-sm btn-outline-success" onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
-                            <i class="bi bi-patch-check"></i> Verif
-                        </button>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<?php
+        $documento = null;
+        if ($docsResult && $docsResult->num_rows > 0) {
+            $documento = $docsResult->fetch_assoc();
+        }
+        
+        $estadoBadge = '';
+        $usuario = '';
+        $fecha = '';
+        $botones = '';
+        
+        if ($documento) {
+            $verificador = $verificadorClass->getByDocumento($documento['documento_id']);
+            $usuario = $usuarioClass->getById($documento['usuario_id']);
+            $fecha = date('d/m/Y H:i', strtotime($documento['fecha_envio']));
+            
+            if ($verificador) {
+                $estadoBadge = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Publicado</span>';
+                $botones = '<a href="#" class="btn btn-sm btn-info" data-bs-toggle="modal" 
+                           data-bs-target="#modalVerDocumento" 
+                           onclick="verDocumento(' . $documento['documento_id'] . ', \'' . htmlspecialchars($item['nombre']) . '\', \'' . htmlspecialchars($documento['titulo']) . '\');">
+                            <i class="bi bi-eye"></i> Ver Doc
+                        </a>
+                        <a href="#" class="btn btn-sm btn-success" data-bs-toggle="modal" 
+                           data-bs-target="#modalVerVerificador"
+                           onclick="verVerificador(' . $verificador['id'] . ', \'' . htmlspecialchars($verificador['archivo_verificador']) . '\');">
+                            <i class="bi bi-file-check"></i> Ver Verif
+                        </a>';
+            } else {
+                $estadoBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Cargado</span>';
+                $botones = '<a href="#" class="btn btn-sm btn-info" data-bs-toggle="modal" 
+                           data-bs-target="#modalVerDocumento" 
+                           onclick="verDocumento(' . $documento['documento_id'] . ', \'' . htmlspecialchars($item['nombre']) . '\', \'' . htmlspecialchars($documento['titulo']) . '\');">
+                            <i class="bi bi-eye"></i> Ver
+                        </a>
+                        <a href="#" class="btn btn-sm btn-primary" data-bs-toggle="modal" 
+                           data-bs-target="#modalCargarVerificador"
+                           onclick="seleccionarDocumento(' . $documento['documento_id'] . ', ' . $item['id'] . ', ' . $documento['usuario_id'] . ', \'' . htmlspecialchars($item['nombre']) . '\');">
+                            <i class="bi bi-plus-circle"></i> Agregar Verificador
+                        </a>';
+            }
+        } else {
+            $estadoBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Sin Cargar</span>';
+            $usuario = '-';
+            $fecha = '-';
+            $botones = '<span class="text-muted"><small>Pendiente de cargar</small></span>';
+        }
+        
+        echo '<tr>';
+        echo '<td><small>' . htmlspecialchars($item['numeracion']) . '</small></td>';
+        echo '<td><strong>' . htmlspecialchars($item['nombre']) . '</strong></td>';
+        echo '<td><small class="text-muted"><i class="bi bi-building"></i> ' . htmlspecialchars($item['direccion_nombre'] ?? '-') . '</small></td>';
+        echo '<td>' . $estadoBadge . '</td>';
+        echo '<td><small>' . ($documento ? htmlspecialchars($usuario['nombre'] ?? 'Desconocido') : $usuario) . '</small></td>';
+        echo '<td><small>' . $fecha . '</small></td>';
+        echo '<td>' . $botones . '</td>';
+        echo '</tr>';
+    }
+    
+    echo '</tbody>';
+    echo '</table>';
+    echo '</div>';
+    echo '</div>';
 }
 ?>
-
-    </div> <!-- Fin tab-pane publicados -->
-</div> <!-- Fin tab-content -->
 
 <!-- MODAL: Ver Documento -->
 <div class="modal fade" id="modalVerDocumento" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
-                <h5 class="modal-title"><i class="bi bi-file-earmark-text"></i> Documento</h5>
+                <h5 class="modal-title"><i class="bi bi-file-earmark"></i> Documento</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="modalVerDocumentoBody">
-                <div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>
+                Cargando...
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- MODAL: Ver Verificador -->
-<div class="modal fade" id="modalVerVerificador" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-patch-check"></i> Verificador de Publicación</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="modalVerVerificadorBody">
-                <div class="text-center"><div class="spinner-border text-success" role="status"></div></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -472,52 +310,57 @@ if (count($itemsPublicadosTodos) === 0) {
                 <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> Cargar Verificador</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" enctype="multipart/form-data" action="cargar_verificador.php" id="formCargarVerificador">
+            <form method="POST" enctype="multipart/form-data" action="cargar_verificador.php">
                 <div class="modal-body">
-                    <input type="hidden" name="documento_id" id="inputDocumentoId">
-                    <input type="hidden" name="item_id" id="inputItemId">
-                    <input type="hidden" name="usuario_id" id="inputUsuarioId">
+                    <input type="hidden" name="documento_id" id="docIdInput">
+                    <input type="hidden" name="item_id" id="itemIdInput">
+                    <input type="hidden" name="usuario_id" id="usuarioIdInput">
                     
-                    <div class="alert alert-info">
-                        <strong>Item:</strong> <span id="spanItemNombre">-</span>
-                    </div>
+                    <small class="text-muted d-block mb-3">
+                        Está cargando verificador para: <strong id="itemNombreVerif">-</strong>
+                    </small>
                     
-                    <!-- Área de Drop/Paste -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Imagen de Verificación <span class="text-danger">*</span></label>
-                        <div id="dropZone" class="border border-2 border-dashed rounded p-4 text-center" style="background: #f8f9fa; cursor: pointer; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                            <i class="bi bi-cloud-arrow-up" style="font-size: 3rem; color: #6c757d;"></i>
-                            <p class="mt-2 mb-1"><strong>Arrastra o pega una imagen aquí</strong></p>
-                            <p class="text-muted small mb-0">o haz clic para seleccionar archivo</p>
-                        </div>
-                        <input type="file" name="archivo_verificador" id="inputArchivoVerificador" accept="image/*,.pdf" class="d-none">
+                        <label class="form-label">Imagen del Verificador <span class="text-danger">*</span></label>
                         
-                        <!-- Preview -->
-                        <div id="previewContainer" class="mt-3 d-none">
-                            <p class="fw-bold mb-2">Vista previa:</p>
-                            <div class="position-relative d-inline-block">
-                                <img id="previewImage" src="" alt="Preview" class="img-thumbnail" style="max-width: 100%; max-height: 300px;">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" onclick="limpiarArchivo()">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                        <!-- Area de Pega -->
+                        <div id="pasteArea" tabindex="0" class="border-2 border-dashed rounded p-4 text-center mb-3" 
+                             style="background-color: #f8f9fa; cursor: pointer; min-height: 120px; display: flex; align-items: center; justify-content: center; outline: none;">
+                            <div>
+                                <i class="bi bi-clipboard-pulse" style="font-size: 2rem; color: #6c757d;"></i>
+                                <p class="mt-2 mb-0"><strong>Pega la imagen aquí</strong></p>
+                                <small class="text-muted">O usa el botón "Seleccionar" abajo</small>
                             </div>
-                            <p class="small text-muted mt-2" id="archivoNombre"></p>
                         </div>
                         
-                        <small class="text-muted d-block mt-2">
-                            <i class="bi bi-info-circle"></i> Formatos: JPG, PNG, GIF, PDF (máximo 5MB)
-                        </small>
+                        <!-- Preview de imagen pegada -->
+                        <div id="previewContainer" class="mb-3 d-none">
+                            <p><strong>Preview:</strong></p>
+                            <img id="previewImage" src="" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: 5px;">
+                            <button type="button" class="btn btn-sm btn-danger mt-2" onclick="limpiarPreview()">
+                                <i class="bi bi-x-circle"></i> Limpiar
+                            </button>
+                        </div>
+                        
+                        <!-- Input de archivo tradicional -->
+                        <input type="file" class="form-control" id="archivoVerificador" name="archivo_verificador"
+                               accept=".jpg,.jpeg,.png,.gif,.pdf" style="display: none;">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('archivoVerificador').click();">
+                            <i class="bi bi-folder-open"></i> Seleccionar archivo
+                        </button>
+                        <small class="text-muted d-block mt-2">✓ Formatos: JPG, PNG, GIF, PDF (máximo 5MB)</small>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="inputComentarios" class="form-label">Comentarios (opcional)</label>
-                        <textarea class="form-control" id="inputComentarios" name="comentarios" rows="3" placeholder="Observaciones sobre la publicación..."></textarea>
+                        <label for="comentarios" class="form-label">Comentarios (Opcional)</label>
+                        <textarea class="form-control" id="comentarios" name="comentarios" rows="3" 
+                                  placeholder="Notas sobre la verificación..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="btnSubmitVerificador">
-                        <i class="bi bi-cloud-upload"></i> Publicar
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cloud-upload"></i> Cargar Verificador
                     </button>
                 </div>
             </form>
@@ -525,112 +368,205 @@ if (count($itemsPublicadosTodos) === 0) {
     </div>
 </div>
 
+<!-- MODAL: Ver Verificador -->
+<div class="modal fade" id="modalVerVerificador" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-file-check"></i> Verificador</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalVerVerificadorBody">
+                Cargando...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-// Ver documento
-function verDocumento(docId) {
-    const modal = new bootstrap.Modal(document.getElementById('modalVerDocumento'));
-    document.getElementById('modalVerDocumentoBody').innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"></div></div>';
-    modal.show();
-    
+function verDocumento(docId, itemNombre, titulo) {
     fetch(`get_documento.php?doc_id=${docId}`)
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalVerDocumentoBody').innerHTML = html;
         })
         .catch(error => {
-            document.getElementById('modalVerDocumentoBody').innerHTML = '<div class="alert alert-danger">Error al cargar el documento</div>';
+            document.getElementById('modalVerDocumentoBody').innerHTML = '<p class="text-danger">Error al cargar el documento</p>';
         });
 }
 
-// Ver verificador
-function verVerificador(verifId) {
-    const modal = new bootstrap.Modal(document.getElementById('modalVerVerificador'));
-    document.getElementById('modalVerVerificadorBody').innerHTML = '<div class="text-center"><div class="spinner-border text-success" role="status"></div></div>';
-    modal.show();
-    
+function verVerificador(verifId, archivo) {
     fetch(`get_verificador.php?verif_id=${verifId}`)
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalVerVerificadorBody').innerHTML = html;
         })
         .catch(error => {
-            document.getElementById('modalVerVerificadorBody').innerHTML = '<div class="alert alert-danger">Error al cargar el verificador</div>';
+            document.getElementById('modalVerVerificadorBody').innerHTML = '<p class="text-danger">Error al cargar el verificador</p>';
         });
 }
 
-// Abrir modal cargar verificador
-function abrirModalVerificador(docId, itemId, usuarioId, itemNombre) {
-    document.getElementById('inputDocumentoId').value = docId;
-    document.getElementById('inputItemId').value = itemId;
-    document.getElementById('inputUsuarioId').value = usuarioId;
-    document.getElementById('spanItemNombre').textContent = itemNombre;
+function seleccionarDocumento(docId, itemId, usuarioId, itemNombre) {
+    document.getElementById('docIdInput').value = docId;
+    document.getElementById('itemIdInput').value = itemId;
+    document.getElementById('usuarioIdInput').value = usuarioId;
+    document.getElementById('itemNombreVerif').textContent = itemNombre;
     
-    limpiarArchivo();
-    document.getElementById('inputComentarios').value = '';
-    
-    const modal = new bootstrap.Modal(document.getElementById('modalCargarVerificador'));
-    modal.show();
+    // Dar focus al área de paste cuando se abre el modal
+    setTimeout(function() {
+        const pasteArea = document.getElementById('pasteArea');
+        if (pasteArea) {
+            pasteArea.focus();
+        }
+    }, 100);
 }
 
-// Manejo de archivo
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('inputArchivoVerificador');
-const previewContainer = document.getElementById('previewContainer');
-const previewImage = document.getElementById('previewImage');
-const archivoNombre = document.getElementById('archivoNombre');
-
-// Click en dropZone
-dropZone.addEventListener('click', () => fileInput.click());
-
-// Drag & Drop
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#0d6efd';
-    dropZone.style.backgroundColor = '#e7f3ff';
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.style.borderColor = '#dee2e6';
-    dropZone.style.backgroundColor = '#f8f9fa';
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#dee2e6';
-    dropZone.style.backgroundColor = '#f8f9fa';
+// Funciones para manejo de paste de imágenes
+document.addEventListener('DOMContentLoaded', function() {
+    const pasteArea = document.getElementById('pasteArea');
+    const fileInput = document.getElementById('archivoVerificador');
     
-    if (e.dataTransfer.files.length > 0) {
-        procesarArchivo(e.dataTransfer.files[0]);
-    }
-});
-
-// Paste
-document.addEventListener('paste', (e) => {
-    const modal = document.getElementById('modalCargarVerificador');
-    if (modal && modal.classList.contains('show')) {
+    // Listener de paste en el DOCUMENTO completo
+    document.addEventListener('paste', function(e) {
+        // Solo si el modal está visible
+        const modal = document.getElementById('modalCargarVerificador');
+        if (modal && modal.classList.contains('show')) {
+            e.preventDefault();
+            const items = e.clipboardData.items;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    procesarImagenPegada(file);
+                    return;
+                }
+            }
+            
+            alert('Por favor pega una imagen válida');
+        }
+    });
+    
+    // Listener de paste en el área (alternativo)
+    pasteArea.addEventListener('paste', function(e) {
+        e.preventDefault();
         const items = e.clipboardData.items;
+        
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
-                e.preventDefault();
                 const file = items[i].getAsFile();
-                procesarArchivo(file);
-                break;
+                procesarImagenPegada(file);
+                return;
             }
         }
-    }
+        
+        alert('Por favor pega una imagen válida');
+    });
+    
+    // Permitir drag & drop en el área
+    pasteArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        pasteArea.style.backgroundColor = '#e7f3ff';
+        pasteArea.style.borderColor = '#0066cc';
+    });
+    
+    pasteArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        pasteArea.style.backgroundColor = '#f8f9fa';
+        pasteArea.style.borderColor = '#dee2e6';
+    });
+    
+    pasteArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        pasteArea.style.backgroundColor = '#f8f9fa';
+        pasteArea.style.borderColor = '#dee2e6';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            // Buscar primera imagen
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].type.indexOf('image') !== -1 || files[i].type === 'application/pdf') {
+                    procesarImagenPegada(files[i]);
+                    return;
+                }
+            }
+            alert('Por favor arrastra una imagen válida (JPG, PNG, GIF, PDF)');
+        }
+    });
+    
+    // Permitir click en el área para abrir selector
+    pasteArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    // Manejar selección de archivo
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            procesarImagenPegada(e.target.files[0]);
+        }
+    });
 });
 
-// Selección de archivo
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        procesarArchivo(e.target.files[0]);
-    }
-});
+// Función para ver imagen en pantalla completa
+function verEnPantallaCompleta(archivo) {
+    // Crear overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; z-index: 9999; cursor: pointer;';
+    
+    // Crear contenedor de imagen
+    const contenedor = document.createElement('div');
+    contenedor.style.cssText = 'position: relative; width: 95%; height: 95%; display: flex; align-items: center; justify-content: center; overflow: auto;';
+    
+    // Crear imagen
+    const img = document.createElement('img');
+    img.src = '<?php echo SITE_URL; ?>uploads/' + decodeURIComponent(archivo);
+    img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
+    img.alt = 'Verificador en pantalla completa';
+    
+    // Botón cerrar
+    const btnCerrar = document.createElement('button');
+    btnCerrar.innerHTML = '<i class="bi bi-x-lg" style="font-size: 1.5rem;"></i>';
+    btnCerrar.style.cssText = 'position: absolute; top: 20px; right: 20px; background: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.5rem; z-index: 10001; box-shadow: 0 2px 10px rgba(0,0,0,0.3);';
+    btnCerrar.title = 'Cerrar (ESC)';
+    btnCerrar.onclick = function(e) { 
+        e.stopPropagation();
+        overlay.remove(); 
+    };
+    
+    // Assembler
+    contenedor.appendChild(img);
+    contenedor.appendChild(btnCerrar);
+    overlay.appendChild(contenedor);
+    
+    // Agregar al documento
+    document.body.appendChild(overlay);
+    
+    // Cerrar con click fuera
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+    
+    // Cerrar con ESC
+    const handleEsc = function(e) {
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', handleEsc);
+        }
+    };
+    document.addEventListener('keydown', handleEsc);
+}
 
-// Procesar archivo
-function procesarArchivo(file) {
-    // Validar tamaño
-    if (file.size > 5 * 1024 * 1024) {
+function procesarImagenPegada(file) {
+    // Validar tamaño (5MB max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
         alert('El archivo es demasiado grande (máximo 5MB)');
         return;
     }
@@ -643,45 +579,26 @@ function procesarArchivo(file) {
     }
     
     // Mostrar preview
-    if (file.type.indexOf('image') !== -1) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImage.src = e.target.result;
-            previewContainer.classList.remove('d-none');
-            dropZone.classList.add('d-none');
-            archivoNombre.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-        };
-        reader.readAsDataURL(file);
-    } else {
-        previewImage.src = '';
-        previewContainer.classList.remove('d-none');
-        dropZone.classList.add('d-none');
-        archivoNombre.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('previewImage').src = e.target.result;
+        document.getElementById('previewContainer').classList.remove('d-none');
+        document.getElementById('pasteArea').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
     
-    // Asignar al input
+    // Asignar archivo al input
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
-    fileInput.files = dataTransfer.files;
+    document.getElementById('archivoVerificador').files = dataTransfer.files;
 }
 
-// Limpiar archivo
-function limpiarArchivo() {
-    fileInput.value = '';
-    previewImage.src = '';
-    previewContainer.classList.add('d-none');
-    dropZone.classList.remove('d-none');
-    archivoNombre.textContent = '';
+function limpiarPreview() {
+    document.getElementById('previewContainer').classList.add('d-none');
+    document.getElementById('previewImage').src = '';
+    document.getElementById('pasteArea').style.display = 'flex';
+    document.getElementById('archivoVerificador').value = '';
 }
-
-// Validar formulario
-document.getElementById('formCargarVerificador').addEventListener('submit', (e) => {
-    if (!fileInput.files || fileInput.files.length === 0) {
-        e.preventDefault();
-        alert('Debe seleccionar un archivo verificador');
-        return false;
-    }
-});
 </script>
 
 <?php require_once dirname(dirname(__DIR__)) . '/includes/footer.php'; ?>

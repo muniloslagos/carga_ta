@@ -92,6 +92,14 @@ class Item {
         return $stmt->execute();
     }
 
+    // Desasignar usuario de item
+    public function unassignUser($item_id, $usuario_id) {
+        $sql = "DELETE FROM item_usuarios WHERE item_id = ? AND usuario_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param("ii", $item_id, $usuario_id);
+        return $stmt->execute();
+    }
+
     // Obtener usuarios asignados a un item
     public function getAsignedUsers($item_id) {
         $sql = "SELECT u.* FROM usuarios u

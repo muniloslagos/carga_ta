@@ -22,6 +22,7 @@ class ItemConPlazo {
                 i.periodicidad,
                 ip.id as plazo_id,
                 ip.plazo_interno,
+                ip.fecha_carga_portal,
                 COUNT(d.id) as total_documentos,
                 MAX(CASE WHEN d.estado = 'pendiente' THEN 1 ELSE 0 END) as tiene_pendientes,
                 MAX(d.fecha_subida) as fecha_ultimo_envio

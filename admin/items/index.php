@@ -3,9 +3,6 @@
 require_once '../../includes/check_auth.php';
 require_role('administrativo');
 
-// LUEGO: Incluir header con HTML
-require_once '../../includes/header.php';
-
 require_once '../../classes/Item.php';
 require_once '../../classes/Direccion.php';
 require_once '../../classes/Usuario.php';
@@ -17,7 +14,7 @@ $usuarioClass = new Usuario($db->getConnection());
 $error = '';
 $success = '';
 
-// Procesar formulario
+// Procesar formulario ANTES de incluir header
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $redirect = false;
@@ -71,6 +68,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = 'Error al asignar usuario';
         }
+    } elseif ($action === 'save_item_usuarios') {
+        // Guardar múltiples asignaciones de usuarios a un item
+        $item_id = intval($_POST['item_id']);
+        $usuarios = json_decode($_POST['usuarios'] ?? '[]', true);
+        
+        header('Content-Type: application/json');
+        
+        if (!$item_id || !is_array($usuarios)) {
+            echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
+            exit;
+        }
+        
+        $success_count = 0;
+        $error_count = 0;
+        
+        foreach ($usuarios as $user) {
+            $usuario_id = intval($user['usuario_id'] ?? 0);
+            $checked = (bool)($user['checked'] ?? false);
+            
+            if ($usuario_id > 0) {
+                if ($checked) {
+                    $result = $itemClass->assignUser($item_id, $usuario_id);
+                } else {
+                    $result = $itemClass->unassignUser($item_id, $usuario_id);
+                }
+                
+                if ($result) {
+                    $success_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+        
+        echo json_encode([
+            'success' => $error_count === 0,
+            'message' => "Guardado: $success_count usuarios, Errores: $error_count"
+        ]);
+        exit;
     }
     
     // PRG Pattern: Redirigir después del POST exitoso
@@ -89,6 +125,9 @@ if (isset($_SESSION['success'])) {
 $items = $itemClass->getAll();
 $direcciones = $direccionClass->getAll();
 
+// DESPUÉS: Incluir header con HTML
+require_once '../../includes/header.php';
+
 // Asegurar que las variables de configuración estén disponibles
 global $PERIODICIDADES;
 if (!isset($PERIODICIDADES)) {
@@ -102,22 +141,14 @@ if (!isset($PERIODICIDADES)) {
 }
 ?>
 
-<div class="page-header mb-4 pb-3" style="border-bottom: 2px solid #e0e0e0;">
+<div class="page-header">
     <div class="row align-items-center">
         <div class="col">
-            <div class="d-flex align-items-center gap-3">
-                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(79,172,254,0.3);">
-                    <i class="bi bi-list-check text-white" style="font-size: 1.5rem;"></i>
-                </div>
-                <div>
-                    <h1 class="mb-1" style="color: #2c3e50; font-weight: 600; font-size: 1.5rem;">Gestión de Items de Transparencia</h1>
-                    <small class="text-muted" style="font-size: 0.875rem;">Administra los items y sus plazos</small>
-                </div>
-            </div>
+            <h1><i class="bi bi-file-text"></i> Gestión de Items de Transparencia</h1>
         </div>
-        <div class="col-auto">
-            <button class="btn btn-lg" data-bs-toggle="modal" data-bs-target="#itemModal" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(79,172,254,0.3); font-weight: 500;">
-                <i class="bi bi-plus-circle-fill"></i> Nuevo Item
+        <div class="col text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal">
+                <i class="bi bi-plus-circle"></i> Nuevo Item
             </button>
         </div>
     </div>
@@ -262,6 +293,12 @@ if (!isset($PERIODICIDADES)) {
             <div class="modal-body">
                 <div id="usuariosContainer"></div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnGuardarUsuarios">
+                    <i class="bi bi-check-circle"></i> Guardar Cambios
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -285,29 +322,62 @@ function loadItemUsers(itemId) {
     fetch('get_usuarios_item.php?item_id=' + itemId)
         .then(response => response.json())
         .then(data => {
-            let html = '<form method="POST" id="asignForm"><input type="hidden" name="action" value="assign_user"><input type="hidden" name="item_id" value="' + itemId + '">';
-            html += '<div class="row">';
+            // Convertir asignados a números
+            const asignadosIds = data.asignados.map(id => parseInt(id));
+            
+            let html = '<div class="row">';
             
             data.usuarios.forEach(usuario => {
-                const checked = data.asignados.includes(usuario.id) ? 'checked' : '';
+                const usuarioId = parseInt(usuario.id);
+                const checked = asignadosIds.includes(usuarioId) ? 'checked' : '';
                 html += '<div class="col-md-6 mb-3"><div class="form-check"><input class="form-check-input usuario-check" type="checkbox" value="' + usuario.id + '" ' + checked + ' data-item="' + itemId + '"><label class="form-check-label">' + usuario.nombre + ' (' + usuario.email + ')</label></div></div>';
             });
             
-            html += '</div></form>';
+            html += '</div>';
             document.getElementById('usuariosContainer').innerHTML = html;
             
-            // Event listener para checkboxes
-            document.querySelectorAll('.usuario-check').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const form = new FormData();
-                    form.append('action', 'assign_user');
-                    form.append('item_id', itemId);
-                    form.append('usuario_id', this.value);
-                    
-                    fetch('', { method: 'POST', body: form })
-                        .then(() => location.reload());
+            // Configurar botón Guardar
+            const btnGuardar = document.getElementById('btnGuardarUsuarios');
+            btnGuardar.onclick = function() {
+                const checkboxes = document.querySelectorAll('.usuario-check');
+                const usuarios = [];
+                
+                checkboxes.forEach(cb => {
+                    usuarios.push({
+                        usuario_id: parseInt(cb.value),
+                        checked: cb.checked
+                    });
                 });
-            });
+                
+                // Enviar todos los cambios
+                const form = new FormData();
+                form.append('action', 'save_item_usuarios');
+                form.append('item_id', itemId);
+                form.append('usuarios', JSON.stringify(usuarios));
+                
+                btnGuardar.disabled = true;
+                btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+                
+                fetch('', {
+                    method: 'POST',
+                    body: form
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.message || 'Error al guardar'));
+                        btnGuardar.disabled = false;
+                        btnGuardar.innerHTML = '<i class="bi bi-check-circle"></i> Guardar Cambios';
+                    }
+                })
+                .catch(error => {
+                    alert('Error de conexión');
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = '<i class="bi bi-check-circle"></i> Guardar Cambios';
+                });
+            };
         });
 }
 

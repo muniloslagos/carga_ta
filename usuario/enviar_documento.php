@@ -11,12 +11,14 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../config/config.php';
+require_once '../config/database.php';
 require_once '../classes/Documento.php';
 require_once '../classes/ItemPlazo.php';
 require_once '../classes/Item.php';
 
 $user_id = $_SESSION['user_id'] ?? null;
-$db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+$db = new Database();
+$db_conn = $db->getConnection();
 
 if ($db_conn->connect_error) {
     http_response_code(500);
@@ -36,6 +38,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemClass = new Item($db_conn);
     $item = $itemClass->getById($item_id);
     $periodicidad = $item['periodicidad'] ?? null;
+    
+    // Validar que el usuario está asignado al item (solo para cargadores)
+    if ($_SESSION['profile'] === 'cargador_informacion') {
+        $checkAssignment = $db_conn->prepare("SELECT COUNT(*) as count FROM item_usuarios WHERE item_id = ? AND usuario_id = ?");
+        $checkAssignment->bind_param('ii', $item_id, $user_id);
+        $checkAssignment->execute();
+        $result = $checkAssignment->get_result()->fetch_assoc();
+        
+        if ($result['count'] == 0) {
+            $_SESSION['error'] = 'No tiene permisos para cargar documentos en este item';
+            header('Location: dashboard.php');
+            exit;
+        }
+    }
     
     // Calcular año/mes DESPUÉS de obtener mes_carga del POST
     $ano_actual = (int)date('Y');
@@ -72,18 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $uploadResult = $documento->uploadFile($_FILES['archivo']);
     
     if (isset($uploadResult['error'])) {
-        // Log del error para debugging en producción
-        error_log("Error upload documento: " . $uploadResult['error'] . " - User: $user_id - Item: $item_id");
         $_SESSION['error'] = 'Error al cargar el documento: ' . $uploadResult['error'];
-        header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
-        exit;
-    }
-    
-    // Verificar que el archivo realmente se guardó
-    $filepath = $uploadResult['filepath'] ?? '';
-    if (!file_exists($filepath)) {
-        error_log("Error: Archivo no existe después de upload - Path: $filepath - User: $user_id");
-        $_SESSION['error'] = 'Error: El archivo no se pudo guardar en el servidor. Verifique permisos de la carpeta uploads/';
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;
     }
@@ -98,59 +103,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     
     if ($resultado) {
-        // Registrar en documento_seguimiento con estado 'pendiente'
+        // Registrar en documento_seguimiento con estado 'Cargado'
         $fecha_envio = date('Y-m-d H:i:s');
         
         $sql_seguimiento = "INSERT INTO documento_seguimiento 
                           (documento_id, item_id, usuario_id, ano, mes, fecha_envio, estado, fecha_creacion)
-                          VALUES (?, ?, ?, ?, ?, ?, 'pendiente', NOW())
+                          VALUES (?, ?, ?, ?, ?, ?, 'Cargado', NOW())
                           ON DUPLICATE KEY UPDATE 
-                          fecha_envio = ?, estado = 'pendiente'";
+                          fecha_envio = ?, estado = 'Cargado'";
         
         $stmt = $db_conn->prepare($sql_seguimiento);
         $stmt->bind_param("iiiiiss", $resultado, $item_id, $user_id, $ano_actual, $mes_carga_calc, $fecha_envio, $fecha_envio);
         $stmt->execute();
         $stmt->close();
         
-        // AGREGAR: Registrar en historial (opcional - si la tabla existe)
-        try {
-            $usuario_nombre = $_SESSION['user']['nombre'] ?? 'Usuario';
-            $item_nombre = $item['nombre'] ?? "Item #$item_id";
-            $descripcion_hist = "Documento '$titulo' cargado";
-            $detalle_hist = "Archivo: " . $uploadResult['filename'] . " | Mes: $mes_carga_calc | Año: $ano_actual";
-            
-            $sql_historial = "INSERT INTO historial 
-                             (item_id, documento_id, usuario_id, tipo, descripcion, detalle, fecha)
-                             VALUES (?, ?, ?, 'documento_cargado', ?, ?, NOW())";
-            
-            $stmt_hist = $db_conn->prepare($sql_historial);
-            if ($stmt_hist) {
-                $stmt_hist->bind_param("iiiss", $item_id, $resultado, $user_id, $descripcion_hist, $detalle_hist);
-                $stmt_hist->execute();
-                $stmt_hist->close();
-            }
-        } catch (Exception $e) {
-            // Si falla historial, solo registrar error pero continuar
-            error_log("Advertencia: No se pudo registrar en historial - " . $e->getMessage());
-        }
-        
-        // Log exitoso para debugging
-        error_log("Documento cargado exitosamente - Doc ID: $resultado - User: $user_id - Item: $item_id - File: " . $uploadResult['filename']);
-        
         $_SESSION['success'] = 'Documento cargado exitosamente';
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;
     } else {
-        // Log del error
-        error_log("Error al crear documento en BD - User: $user_id - Item: $item_id - File: " . $uploadResult['filename']);
-        
-        // Si falló la BD, eliminar el archivo subido
-        if (file_exists($filepath)) {
-            unlink($filepath);
-        }
-        
-        $_SESSION['error'] = 'Error al cargar el documento en la base de datos. Intente nuevamente.';
+        $_SESSION['error'] = 'Error al cargar el documento. Verifique que el formato sea correcto (PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG)';
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga . '&ano=' . $ano_actual);
         exit;

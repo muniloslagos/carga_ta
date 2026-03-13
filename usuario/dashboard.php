@@ -1,16 +1,34 @@
 <?php
+// PRIMERO: Verificar autenticación ANTES de cualquier salida
 require_once '../includes/check_auth.php';
 require_login();
+
+// LUEGO: Incluir header con HTML
 require_once '../includes/header.php';
 
-$user_id = $current_user['id'];
-$user_perfil = $current_user['perfil'];
-$user_direccion_id = $current_user['direccion_id'] ?? null;
+require_once '../classes/Item.php';
+require_once '../classes/ItemPlazo.php';
+require_once '../classes/ItemConPlazo.php';
+require_once '../classes/Documento.php';
+require_once '../classes/Verificador.php';
+require_once '../classes/PlazoCalculator.php';
+require_once '../classes/Historial.php';
+
+$itemClass = new Item($db->getConnection());
+$itemPlazoClass = new ItemPlazo($db->getConnection());
+$itemConPlazoClass = new ItemConPlazo($db->getConnection());
+$documentoClass = new Documento($db->getConnection());
+$verificadorClass = new Verificador($db->getConnection());
+$historialClass = new Historial($db->getConnection());
+
+$user_id = $current_user['id'] ?? null;
 $conn = $db->getConnection();
 
-// Fechas
+// Obtener mes y año actual
 $mesActual = (int)date('m');
 $anoActual = (int)date('Y');
+
+// Mes anterior (mes a cargar)
 $mesCarga = $mesActual - 1;
 $anoCarga = $anoActual;
 if ($mesCarga < 1) {
@@ -18,20 +36,30 @@ if ($mesCarga < 1) {
     $anoCarga = $anoActual - 1;
 }
 
-// Selector de mes (para items mensuales)
+// Permitir seleccionar mes (solo para periodicidad mensual)
 $mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : $mesCarga;
 $anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : $anoCarga;
 
+// Validar mes y año
 if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = $mesCarga;
 if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = $anoCarga;
 
 $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// Query SQL optimizado: Obtener items con sus documentos, plazos y verificadores
-// Todos los usuarios ven todos los items y documentos (para transparencia)
-$params = [];
-$types = '';
+// Perfil del usuario actual
+$user_perfil = $current_profile ?? ($current_user['perfil'] ?? '');
+
+// Filtro de usuario: cargadores solo ven sus propios documentos; otros ven todos
+$userIdFiltro = ($user_perfil === 'cargador_informacion') ? $user_id : null;
+
+// Query SQL: Filtrar items según perfil del usuario
+// Cargadores solo ven items asignados, otros perfiles ven todos
+$whereUsuario = '';
+if ($user_perfil === 'cargador_informacion') {
+    // Cargador solo ve items asignados a él
+    $whereUsuario = 'AND EXISTS (SELECT 1 FROM item_usuarios iu2 WHERE iu2.item_id = i.id AND iu2.usuario_id = ?)';
+}
 
 $query = "
     SELECT 
@@ -64,14 +92,19 @@ $query = "
         AND ip.ano = ? AND ip.mes = ?
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id
-    WHERE i.activo = 1
+    WHERE i.activo = 1 $whereUsuario
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
         i.numeracion";
 
-$params[] = $anoSeleccionado;
-$params[] = $mesSeleccionado;
-$types .= 'ii';
+// Parámetros en orden de aparición en la query
+$params = [$anoSeleccionado, $mesSeleccionado];
+$types = 'ii';
+
+if ($user_perfil === 'cargador_informacion') {
+    $params[] = $user_id;
+    $types .= 'i';
+}
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param($types, ...array_values($params));
@@ -97,136 +130,123 @@ $contadores = [
 
 $itemsCache = [];
 
+// Procesar resultados y agrupar items por periodicidad (evitar duplicados)
 while ($row = $resultado->fetch_assoc()) {
     $itemId = $row['item_id'];
     $periodicidad = $row['periodicidad'];
     
-    // Filtrar documentos por período según periodicidad
-    $esDocumentoValido = false;
-    $docMes = (int)$row['doc_mes'];
-    $docAno = (int)$row['doc_ano'];
-    
-    if ($row['doc_id'] && $docMes > 0 && $docAno > 0) {
-        if ($periodicidad === 'mensual') {
-            // Para mensual: comparar con mes/año seleccionado (del selector o actual)
-            $esDocumentoValido = ($docMes === $mesSeleccionado && $docAno === $anoSeleccionado);
-        } elseif ($periodicidad === 'trimestral') {
-            // Para trimestral: mismo trimestre del año actual
-            $esDocumentoValido = ($docAno === $anoActual && (int)floor(($docMes - 1) / 3) === (int)floor(($mesActual - 1) / 3));
-        } elseif ($periodicidad === 'semestral') {
-            // Para semestral: mismo semestre del año actual
-            $esDocumentoValido = ($docAno === $anoActual && (int)floor(($docMes - 1) / 6) === (int)floor(($mesActual - 1) / 6));
-        } elseif ($periodicidad === 'anual') {
-            // Para anual: mismo año actual
-            $esDocumentoValido = ($docAno === $anoActual);
-        } elseif ($periodicidad === 'ocurrencia') {
-            // Para ocurrencia: mes/año actual
-            $esDocumentoValido = ($docMes === $mesActual && $docAno === $anoActual);
-        }
-    }
-    
-    // Solo agregar si es documento válido o no hay documento
+    // Agregar item al cache si no existe (evitar duplicados por múltiples documentos)
     if (!isset($itemsCache[$itemId])) {
         $itemsCache[$itemId] = [
-            'item_id' => $row['item_id'],
+            'id' => $row['item_id'],
             'numeracion' => $row['numeracion'],
-            'item_nombre' => $row['item_nombre'],
-            'periodicidad' => $periodicidad,
-            'plazo_interno' => $row['plazo_interno'],
-            'doc_id' => null,
-            'doc_titulo' => null,
-            'doc_estado' => null,
-            'doc_archivo' => null,
-            'fecha_envio' => null,
-            'usuario_nombre' => null,
-            'verificador_id' => null,
-            'fecha_carga_portal' => null,
-            'publicador_nombre' => null
+            'nombre' => $row['item_nombre'],
+            'periodicidad' => $row['periodicidad'],
+            'descripcion' => $row['item_descripcion']
         ];
-        
-        if (!$row['doc_id']) {
-            $contadores[$periodicidad]++;
+        $itemsPorPeriodicidad[$periodicidad][] = $itemsCache[$itemId];
+    }
+}
+
+// Calcular documentos pendientes por periodicidad
+// Para MENSUAL: usar mes/año seleccionado (del selector)
+$contador = 0;
+foreach ($itemsPorPeriodicidad['mensual'] as $item) {
+    $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesSeleccionado, $anoSeleccionado);
+    $tieneDocumento = false;
+    
+    if ($docsResult && $docsResult->num_rows > 0) {
+        if ($current_user['perfil'] === 'publicador') {
+            // Para publicador: si existe documento (de cualquier usuario) está cubierto
+            $tieneDocumento = true;
+        } else {
+            // Para cargador: verificar que el documento pertenece al usuario actual
+            while ($doc = $docsResult->fetch_assoc()) {
+                if ((int)$doc['usuario_id'] === (int)$user_id) {
+                    $tieneDocumento = true;
+                    break;
+                }
+            }
         }
     }
     
-    // Actualizar con documento si es válido
-    if ($esDocumentoValido && $row['doc_id']) {
-        if (!$itemsCache[$itemId]['doc_id']) {
-            $contadores[$periodicidad]--; // Ya no está pendiente
-        }
-        
-        $itemsCache[$itemId]['doc_id'] = $row['doc_id'];
-        $itemsCache[$itemId]['doc_titulo'] = $row['doc_titulo'];
-        $itemsCache[$itemId]['doc_estado'] = $row['doc_estado'];
-        $itemsCache[$itemId]['doc_archivo'] = $row['doc_archivo'];
-        $itemsCache[$itemId]['fecha_envio'] = $row['fecha_envio'];
-        $itemsCache[$itemId]['usuario_nombre'] = $row['usuario_nombre'];
-        $itemsCache[$itemId]['verificador_id'] = $row['verificador_id'];
-        $itemsCache[$itemId]['fecha_carga_portal'] = $row['fecha_carga_portal'];
-        $itemsCache[$itemId]['publicador_nombre'] = $row['publicador_nombre'];
+    if (!$tieneDocumento) {
+        $contador++;
     }
 }
+$documentosPendientes['mensual'] = $contador;
 
-// Distribuir en arrays por periodicidad
-foreach ($itemsCache as $item) {
-    $itemsPorPeriodicidad[$item['periodicidad']][] = $item;
+// Para TRIMESTRAL/SEMESTRAL/ANUAL/OCURRENCIA: usar mes actual
+foreach (['trimestral', 'semestral', 'anual', 'ocurrencia'] as $periodicidad) {
+    $contador = 0;
+    
+    foreach ($itemsPorPeriodicidad[$periodicidad] as $item) {
+        // Para ANUAL, buscar sin mes (por año completo)
+        if ($periodicidad === 'anual') {
+            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
+        } else {
+            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesActual, $anoActual);
+        }
+        
+        $tieneDocumento = false;
+        
+        if ($docsResult && $docsResult->num_rows > 0) {
+            if ($current_user['perfil'] === 'publicador') {
+                // Para publicador: si existe documento (de cualquier usuario) está cubierto
+                $tieneDocumento = true;
+            } else {
+                // Para cargador: verificar que el documento pertenece al usuario actual
+                while ($doc = $docsResult->fetch_assoc()) {
+                    if ((int)$doc['usuario_id'] === (int)$user_id) {
+                        $tieneDocumento = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!$tieneDocumento) {
+            $contador++;
+        }
+    }
+    $documentosPendientes[$periodicidad] = $contador;
 }
 
-$documentosPendientes = $contadores;
+$success = '';
+$error = '';
 
-// Split items en Pendientes (sin doc O sin fecha_envio) / Enviados (con doc Y fecha_envio)
-$itemsPendientesPorPer = [];
-$itemsEnviadosPorPer   = [];
-foreach (['mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'] as $_per) {
-    $itemsPendientesPorPer[$_per] = array_values(array_filter(
-        $itemsPorPeriodicidad[$_per],
-        fn($i) => !($i['doc_id'] && $i['fecha_envio'])
-    ));
-    $itemsEnviadosPorPer[$_per] = array_values(array_filter(
-        $itemsPorPeriodicidad[$_per],
-        fn($i) => $i['doc_id'] && $i['fecha_envio']
-    ));
+if (isset($_SESSION['success'])) {
+    $success = $_SESSION['success'];
+    unset($_SESSION['success']);
 }
-
-$success = isset($_SESSION['success']) ? $_SESSION['success'] : '';
-$error = isset($_SESSION['error']) ? $_SESSION['error'] : '';
-if ($success) unset($_SESSION['success']);
-if ($error) unset($_SESSION['error']);
 ?>
 
-<!-- HEADER -->
-<div class="page-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; margin: -1rem -1rem 2rem -1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-    <div style="display: flex; align-items: center; gap: 1rem;">
-        <div style="background: rgba(255,255,255,0.2); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-            <i class="bi bi-inbox-fill" style="font-size: 1.5rem; color: white;"></i>
-        </div>
-        <div>
-            <h1 style="color: white; font-size: 1.5rem; font-weight: 600; margin: 0;">
-                Mi Panel de Carga
-            </h1>
-            <p style="color: rgba(255,255,255,0.9); font-size: 0.875rem; margin: 0;">
-                Bienvenido <?php echo htmlspecialchars($current_user['nombre']); ?>, gestiona tus documentos de transparencia
-            </p>
-        </div>
-    </div>
+<div class="page-header" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 2.5rem 2rem; margin: -1rem -1rem 2rem -1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h1 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem;">
+        <i class="bi bi-inbox" style="color: #3498db; margin-right: 0.5rem;"></i> 
+        Mi Panel de Carga
+    </h1>
+    <p style="margin: 0; color: #bdc3c7; font-size: 1.05rem;">
+        <i class="bi bi-check-circle" style="color: #27ae60;"></i> 
+        Bienvenido, gestiona tus documentos de transparencia
+    </p>
 </div>
 
-<!-- ALERTAS -->
 <?php if ($success): ?>
-<div class="alert alert-success alert-dismissible fade show">
-    <i class="bi bi-check-circle-fill"></i> <?php echo htmlspecialchars($success); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle"></i> <?php echo htmlspecialchars($success); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 <?php endif; ?>
 
 <?php if ($error): ?>
-<div class="alert alert-danger alert-dismissible fade show">
-    <i class="bi bi-exclamation-triangle-fill"></i> <?php echo htmlspecialchars($error); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="bi bi-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 <?php endif; ?>
 
-<!-- TABS PERIODICIDAD -->
+<!-- TAB: ITEMS MENSUAL -->
 <div class="row mb-4">
     <div class="col-12">
         <ul class="nav nav-tabs" role="tablist">
@@ -240,7 +260,7 @@ if ($error) unset($_SESSION['error']);
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-trimestral" data-bs-toggle="tab" data-bs-target="#trimestral" type="button" role="tab">
-                    <i class="bi bi-calendar3"></i> Trimestral
+                    <i class="bi bi-calendar-week"></i> Trimestral
                     <?php if ($documentosPendientes['trimestral'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['trimestral']; ?></span>
                     <?php endif; ?>
@@ -248,7 +268,7 @@ if ($error) unset($_SESSION['error']);
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-semestral" data-bs-toggle="tab" data-bs-target="#semestral" type="button" role="tab">
-                    <i class="bi bi-calendar2-range"></i> Semestral
+                    <i class="bi bi-calendar-range"></i> Semestral
                     <?php if ($documentosPendientes['semestral'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['semestral']; ?></span>
                     <?php endif; ?>
@@ -256,7 +276,7 @@ if ($error) unset($_SESSION['error']);
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-anual" data-bs-toggle="tab" data-bs-target="#anual" type="button" role="tab">
-                    <i class="bi bi-calendar-event"></i> Anual
+                    <i class="bi bi-calendar-year"></i> Anual
                     <?php if ($documentosPendientes['anual'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['anual']; ?></span>
                     <?php endif; ?>
@@ -264,7 +284,7 @@ if ($error) unset($_SESSION['error']);
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-ocurrencia" data-bs-toggle="tab" data-bs-target="#ocurrencia" type="button" role="tab">
-                    <i class="bi bi-calendar-check"></i> Ocurrencia
+                    <i class="bi bi-exclamation-square"></i> Ocurrencia
                     <?php if ($documentosPendientes['ocurrencia'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['ocurrencia']; ?></span>
                     <?php endif; ?>
@@ -272,359 +292,697 @@ if ($error) unset($_SESSION['error']);
             </li>
         </ul>
 
+        <!-- FILTRO DE ESTADO -->
+        <div class="d-flex align-items-center gap-2 my-3 p-2 bg-light rounded border" id="filtroBar">
+            <span class="text-muted small fw-bold me-1"><i class="bi bi-funnel"></i> Filtrar:</span>
+            <?php if ($user_perfil === 'publicador'): ?>
+                <button class="btn btn-sm btn-secondary active" id="filtro-todos" onclick="filtrarEstado('todos')">
+                    <i class="bi bi-grid"></i> Todos
+                </button>
+                <button class="btn btn-sm btn-outline-warning" id="filtro-pendiente_publicar" onclick="filtrarEstado('pendiente_publicar')">
+                    <i class="bi bi-hourglass-split"></i> Pendiente de Publicar
+                </button>
+                <button class="btn btn-sm btn-outline-success" id="filtro-publicado" onclick="filtrarEstado('publicado')">
+                    <i class="bi bi-check-circle"></i> Publicados
+                </button>
+                <button class="btn btn-sm btn-outline-danger" id="filtro-sin_doc" onclick="filtrarEstado('sin_doc')">
+                    <i class="bi bi-x-circle"></i> Sin Documento
+                </button>
+            <?php else: ?>
+                <button class="btn btn-sm btn-secondary active" id="filtro-todos" onclick="filtrarEstado('todos')">
+                    <i class="bi bi-grid"></i> Todos
+                </button>
+                <button class="btn btn-sm btn-outline-danger" id="filtro-pendiente" onclick="filtrarEstado('pendiente')">
+                    <i class="bi bi-exclamation-circle"></i> Pendientes de Cargar
+                </button>
+                <button class="btn btn-sm btn-outline-success" id="filtro-cargado" onclick="filtrarEstado('cargado')">
+                    <i class="bi bi-check-circle"></i> Cargados
+                </button>
+            <?php endif; ?>
+        </div>
+
         <div class="tab-content mt-3">
             <!-- TAB MENSUAL -->
             <div class="tab-pane fade show active" id="mensual" role="tabpanel">
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5><i class="bi bi-calendar-month text-primary"></i> Items Mensuales</h5>
+                        <h5>Items Mensuales</h5>
                     </div>
                     <div class="col-auto">
                         <form method="GET" class="d-flex gap-2">
-                            <select name="mes" class="form-select form-select-sm" style="max-width: 140px;" onchange="this.form.submit()">
-                                <?php for ($m = 1; $m <= 12; $m++): ?>
-                                    <option value="<?php echo $m; ?>" <?php echo ($m === $mesSeleccionado) ? 'selected' : ''; ?>>
-                                        <?php echo $meses[$m]; ?>
-                                    </option>
-                                <?php endfor; ?>
+                            <select name="mes" class="form-select form-select-sm" style="max-width: 150px;" onchange="this.form.submit();">
+                                <?php
+                                $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                                         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                                for ($m = 1; $m <= 12; $m++) {
+                                    $selected = ($mesSeleccionado == $m) ? 'selected' : '';
+                                    echo "<option value='$m' $selected>{$meses[$m]} - Cargar datos de {$meses[$m]}</option>";
+                                }
+                                ?>
                             </select>
-                            <select name="ano" class="form-select form-select-sm" style="max-width: 90px;" onchange="this.form.submit()">
-                                <?php for ($a = $anoActual - 2; $a <= $anoActual; $a++): ?>
-                                    <option value="<?php echo $a; ?>" <?php echo ($a === $anoSeleccionado) ? 'selected' : ''; ?>>
-                                        <?php echo $a; ?>
-                                    </option>
-                                <?php endfor; ?>
+                            <select name="ano" class="form-select form-select-sm" style="max-width: 100px;" onchange="this.form.submit();">
+                                <?php
+                                $anoActual = (int)date('Y');
+                                for ($a = $anoActual - 2; $a <= $anoActual; $a++) {
+                                    $selected = ($anoSeleccionado == $a) ? 'selected' : '';
+                                    echo "<option value='$a' $selected>$a</option>";
+                                }
+                                ?>
                             </select>
                         </form>
                     </div>
                 </div>
 
-                <?php $penMen = $itemsPendientesPorPer['mensual']; $envMen = $itemsEnviadosPorPer['mensual']; ?>
-                <!-- Sub-tabs Pendientes / Enviados -->
-                <ul class="nav nav-pills mb-3" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-men-pend" type="button">
-                            <i class="bi bi-clock-history"></i> Documentos Pendientes
-                            <?php if (count($penMen) > 0): ?><span class="badge bg-danger ms-1"><?php echo count($penMen); ?></span><?php endif; ?>
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-men-env" type="button">
-                            <i class="bi bi-check-circle"></i> Documentos Enviados
-                            <?php if (count($envMen) > 0): ?><span class="badge bg-success ms-1"><?php echo count($envMen); ?></span><?php endif; ?>
-                        </button>
-                    </li>
-                </ul>
-                <div class="tab-content">
-                    <!-- Pendientes mensual -->
-                    <div class="tab-pane fade show active" id="pane-men-pend">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th width="6%">Núm.</th>
-                                        <th width="22%">Item</th>
-                                        <th width="10%">Mes Carga</th>
-                                        <th width="10%">Plazo Interno</th>
-                                        <th width="10%">Estado</th>
-                                        <th width="12%">Fecha Envío</th>
-                                        <th width="30%">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($penMen)): ?>
-                                        <tr><td colspan="7" class="text-center text-success"><i class="bi bi-check-circle"></i> Todos los documentos de este período han sido enviados.</td></tr>
-                                    <?php else: ?>
-                                        <?php foreach ($penMen as $item):
-                                            $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                            $fechaEnvio = $item['fecha_envio'] ? date('d/m/Y H:i', strtotime($item['fecha_envio'])) : '<span class="text-muted">-</span>';
-                                        ?>
-                                        <tr class="table-warning">
-                                            <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                            <td>
-                                                <div><?php echo htmlspecialchars($item['item_nombre']); ?></div>
-                                                <button class="btn btn-xs btn-outline-secondary mt-1"
-                                                        data-bs-toggle="modal" data-bs-target="#modalHistorial"
-                                                        onclick="mostrarHistorial(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
-                                                    <i class="bi bi-clock-history"></i> Historial
-                                                </button>
-                                            </td>
-                                            <td><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></td>
-                                            <td><?php echo $plazoTexto; ?></td>
-                                            <td><span class="badge bg-secondary">Sin Cargar</span></td>
-                                            <td><?php echo $fechaEnvio; ?></td>
-                                            <td>
-                                                <div class="d-flex gap-1 flex-wrap">
-                                                    <button class="btn btn-sm btn-primary"
-                                                            data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
-                                                        <i class="bi bi-cloud-upload"></i> Cargar Docto
-                                                    </button>
-                                                    <?php if ($user_perfil === 'cargador_informacion'): ?>
-                                                    <button class="btn btn-sm btn-warning"
-                                                            data-bs-toggle="modal" data-bs-target="#modalSinMovimiento"
-                                                            onclick="seleccionarSinMovimiento(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
-                                                        <i class="bi bi-slash-circle"></i> Sin Movimiento
-                                                    </button>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <!-- Enviados mensual -->
-                    <div class="tab-pane fade" id="pane-men-env">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th width="6%">Núm.</th>
-                                        <th width="20%">Item</th>
-                                        <th width="9%">Mes Carga</th>
-                                        <th width="9%">Plazo Interno</th>
-                                        <th width="10%">Estado</th>
-                                        <th width="11%">Fecha Envío</th>
-                                        <th width="11%">Carga Portal</th>
-                                        <th width="24%">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($envMen)): ?>
-                                        <tr><td colspan="8" class="text-center text-muted">No hay documentos enviados en este período.</td></tr>
-                                    <?php else: ?>
-                                        <?php foreach ($envMen as $item):
-                                            $esSM = ($item['doc_archivo'] === 'sin_movimiento');
-                                            $plazoTexto  = $item['plazo_interno']      ? date('d/m/Y', strtotime($item['plazo_interno']))           : '<span class="text-muted">-</span>';
-                                            $fechaEnvio  = $item['fecha_envio']         ? date('d/m/Y H:i', strtotime($item['fecha_envio']))          : '<span class="text-muted">-</span>';
-                                            $cargaPortal = $item['fecha_carga_portal']  ? date('d/m/Y H:i', strtotime($item['fecha_carga_portal']))   : '<span class="text-muted">Pendiente</span>';
-                                            
-                                            if ($esSM) {
-                                                $estadoBadge = '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>';
-                                            } elseif ($item['fecha_carga_portal']) {
-                                                // Ya está publicado en el portal
-                                                $estadoBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Publicado en portal TA</span>';
-                                                if ($item['publicador_nombre']) {
-                                                    $estadoBadge .= '<br><small class="text-muted">Publicado por: ' . htmlspecialchars($item['publicador_nombre']) . '</small>';
-                                                }
-                                            } else {
-                                                // Enviado pero pendiente de publicación
-                                                $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
-                                                if ($item['usuario_nombre']) {
-                                                    $estadoBadge .= '<br><small class="text-muted">Enviado por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
-                                                }
-                                            }
-                                        ?>
-                                        <tr class="table-success">
-                                            <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                            <td>
-                                                <div><?php echo htmlspecialchars($item['item_nombre']); ?></div>
-                                                <button class="btn btn-xs btn-outline-secondary mt-1"
-                                                        data-bs-toggle="modal" data-bs-target="#modalHistorial"
-                                                        onclick="mostrarHistorial(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)">
-                                                    <i class="bi bi-clock-history"></i> Historial
-                                                </button>
-                                            </td>
-                                            <td><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></td>
-                                            <td><?php echo $plazoTexto; ?></td>
-                                            <td><?php echo $estadoBadge; ?></td>
-                                            <td><?php echo $fechaEnvio; ?></td>
-                                            <td><?php echo $cargaPortal; ?></td>
-                                            <td>
-                                                <div class="d-flex gap-1 flex-wrap">
-                                                    <?php if (!$esSM): ?>
-                                                        <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>"
-                                                           class="btn btn-sm btn-success" target="_blank">
-                                                            <i class="bi bi-file-earmark-check"></i> Ver Doc
-                                                        </a>
-                                                        <?php if ($item['verificador_id']): ?>
-                                                            <button class="btn btn-sm btn-info"
-                                                                    data-bs-toggle="modal" data-bs-target="#modalVerVerificador"
-                                                                    onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
-                                                                <i class="bi bi-patch-check"></i> Ver Verif
-                                                            </button>
-                                                        <?php elseif ($user_perfil === 'cargador_informacion'): ?>
-                                                            <!-- Botón Actualizar para documentos no publicados -->
-                                                            <button class="btn btn-sm btn-warning"
-                                                                    data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
-                                                                    title="Solo puede actualizar los documentos que no han sido publicados">
-                                                                <i class="bi bi-arrow-repeat"></i> Actualizar
-                                                            </button>
-                                                        <?php endif; ?>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small"><i class="bi bi-slash-circle"></i> Sin Movimiento declarado</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div><!-- /inner tab-content mensual -->
-            </div><!-- /mensual tab-pane -->
-
-            <!-- TAB TRIMESTRAL -->
-            <?php
-            $penTrim = $itemsPendientesPorPer['trimestral']; $envTrim = $itemsEnviadosPorPer['trimestral'];
-            $penSem  = $itemsPendientesPorPer['semestral'];  $envSem  = $itemsEnviadosPorPer['semestral'];
-            $penAnu  = $itemsPendientesPorPer['anual'];      $envAnu  = $itemsEnviadosPorPer['anual'];
-            $penOcu  = $itemsPendientesPorPer['ocurrencia']; $envOcu  = $itemsEnviadosPorPer['ocurrencia'];
-            $tabsOtros = [
-                'trimestral' => ['id'=>'trimestral','icon'=>'bi-calendar3','color'=>'text-success','label'=>'Trimestrales','pen'=>$penTrim,'env'=>$envTrim,'prefix'=>'trim'],
-                'semestral'  => ['id'=>'semestral', 'icon'=>'bi-calendar2-range','color'=>'text-info',   'label'=>'Semestrales', 'pen'=>$penSem, 'env'=>$envSem, 'prefix'=>'sem'],
-                'anual'      => ['id'=>'anual',     'icon'=>'bi-calendar-event', 'color'=>'text-warning','label'=>'Anuales',     'pen'=>$penAnu, 'env'=>$envAnu, 'prefix'=>'anu'],
-                'ocurrencia' => ['id'=>'ocurrencia','icon'=>'bi-calendar-check', 'color'=>'text-danger', 'label'=>'Ocurrencia',  'pen'=>$penOcu, 'env'=>$envOcu, 'prefix'=>'ocu'],
-            ];
-            foreach ($tabsOtros as $tConf): ?>
-            <div class="tab-pane fade" id="<?php echo $tConf['id']; ?>" role="tabpanel">
-                <h5 class="mb-3"><i class="bi <?php echo $tConf['icon'].' '.$tConf['color']; ?>"></i> Items <?php echo $tConf['label']; ?></h5>
-                <ul class="nav nav-pills mb-3" role="tablist">
-                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-<?php echo $tConf['prefix']; ?>-pend" type="button">
-                        <i class="bi bi-clock-history"></i> Documentos Pendientes
-                        <?php if (count($tConf['pen']) > 0): ?><span class="badge bg-danger ms-1"><?php echo count($tConf['pen']); ?></span><?php endif; ?>
-                    </button></li>
-                    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-<?php echo $tConf['prefix']; ?>-env" type="button">
-                        <i class="bi bi-check-circle"></i> Documentos Enviados
-                        <?php if (count($tConf['env']) > 0): ?><span class="badge bg-success ms-1"><?php echo count($tConf['env']); ?></span><?php endif; ?>
-                    </button></li>
-                </ul>
-                <div class="tab-content">
-                    <div class="tab-pane fade show active" id="pane-<?php echo $tConf['prefix']; ?>-pend">
-                        <div class="table-responsive"><table class="table table-hover table-bordered">
-                            <thead class="table-light"><tr>
-                                <th width="8%">Núm.</th><th width="28%">Item</th><th width="12%">Plazo Interno</th>
-                                <th width="12%">Estado</th><th width="13%">Fecha Envío</th><th width="27%">Acciones</th>
-                            </tr></thead>
-                            <tbody>
-                            <?php if (empty($tConf['pen'])): ?>
-                                <tr><td colspan="6" class="text-center text-success"><i class="bi bi-check-circle"></i> Todos los documentos de este período han sido enviados.</td></tr>
-                            <?php else: foreach ($tConf['pen'] as $item):
-                                $plazoTexto = $item['plazo_interno'] ? date('d/m/Y', strtotime($item['plazo_interno'])) : '<span class="text-muted">-</span>';
-                                $fechaEnvio = $item['fecha_envio']   ? date('d/m/Y', strtotime($item['fecha_envio']))   : '<span class="text-muted">-</span>';
-                            ?>
-                            <tr class="table-warning">
-                                <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
-                                <td><?php echo $plazoTexto; ?></td>
-                                <td><span class="badge bg-secondary">Sin Cargar</span></td>
-                                <td><?php echo $fechaEnvio; ?></td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                            onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')">
-                                        <i class="bi bi-upload"></i> Cargar Docto
-                                    </button>
-                                </td>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="8%">Numeración</th>
+                                <th width="3%" style="text-align: center;">Historial</th>
+                                <th width="22%">Nombre Item</th>
+                                <th width="12%">Mes Carga</th>
+                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Fecha Envío</th>
+                                <th width="15%">Carga Portal</th>
+                                <th width="8%">Acciones</th>
                             </tr>
-                            <?php endforeach; endif; ?>
-                            </tbody>
-                        </table></div>
-                    </div>
-                    <div class="tab-pane fade" id="pane-<?php echo $tConf['prefix']; ?>-env">
-                        <div class="table-responsive"><table class="table table-hover table-bordered">
-                            <thead class="table-light"><tr>
-                                <th width="8%">Núm.</th><th width="25%">Item</th><th width="11%">Plazo Interno</th>
-                                <th width="11%">Estado</th><th width="12%">Fecha Envío</th><th width="12%">Carga Portal</th><th width="21%">Acciones</th>
-                            </tr></thead>
-                            <tbody>
-                            <?php if (empty($tConf['env'])): ?>
-                                <tr><td colspan="7" class="text-center text-muted">No hay documentos enviados aún.</td></tr>
-                            <?php else: foreach ($tConf['env'] as $item):
-                                $esSM = ($item['doc_archivo'] === 'sin_movimiento');
-                                $plazoTexto  = $item['plazo_interno']     ? date('d/m/Y', strtotime($item['plazo_interno']))         : '<span class="text-muted">-</span>';
-                                $fechaEnvio  = $item['fecha_envio']        ? date('d/m/Y', strtotime($item['fecha_envio']))           : '<span class="text-muted">-</span>';
-                                $cargaPortal = $item['fecha_carga_portal'] ? date('d/m/Y', strtotime($item['fecha_carga_portal']))    : '<span class="text-muted">-</span>';
-                                
-                                if ($esSM) {
-                                    $estadoBadge = '<span class="badge bg-secondary"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>';
-                                } elseif ($item['fecha_carga_portal']) {
-                                    // Ya está publicado en el portal
-                                    $estadoBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Publicado en portal TA</span>';
-                                    if ($item['publicador_nombre']) {
-                                        $estadoBadge .= '<br><small class="text-muted">Publicado por: ' . htmlspecialchars($item['publicador_nombre']) . '</small>';
+                        </thead>
+                        <tbody>
+                            <?php
+                            if (!empty($itemsPorPeriodicidad['mensual'])) {
+                                foreach ($itemsPorPeriodicidad['mensual'] as $item) {
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoSeleccionado, $mesSeleccionado);
+                                    $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                                             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                                    $mesCargaNombre = $meses[$mesSeleccionado];
+                                    
+                                    // Obtener documentos del mes
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoSeleccionado, $mesSeleccionado);
+                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    
+                                    // Obtener verificador si existe
+                                    $verificador = null;
+                                    if ($ultimoDoc) {
+                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                     }
-                                } else {
-                                    // Enviado pero pendiente de publicación
-                                    $estadoBadge = '<span class="badge bg-warning text-dark">Pendiente</span>';
-                                    if ($item['usuario_nombre']) {
-                                        $estadoBadge .= '<br><small class="text-muted">Enviado por: ' . htmlspecialchars($item['usuario_nombre']) . '</small>';
+                                    
+                                    $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    
+                                    // Calcular plazo final (automático o personalizado)
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    
+                                    $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
+                                    
+                                    // Clase y estado para filtro de tabs
+                                    if ($user_perfil === 'publicador') {
+                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
+                                    } else {
+                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
+                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
                                     }
+                                    
+                                    // Badge estado
+                                    $estadoBadge = '';
+                                    if ($ultimoDoc) {
+                                        if ($ultimoDoc['estado'] == 'aprobado') {
+                                            $estadoBadge = '<span class="badge bg-success">Aprobado</span>';
+                                        } elseif ($ultimoDoc['estado'] == 'rechazado') {
+                                            $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
+                                        } else {
+                                            $estadoBadge = '<span class="badge bg-warning">Pendiente</span>';
+                                        }
+                                    } else {
+                                        $estadoBadge = '<span class="badge bg-secondary">Sin envío</span>';
+                                    }
+                                    ?>
+                                    <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
+                                        <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                        <td style="text-align: center;">
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalHistorial"
+                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                    title="Ver historial de movimientos">
+                                                <i class="bi bi-clock-history"></i>
+                                            </button>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td><?php echo $mesCargaNombre . ' ' . $anoSeleccionado; ?></td>
+                                        <td><?php echo $plazoInterno; ?></td>
+                                        <td><?php echo $fechaEnvio; ?></td>
+                                        <td><?php echo $cargaPortal; ?></td>
+                                        <td>
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                <?php if ($ultimoDoc): ?>
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>)"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($verificador): ?>
+                                                    <button type="button" class="btn btn-sm btn-success" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalVerVerificador"
+                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                    </button>
+                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
+                                                    <button type="button" class="btn btn-sm btn-warning"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#modalSubirVerificador"
+                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-upload"></i> Subir Verificador
+                                                    </button>
+                                                <?php elseif ($ultimoDoc): ?>
+                                                    <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php
                                 }
+                            } else {
+                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items mensuales asignados</td></tr>';
+                            }
                             ?>
-                            <tr class="table-success">
-                                <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                <td><?php echo htmlspecialchars($item['item_nombre']); ?></td>
-                                <td><?php echo $plazoTexto; ?></td>
-                                <td><?php echo $estadoBadge; ?></td>
-                                <td><?php echo $fechaEnvio; ?></td>
-                                <td><?php echo $cargaPortal; ?></td>
-                                <td>
-                                    <?php if (!$esSM): ?>
-                                        <a href="descargar_documento.php?doc_id=<?php echo $item['doc_id']; ?>" class="btn btn-sm btn-success" target="_blank">
-                                            <i class="bi bi-file-check"></i> Ver Doc
-                                        </a>
-                                        <?php if ($item['verificador_id']): ?>
-                                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalVerVerificador"
-                                                    onclick="verVerificador(<?php echo $item['verificador_id']; ?>)">
-                                                <i class="bi bi-patch-check"></i> Ver Verif
-                                            </button>
-                                        <?php elseif ($user_perfil === 'cargador_informacion'): ?>
-                                            <!-- Botón Actualizar para documentos no publicados -->
-                                            <button class="btn btn-sm btn-warning"
-                                                    data-bs-toggle="modal" data-bs-target="#modalCargar"
-                                                    onclick="seleccionarItem(<?php echo $item['item_id']; ?>, '<?php echo htmlspecialchars($item['item_nombre'], ENT_QUOTES); ?>')"
-                                                    title="Solo puede actualizar los documentos que no han sido publicados">
-                                                <i class="bi bi-arrow-repeat"></i> Actualizar
-                                            </button>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="text-muted small"><i class="bi bi-slash-circle"></i> Sin Movimiento</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                            <?php endforeach; endif; ?>
-                            </tbody>
-                        </table></div>
-                    </div>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <?php endforeach; /* tabsOtros */ ?>
 
-        </div><!-- /tab-content periodicidad -->
+            <!-- TAB TRIMESTRAL -->
+            <div class="tab-pane fade" id="trimestral" role="tabpanel">
+                <div class="row align-items-center mb-3">
+                    <div class="col">
+                        <h5>Items Trimestrales</h5>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="8%">Numeración</th>
+                                <th width="3%" style="text-align: center;">Historial</th>
+                                <th width="22%">Nombre Item</th>
+                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Fecha Envío</th>
+                                <th width="15%">Carga Portal</th>
+                                <th width="20%">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            if (!empty($itemsPorPeriodicidad['trimestral'])) {
+                                foreach ($itemsPorPeriodicidad['trimestral'] as $item) {
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
+                                    
+                                    // Obtener documentos
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
+                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    
+                                    // Obtener verificador si existe
+                                    $verificador = null;
+                                    if ($ultimoDoc) {
+                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
+                                    }
+                                    
+                                    // Calcular plazo final (automático o personalizado)
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    
+                                    $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
+                                    $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    // Clase y estado para filtro de tabs
+                                    if ($user_perfil === 'publicador') {
+                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
+                                    } else {
+                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
+                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                    }
+                                    ?>
+                                    <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
+                                        <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                        <td style="text-align: center;">
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalHistorial"
+                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                    title="Ver historial de movimientos">
+                                                <i class="bi bi-clock-history"></i>
+                                            </button>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td><?php echo $plazoInterno; ?></td>
+                                        <td><?php echo $fechaEnvio; ?></td>
+                                        <td><?php echo $cargaPortal; ?></td>
+                                        <td>
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                <?php if ($ultimoDoc): ?>
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($verificador): ?>
+                                                    <button type="button" class="btn btn-sm btn-success" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalVerVerificador"
+                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                    </button>
+                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
+                                                    <button type="button" class="btn btn-sm btn-warning"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#modalSubirVerificador"
+                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-upload"></i> Subir Verificador
+                                                    </button>
+                                                <?php elseif ($ultimoDoc): ?>
+                                                    <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
+                                                <?php else: ?>
+                                                    <span class="text-muted small">Sin documento</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php
+                                }
+                            } else {
+                                echo '<tr><td colspan="5" class="text-center text-muted">No hay items trimestrales asignados</td></tr>';
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB SEMESTRAL -->
+            <div class="tab-pane fade" id="semestral" role="tabpanel">
+                <div class="row align-items-center mb-3">
+                    <div class="col">
+                        <h5>Items Semestrales</h5>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="8%">Numeración</th>
+                                <th width="3%" style="text-align: center;">Historial</th>
+                                <th width="22%">Nombre Item</th>
+                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Fecha Envío</th>
+                                <th width="15%">Carga Portal</th>
+                                <th width="20%">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            if (!empty($itemsPorPeriodicidad['semestral'])) {
+                                foreach ($itemsPorPeriodicidad['semestral'] as $item) {
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
+                                    
+                                    // Obtener último documento
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
+                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    
+                                    // Obtener verificador si existe
+                                    $verificador = null;
+                                    if ($ultimoDoc) {
+                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
+                                    }
+                                    
+                                    // Calcular plazo final (automático o personalizado)
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    
+                                    $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
+                                    $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    // Clase y estado para filtro de tabs
+                                    if ($user_perfil === 'publicador') {
+                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
+                                    } else {
+                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
+                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                    }
+                                    ?>
+                                    <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
+                                        <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                        <td style="text-align: center;">
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalHistorial"
+                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                    title="Ver historial de movimientos">
+                                                <i class="bi bi-clock-history"></i>
+                                            </button>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td><?php echo $plazoInterno; ?></td>
+                                        <td><?php echo $fechaEnvio; ?></td>
+                                        <td><?php echo $cargaPortal; ?></td>
+                                        <td>
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                <?php if ($ultimoDoc): ?>
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($verificador): ?>
+                                                    <button type="button" class="btn btn-sm btn-success" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalVerVerificador"
+                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                    </button>
+                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
+                                                    <button type="button" class="btn btn-sm btn-warning"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#modalSubirVerificador"
+                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-upload"></i> Subir Verificador
+                                                    </button>
+                                                <?php elseif ($ultimoDoc): ?>
+                                                    <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php
+                                }
+                            } else {
+                                echo '<tr><td colspan="5" class="text-center text-muted">No hay items semestrales asignados</td></tr>';
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB ANUAL -->
+            <div class="tab-pane fade" id="anual" role="tabpanel">
+                <div class="row align-items-center mb-3">
+                    <div class="col">
+                        <h5>Items Anuales</h5>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="8%">Numeración</th>
+                                <th width="3%" style="text-align: center;">Historial</th>
+                                <th width="22%">Nombre Item</th>
+                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Fecha Envío</th>
+                                <th width="15%">Carga Portal</th>
+                                <th width="20%">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            if (!empty($itemsPorPeriodicidad['anual'])) {
+                                foreach ($itemsPorPeriodicidad['anual'] as $item) {
+                                    // Para ANUAL, usar mes=1 (enero)
+                                    $mesAnual = 1;
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesAnual);
+                                    
+                                    // Obtener último documento (SIN mes, por año completo)
+                                    $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
+                                    $ultimoDoc = null;
+                                    $tieneDocDelUsuario = false;
+                                    $verificador = null;
+                                    
+                                    if ($docsResult && $docsResult->num_rows > 0) {
+                                        $ultimoDoc = $docsResult->fetch_assoc();
+                                        if ($current_user['perfil'] === 'publicador') {
+                                            // Para publicador, si existe documento está cubierto
+                                            $tieneDocDelUsuario = true;
+                                            // Obtener verificador si existe
+                                            $verificador = $verificadorClass->getByDocumento($ultimoDoc['documento_id']);
+                                        } else {
+                                            // Para cargador, verificar que sea suyo
+                                            if ((int)$ultimoDoc['usuario_id'] === (int)$user_id) {
+                                                $tieneDocDelUsuario = true;
+                                                // Obtener verificador si existe
+                                                $verificador = $verificadorClass->getByDocumento($ultimoDoc['documento_id']);
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Calcular plazo final (automático o personalizado)
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
+                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    
+                                    $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
+                                    $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    // Clase y estado para filtro de tabs (anual)
+                                    if ($user_perfil === 'publicador') {
+                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($tieneDocDelUsuario) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
+                                    } else {
+                                        $rowClass = $tieneDocDelUsuario ? 'table-success' : 'table-danger';
+                                        $dataEstado = $tieneDocDelUsuario ? 'cargado' : 'pendiente';
+                                    }
+                                    ?>
+                                    <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
+                                        <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                        <td style="text-align: center;">
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalHistorial"
+                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                    title="Ver historial de movimientos">
+                                                <i class="bi bi-clock-history"></i>
+                                            </button>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td><?php echo $plazoInterno; ?></td>
+                                        <td><?php echo $fechaEnvio; ?></td>
+                                        <td><?php echo $cargaPortal; ?></td>
+                                        <td>
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                <?php if ($tieneDocDelUsuario): ?>
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['documento_id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1);">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($verificador): ?>
+                                                    <button type="button" class="btn btn-sm btn-success" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalVerVerificador"
+                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                    </button>
+                                                <?php elseif ($tieneDocDelUsuario && $user_perfil === 'publicador'): ?>
+                                                    <button type="button" class="btn btn-sm btn-warning"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#modalSubirVerificador"
+                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['documento_id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-upload"></i> Subir Verificador
+                                                    </button>
+                                                <?php elseif ($tieneDocDelUsuario): ?>
+                                                    <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php
+                                }
+                            } else {
+                                echo '<tr><td colspan="5" class="text-center text-muted">No hay items de ocurrencia asignados</td></tr>';
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODAL CARGAR DOCUMENTO -->
+            <div class="tab-pane fade" id="ocurrencia" role="tabpanel">
+                <div class="row align-items-center mb-3">
+                    <div class="col">
+                        <h5>Items de Ocurrencia Libre</h5>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="10%">Numeración</th>
+                                <th width="25%">Nombre Item</th>
+                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Fecha Envío</th>
+                                <th width="15%">Carga Portal</th>
+                                <th width="20%">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            if (!empty($itemsPorPeriodicidad['ocurrencia'])) {
+                                foreach ($itemsPorPeriodicidad['ocurrencia'] as $item) {
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
+                                    
+                                    // Obtener último documento (ocurrencia)
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $user_id, $anoActual, $mesActual);
+                                    $ultimoDoc = $docsResult->fetch_assoc();
+                                    
+                                    // Obtener verificador si existe
+                                    $verificador = null;
+                                    if ($ultimoDoc) {
+                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
+                                    }
+                                    
+                                    // Calcular plazo final (automático o personalizado)
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    
+                                    $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
+                                    $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    // Clase y estado para filtro de tabs
+                                    if ($user_perfil === 'publicador') {
+                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
+                                    } else {
+                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
+                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                    }
+                                    ?>
+                                    <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
+                                        <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td><?php echo $plazoInterno; ?></td>
+                                        <td><?php echo $fechaEnvio; ?></td>
+                                        <td><?php echo $cargaPortal; ?></td>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                <?php if ($ultimoDoc): ?>
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    </a>
+                                                <?php else: ?>
+                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($verificador): ?>
+                                                    <button type="button" class="btn btn-sm btn-success"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#modalVerVerificador"
+                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                    </button>
+                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
+                                                    <button type="button" class="btn btn-sm btn-warning"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#modalSubirVerificador"
+                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-upload"></i> Subir Verificador
+                                                    </button>
+                                                <?php elseif ($ultimoDoc): ?>
+                                                    <span class="badge bg-danger" title="Pendiente de publicar." data-bs-toggle="tooltip">No cargado a TA</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php
+                                }
+                            } else {
+                                echo '<tr><td colspan="6" class="text-center text-muted">No hay items de ocurrencia asignados</td></tr>';
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- MODAL SIN MOVIMIENTO -->
-<div class="modal fade" id="modalSinMovimiento" tabindex="-1">
-    <div class="modal-dialog">
+<!-- MODAL: Subir Verificador (Publicador) -->
+<div class="modal fade" id="modalSubirVerificador" tabindex="-1">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title"><i class="bi bi-slash-circle"></i> Confirmar Sin Movimiento</h5>
+            <div class="modal-header" style="background:#f0ad4e;">
+                <div>
+                    <h5 class="modal-title mb-1"><i class="bi bi-upload"></i> Subir Verificador de Portal</h5>
+                    <small>Item: <strong id="verificadorItemNombre">-</strong></small>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="sin_movimiento.php">
+            <form method="POST" enctype="multipart/form-data" action="subir_verificador.php">
                 <div class="modal-body">
-                    <input type="hidden" name="item_id"   id="smItemId">
-                    <input type="hidden" name="mes_carga" id="smMes">
-                    <input type="hidden" name="ano_carga" id="smAno">
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                        <strong>¿Confirma que no hay movimiento para este período?</strong>
+                    <input type="hidden" name="item_id" id="verificadorItemId">
+                    <input type="hidden" name="documento_id" id="verificadorDocId">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Suba la imagen o PDF que acredita la publicación en el portal de Transparencia Activa.
                     </div>
-                    <p>Item: <strong id="smItemNombre">—</strong></p>
-                    <p>Período: <strong id="smPeriodoTexto">—</strong></p>
-                    <p class="text-muted small">Esta acción registrará "Sin Movimiento" para el período seleccionado y moverá el item a la pestaña <em>Documentos Enviados</em>.</p>
+                    <div class="mb-3">
+                        <label for="fecha_carga_portal" class="form-label">Fecha de Carga en Portal <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="fecha_carga_portal" name="fecha_carga_portal" required value="<?php echo date('Y-m-d'); ?>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="archivo_verificador" class="form-label">Archivo Verificador (imagen o PDF) <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="archivo_verificador" name="archivo_verificador" required accept=".pdf,.jpg,.jpeg,.png">
+                        <small class="text-muted">Formatos: PDF, JPG, PNG (máx. 10MB)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comentarios_verificador" class="form-label">Comentarios (Opcional)</label>
+                        <textarea class="form-control" id="comentarios_verificador" name="comentarios" rows="2" placeholder="Observaciones adicionales..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-warning">
-                        <i class="bi bi-slash-circle"></i> Confirmar Sin Movimiento
+                        <i class="bi bi-upload"></i> Subir y Publicar
                     </button>
                 </div>
             </form>
@@ -678,9 +1036,45 @@ if ($error) unset($_SESSION['error']);
     </div>
 </div>
 
+<?php
+
+?>
+
 <script>
 const meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// --- FILTRO DE PESTAÑA POR ESTADO ---
+function filtrarEstado(estado) {
+    // Actualizar botones activos
+    document.querySelectorAll('#filtroBar button').forEach(btn => {
+        btn.classList.remove('active', 'btn-secondary', 'btn-warning', 'btn-success', 'btn-danger');
+        btn.classList.add(btn.id.replace('filtro-', 'btn-outline-').replace('todos', 'outline-secondary'));
+    });
+    const btnActivo = document.getElementById('filtro-' + estado);
+    if (btnActivo) {
+        btnActivo.classList.remove('btn-outline-secondary', 'btn-outline-warning', 'btn-outline-success', 'btn-outline-danger');
+        btnActivo.classList.add('btn-secondary', 'active');
+    }
+
+    // Filtrar filas en el tab activo
+    const tabActivo = document.querySelector('.tab-pane.active');
+    if (!tabActivo) return;
+    tabActivo.querySelectorAll('tr[data-estado]').forEach(row => {
+        if (estado === 'todos') {
+            row.style.display = '';
+        } else {
+            row.style.display = (row.dataset.estado === estado) ? '' : 'none';
+        }
+    });
+}
+
+// --- PREPARAR MODAL SUBIR VERIFICADOR ---
+function prepararVerificador(itemId, docId, itemNombre) {
+    document.getElementById('verificadorItemId').value = itemId;
+    document.getElementById('verificadorDocId').value = docId;
+    document.getElementById('verificadorItemNombre').textContent = itemNombre;
+}
 
 function seleccionarItem(itemId, itemNombre, mesCarga = null) {
     document.getElementById('itemIdInput').value = itemId;
@@ -708,14 +1102,6 @@ function seleccionarItem(itemId, itemNombre, mesCarga = null) {
     } else {
         mesPeriodoSpan.innerHTML = '';
     }
-}
-
-function seleccionarSinMovimiento(itemId, itemNombre, mes, ano) {
-    document.getElementById('smItemId').value = itemId;
-    document.getElementById('smMes').value = mes;
-    document.getElementById('smAno').value = ano;
-    document.getElementById('smItemNombre').textContent = itemNombre;
-    document.getElementById('smPeriodoTexto').textContent = meses[mes] + ' ' + ano;
 }
 
 // Función para mostrar historial
@@ -860,16 +1246,6 @@ function verEnPantallaCompleta(imageSrc) {
         </div>
     </div>
 </div>
-
-<script>
-// Inicializar tooltips de Bootstrap
-document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-});
-</script>
 
 <?php require_once '../includes/footer.php'; ?>
 

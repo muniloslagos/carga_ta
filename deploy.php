@@ -16,11 +16,11 @@
 // ===========================
 
 // Secreto compartido con GitHub (cámbialo)
-$secret = 'lnwZc4FYK9hE65DX1VABJIjbi2kfzvtr';
+$secret = 'cambiar_por_secreto_unico_123456';
 
 // Rutas en el servidor (ajusta según tu servidor)
-$repo_path = '/home/appmuniloslagos/repositories/carga_ta';  // Donde está clonado el repo
-$deploy_path = '/home/appmuniloslagos/public_html/carga_ta';  // Donde se despliega
+$repo_path = '/home/usuario/carga_ta';  // Donde está clonado el repo
+$deploy_path = '/home/usuario/public_html/cumplimiento';  // Donde se despliega
 $log_file = __DIR__ . '/deploy.log';
 
 // Rama a desplegar

@@ -112,7 +112,9 @@ function autenticar($username, $password) {
  * Cerrar sesión
  */
 function cerrarSesion() {
-    session_destroy();
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_destroy();
+    }
     return ['success' => true];
 }
 

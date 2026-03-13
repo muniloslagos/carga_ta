@@ -1,14 +1,7 @@
 <?php
-// Activar errores para diagnóstico
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 // PRIMERO: Verificar autenticación ANTES de cualquier salida
 require_once '../../includes/check_auth.php';
 require_role('administrativo');
-
-// LUEGO: Incluir header con HTML
-require_once '../../includes/header.php';
 
 require_once '../../classes/Direccion.php';
 require_once '../../classes/Usuario.php';
@@ -16,10 +9,18 @@ require_once '../../classes/Usuario.php';
 $direccionClass = new Direccion($db->getConnection());
 $usuarioClass = new Usuario($db->getConnection());
 
+// Definir perfiles disponibles
+$PROFILES = [
+    'administrativo' => 'Administrativo',
+    'cargador_informacion' => 'Cargador de Información',
+    'publicador' => 'Publicador',
+    'auditor' => 'Auditor'
+];
+
 $error = '';
 $success = '';
 
-// Procesar formulario
+// Procesar formulario ANTES de incluir header
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $redirect = false;
@@ -34,19 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
 
         if (!empty($data['nombre']) && !empty($data['email']) && !empty($data['password'])) {
-            // Verificar si el email ya existe
-            $existingUser = $usuarioClass->getByEmail($data['email']);
-            if ($existingUser) {
-                $error = 'El correo electrónico ya está registrado';
+            if ($usuarioClass->create($data)) {
+                $_SESSION['success'] = 'Usuario creado correctamente';
+                $redirect = true;
             } else {
-                if ($usuarioClass->create($data)) {
-                    $_SESSION['success'] = 'Usuario creado correctamente';
-                    $redirect = true;
-                } else {
-                    // Obtener el error de MySQL
-                    $mysqlError = $db->getConnection()->error;
-                    $error = 'Error al crear el usuario: ' . $mysqlError;
-                }
+                $error = 'Error al crear el usuario';
             }
         } else {
             $error = 'Complete todos los campos requeridos';
@@ -93,28 +86,21 @@ if (isset($_SESSION['success'])) {
 
 $direcciones = $direccionClass->getAll();
 $usuarios = $usuarioClass->getAll();
+
+// DESPUÉS: Incluir header con HTML
+require_once '../../includes/header.php';
 ?>
 
-<div class="page-header mb-4 pb-3" style="border-bottom: 2px solid #e0e0e0;">
+<div class="page-header">
     <div class="row align-items-center">
         <div class="col">
-            <div class="d-flex align-items-center gap-3">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(102,126,234,0.3);">
-                    <i class="bi bi-people-fill text-white" style="font-size: 1.5rem;"></i>
-                </div>
-                <div>
-                    <h1 class="mb-1" style="color: #2c3e50; font-weight: 600; font-size: 1.5rem;">Gestión de Usuarios</h1>
-                    <small class="text-muted" style="font-size: 0.875rem;">Administra perfiles y permisos del sistema</small>
-                </div>
-            </div>
+            <h1><i class="bi bi-people"></i> Gestión de Usuarios</h1>
         </div>
-        <div class="col-auto">
-            <button class="btn btn-lg" data-bs-toggle="modal" data-bs-target="#usuarioModal" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(102,126,234,0.3); font-weight: 500;">
-                <i class="bi bi-plus-circle-fill"></i> Nuevo Usuario
+        <div class="col text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#usuarioModal">
+                <i class="bi bi-plus-circle"></i> Nuevo Usuario
             </button>
         </div>
-    </div>
-</div>
     </div>
 </div>
 

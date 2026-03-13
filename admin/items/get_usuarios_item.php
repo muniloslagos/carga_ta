@@ -31,7 +31,7 @@ while ($u = $usuarios_result->fetch_assoc()) {
 $asignados_result = $itemClass->getAsignedUsers($item_id);
 $asignados = [];
 while ($a = $asignados_result->fetch_assoc()) {
-    $asignados[] = $a['id'];
+    $asignados[] = (int)$a['id']; // Forzar a entero
 }
 
 header('Content-Type: application/json');

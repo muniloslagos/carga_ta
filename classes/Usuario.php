@@ -63,16 +63,13 @@ class Usuario {
         $stmt = $this->db->prepare($sql);
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
         
-        // Manejar direccion_id nulo
-        $direccion_id = !empty($data['direccion_id']) ? $data['direccion_id'] : null;
-        
         $stmt->bind_param(
-            "ssssi",
+            "sssii",
             $data['nombre'],
             $data['email'],
             $hashedPassword,
             $data['perfil'],
-            $direccion_id
+            $data['direccion_id']
         );
 
         return $stmt->execute();
@@ -125,14 +122,6 @@ class Usuario {
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
         $stmt->bind_param("si", $hashedPassword, $id);
         return $stmt->execute();
-    }
-
-    // Obtener usuarios sin dirección asignada
-    public function getUsuariosSinDireccion() {
-        $sql = "SELECT * FROM {$this->table} 
-                WHERE activo = 1 AND (direccion_id IS NULL OR direccion_id = 0)
-                ORDER BY nombre ASC";
-        return $this->db->query($sql);
     }
 }
 ?>

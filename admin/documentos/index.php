@@ -71,18 +71,10 @@ $estado_filtro = $_GET['estado'] ?? '';
 $item_filtro = intval($_GET['item'] ?? 0);
 ?>
 
-<div class="page-header mb-4 pb-3" style="border-bottom: 2px solid #e0e0e0;">
+<div class="page-header">
     <div class="row align-items-center">
         <div class="col">
-            <div class="d-flex align-items-center gap-3">
-                <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(250,112,154,0.3);">
-                    <i class="bi bi-file-earmark-text text-white" style="font-size: 1.5rem;"></i>
-                </div>
-                <div>
-                    <h1 class="mb-1" style="color: #2c3e50; font-weight: 600; font-size: 1.5rem;">Gestión de Documentos</h1>
-                    <small class="text-muted" style="font-size: 0.875rem;">Revisa y aprueba los documentos cargados</small>
-                </div>
-            </div>
+            <h1><i class="bi bi-file-pdf"></i> Gestión de Documentos</h1>
         </div>
     </div>
 </div>
@@ -155,7 +147,7 @@ $item_filtro = intval($_GET['item'] ?? 0);
                             <span class="state-badge <?php echo $estado_class; ?>"><?php echo ucfirst($doc['estado']); ?></span>
                         </td>
                         <td>
-                            <a href="<?php echo SITE_URL; ?>uploads/<?php echo htmlspecialchars($doc['archivo']); ?>" class="btn btn-sm btn-info" target="_blank" title="Descargar documento">
+                            <a href="<?php echo htmlspecialchars($doc['archivo']); ?>" class="btn btn-sm btn-info" target="_blank">
                                 <i class="bi bi-download"></i>
                             </a>
                             <?php if ($doc['estado'] === 'pendiente'): ?>
