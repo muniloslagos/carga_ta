@@ -148,8 +148,6 @@ $totalDocumentos = $conn->query("SELECT COUNT(*) as total FROM documentos WHERE 
     </div>
 </div>
 
-<?php require_once '../includes/footer.php'; ?>
-    
     <div class="container-fluid py-4">
         <div class="row mb-4">
             <div class="col-12">
@@ -301,5 +299,5 @@ $totalDocumentos = $conn->query("SELECT COUNT(*) as total FROM documentos WHERE 
         // Auto-refresh cada 30 segundos
         setTimeout(() => location.reload(), 30000);
     </script>
-</body>
-</html>
+
+<?php require_once '../includes/footer.php'; ?>
