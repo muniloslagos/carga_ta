@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../config/config.php';
-require_once '../config/database.php';
+require_once '../config/Database.php';
 require_once '../classes/Documento.php';
 require_once '../classes/ItemPlazo.php';
 require_once '../classes/Item.php';
