@@ -3,9 +3,6 @@
 require_once '../../includes/check_auth.php';
 require_role('administrativo');
 
-// LUEGO: Incluir header con HTML
-require_once '../../includes/header.php';
-
 require_once '../../classes/Direccion.php';
 
 $direccionClass = new Direccion($db->getConnection());
@@ -13,7 +10,7 @@ $direccionClass = new Direccion($db->getConnection());
 $error = '';
 $success = '';
 
-// Procesar formulario
+// Procesar formulario ANTES de incluir header (evita headers already sent)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $redirect = false;
@@ -57,9 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // PRG Pattern: Redirigir después del POST exitoso
     if ($redirect) {
-        header('Cache-Control: no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
         header('Location: ' . SITE_URL . 'admin/direcciones/index.php');
         exit;
     }
@@ -72,6 +66,9 @@ if (isset($_SESSION['success'])) {
 }
 
 $direcciones = $direccionClass->getAll();
+
+// LUEGO: Incluir header con HTML
+require_once '../../includes/header.php';
 ?>
 
 <div class="page-header">

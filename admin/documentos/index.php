@@ -1,11 +1,9 @@
 <?php
-// PRIMERO: Verificar autenticación ANTES de cualquier salida
+// Verificar autenticación ANTES de cualquier salida
 require_once '../../includes/check_auth.php';
 require_role('administrativo');
 
-// LUEGO: Incluir header con HTML
-require_once '../../includes/header.php';
-
+// Clases necesarias (antes del header)
 require_once '../../classes/Documento.php';
 require_once '../../classes/Item.php';
 
@@ -15,7 +13,7 @@ $itemClass = new Item($db->getConnection());
 $error = '';
 $success = '';
 
-// Procesar revisión de documento
+// Procesar revisión de documento (POST antes del header para poder redirigir)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $documento_id = intval($_POST['documento_id'] ?? 0);
@@ -69,6 +67,9 @@ $documentos = $conn->query($sql);
 // Filtros
 $estado_filtro = $_GET['estado'] ?? '';
 $item_filtro = intval($_GET['item'] ?? 0);
+
+// Incluir header DESPUÉS del procesamiento (para no bloquear redirects)
+require_once '../../includes/header.php';
 ?>
 
 <div class="page-header">
