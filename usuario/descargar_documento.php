@@ -21,9 +21,8 @@ if (!$doc_id) {
 $db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 // Verificar que el documento pertenece al usuario actual
-$sql = "SELECT d.*, ds.estado 
+$sql = "SELECT d.*
         FROM documentos d
-        LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
         WHERE d.id = ? AND d.usuario_id = ?";
 
 $stmt = $db_conn->prepare($sql);

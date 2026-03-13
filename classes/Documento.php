@@ -96,13 +96,13 @@ class Documento {
 
     // Obtener documentos por item usando documento_seguimiento (MÁS CONFIABLE)
     public function getByItemFollowUp($item_id, $mes, $ano) {
-        $sql = "SELECT ds.*, d.usuario_id, d.titulo, d.archivo
-                FROM documento_seguimiento ds
-                LEFT JOIN {$this->table} d ON ds.documento_id = d.id
-                WHERE ds.item_id = ? AND ds.mes = ? AND ds.ano = ?
-                ORDER BY ds.fecha_envio DESC";
+        $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo
+                FROM {$this->table} d
+                WHERE d.item_id = ? AND MONTH(d.fecha_subida) = ? AND YEAR(d.fecha_subida) = ?
+                ORDER BY d.fecha_subida DESC";
         
         $stmt = $this->db->prepare($sql);
+        if (!$stmt) return null;
         $stmt->bind_param("iii", $item_id, $mes, $ano);
         $stmt->execute();
         return $stmt->get_result();
@@ -110,14 +110,14 @@ class Documento {
 
     // Obtener documentos por item y año (SIN mes) - para periodicidad ANUAL
     public function getByItemFollowUpAnual($item_id, $ano) {
-        $sql = "SELECT ds.*, d.usuario_id, d.titulo, d.archivo
-                FROM documento_seguimiento ds
-                LEFT JOIN {$this->table} d ON ds.documento_id = d.id
-                WHERE ds.item_id = ? AND ds.ano = ?
-                ORDER BY ds.fecha_envio DESC
+        $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo
+                FROM {$this->table} d
+                WHERE d.item_id = ? AND YEAR(d.fecha_subida) = ?
+                ORDER BY d.fecha_subida DESC
                 LIMIT 1";
         
         $stmt = $this->db->prepare($sql);
+        if (!$stmt) return null;
         $stmt->bind_param("ii", $item_id, $ano);
         $stmt->execute();
         return $stmt->get_result();

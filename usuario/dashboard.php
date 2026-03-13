@@ -74,11 +74,7 @@ $query = "
         d.estado as doc_estado,
         d.fecha_subida,
         d.usuario_id as doc_usuario_id,
-        ds.fecha_envio,
-        ds.mes as doc_mes,
-        ds.ano as doc_ano,
         u.nombre as usuario_nombre,
-        ip.plazo_interno,
         vp.id as verificador_id,
         vp.fecha_carga_portal,
         u_pub.nombre as publicador_nombre
@@ -86,10 +82,7 @@ $query = "
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
     LEFT JOIN documentos d ON i.id = d.item_id
-    LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
     LEFT JOIN usuarios u ON d.usuario_id = u.id
-    LEFT JOIN item_plazos ip ON i.id = ip.item_id 
-        AND ip.ano = ? AND ip.mes = ?
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id
     WHERE i.activo = 1 $whereUsuario
@@ -98,8 +91,8 @@ $query = "
         i.numeracion";
 
 // Parámetros en orden de aparición en la query
-$params = [$anoSeleccionado, $mesSeleccionado];
-$types = 'ii';
+$params = [];
+$types = '';
 
 if ($user_perfil === 'cargador_informacion') {
     $params[] = $user_id;
@@ -107,7 +100,9 @@ if ($user_perfil === 'cargador_informacion') {
 }
 
 $stmt = $conn->prepare($query);
-$stmt->bind_param($types, ...array_values($params));
+if (!empty($params)) {
+    $stmt->bind_param($types, ...array_values($params));
+}
 $stmt->execute();
 $resultado = $stmt->get_result();
 
