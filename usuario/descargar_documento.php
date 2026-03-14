@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once dirname(__DIR__) . '/config/Database.php';
 require_once dirname(__DIR__) . '/config/config.php';
+require_once dirname(__DIR__) . '/config/Database.php';
 
 // Verificar autenticación básica
 if (!isset($_SESSION['user_id'])) {
