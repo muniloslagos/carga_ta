@@ -22,7 +22,9 @@ $db = new Database();
 $db_conn = $db->getConnection();
 
 // Verificar permisos según el perfil
-if ($_SESSION['perfil'] === 'publicador') {
+$perfil = isset($_SESSION['perfil']) ? $_SESSION['perfil'] : '';
+
+if ($perfil === 'publicador') {
     // Publicador puede ver TODOS los documentos
     $sql = "SELECT d.*
             FROM documentos d
