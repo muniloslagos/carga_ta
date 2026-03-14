@@ -17,8 +17,8 @@ if (!$doc_id) {
     exit;
 }
 
-// Conectar a BD
-$db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+// Conectar a BD usando la clase Database del sistema
+$db_conn = Database::getConnection();
 
 // Verificar que el documento pertenece al usuario actual
 $sql = "SELECT d.*
