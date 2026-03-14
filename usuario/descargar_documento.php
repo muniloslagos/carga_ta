@@ -18,7 +18,8 @@ if (!$doc_id) {
 }
 
 // Conectar a BD usando la clase Database del sistema
-$db_conn = Database::getConnection();
+$db = new Database();
+$db_conn = $db->getConnection();
 
 // Verificar que el documento pertenece al usuario actual
 $sql = "SELECT d.*
