@@ -21,13 +21,25 @@ if (!$doc_id) {
 $db = new Database();
 $db_conn = $db->getConnection();
 
-// Verificar que el documento pertenece al usuario actual
-$sql = "SELECT d.*
-        FROM documentos d
-        WHERE d.id = ? AND d.usuario_id = ?";
+// Verificar permisos según el perfil
+if ($_SESSION['perfil'] === 'publicador') {
+    // Publicador puede ver TODOS los documentos
+    $sql = "SELECT d.*
+            FROM documentos d
+            WHERE d.id = ?";
+    
+    $stmt = $db_conn->prepare($sql);
+    $stmt->bind_param("i", $doc_id);
+} else {
+    // Otros perfiles solo pueden ver sus propios documentos
+    $sql = "SELECT d.*
+            FROM documentos d
+            WHERE d.id = ? AND d.usuario_id = ?";
+    
+    $stmt = $db_conn->prepare($sql);
+    $stmt->bind_param("ii", $doc_id, $_SESSION['user_id']);
+}
 
-$stmt = $db_conn->prepare($sql);
-$stmt->bind_param("ii", $doc_id, $_SESSION['user_id']);
 $stmt->execute();
 $result = $stmt->get_result();
 $documento = $result->fetch_assoc();
