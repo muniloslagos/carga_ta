@@ -50,6 +50,12 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 // Perfil del usuario actual
 $user_perfil = $current_profile ?? ($current_user['perfil'] ?? '');
 
+// Redirigir auditor a su propio dashboard
+if ($user_perfil === 'auditor') {
+    header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
+    exit;
+}
+
 // Filtro de usuario: cargadores solo ven sus propios documentos; otros ven todos
 $userIdFiltro = ($user_perfil === 'cargador_informacion') ? $user_id : null;
 

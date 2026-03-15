@@ -59,6 +59,8 @@ function redirect_if_logged_in() {
     if ($is_logged_in && $current_profile) {
         if ($current_profile === 'administrativo') {
             header('Location: ' . SITE_URL . 'admin/index.php');
+        } elseif ($current_profile === 'auditor') {
+            header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
         } else {
             header('Location: ' . SITE_URL . 'usuario/dashboard.php');
         }
