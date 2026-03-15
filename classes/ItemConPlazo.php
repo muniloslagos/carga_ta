@@ -93,8 +93,8 @@ class ItemConPlazo {
      * @return Resultado de query
      */
     public function getDocumentosPorMes($item_id, $usuario_id, $ano, $mes) {
-        // Obtiene el documento más reciente del item (sin filtrar por mes/año
-        // porque fecha_subida puede ser distinto al período lógico del documento)
+        // Filtra por mes_carga/ano_carga (guardados al subir)
+        // Con fallback a fecha_subida para documentos anteriores a la migración
         if ($usuario_id === null) {
             $sql = "SELECT 
                     d.*,
@@ -103,12 +103,17 @@ class ItemConPlazo {
                     FROM documentos d
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
                     WHERE d.item_id = ?
+                    AND (
+                        (d.mes_carga = ? AND d.ano_carga = ?)
+                        OR
+                        (d.mes_carga IS NULL AND MONTH(d.fecha_subida) = ? AND YEAR(d.fecha_subida) = ?)
+                    )
                     ORDER BY d.fecha_subida DESC
                     LIMIT 1";
 
             $stmt = $this->db->prepare($sql);
             if (!$stmt) return null;
-            $stmt->bind_param("i", $item_id);
+            $stmt->bind_param("iiiii", $item_id, $mes, $ano, $mes, $ano);
         } else {
             $sql = "SELECT 
                     d.*,
@@ -118,12 +123,17 @@ class ItemConPlazo {
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
                     WHERE d.item_id = ?
                     AND d.usuario_id = ?
+                    AND (
+                        (d.mes_carga = ? AND d.ano_carga = ?)
+                        OR
+                        (d.mes_carga IS NULL AND MONTH(d.fecha_subida) = ? AND YEAR(d.fecha_subida) = ?)
+                    )
                     ORDER BY d.fecha_subida DESC
                     LIMIT 1";
 
             $stmt = $this->db->prepare($sql);
             if (!$stmt) return null;
-            $stmt->bind_param("ii", $item_id, $usuario_id);
+            $stmt->bind_param("iiiiii", $item_id, $usuario_id, $mes, $ano, $mes, $ano);
         }
         
         $stmt->execute();

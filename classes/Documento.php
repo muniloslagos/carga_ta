@@ -76,38 +76,45 @@ class Documento {
     // Crear documento
     public function create($data) {
         $sql = "INSERT INTO {$this->table} 
-                (item_id, usuario_id, titulo, descripcion, archivo, estado, fecha_subida)
-                VALUES (?, ?, ?, ?, ?, 'pendiente', NOW())";
+                (item_id, usuario_id, titulo, descripcion, archivo, mes_carga, ano_carga, estado, fecha_subida)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("iisss",
+        $mes = isset($data['mes_carga']) ? (int)$data['mes_carga'] : (int)date('n');
+        $ano = isset($data['ano_carga']) ? (int)$data['ano_carga'] : (int)date('Y');
+        $stmt->bind_param("iisssii",
             $data['item_id'],
             $data['usuario_id'],
             $data['titulo'],
             $data['descripcion'],
-            $data['archivo']
+            $data['archivo'],
+            $mes,
+            $ano
         );
 
         if ($stmt->execute()) {
-            return $this->db->insert_id;  // ✅ DEVOLVER EL ID
+            return $this->db->insert_id;
         }
         return false;
     }
 
     // Obtener documentos por item usando documento_seguimiento (MÁS CONFIABLE)
     public function getByItemFollowUp($item_id, $mes, $ano) {
-        // Busca documentos recientes del item (últimos 60 días desde inicio del mes)
-        // No filtramos estrictamente por mes porque fecha_subida (upload)
-        // puede ser distinta al período lógico del documento
+        // Filtra por mes_carga y ano_carga (columnas guardadas al subir el documento)
+        // Si no hay datos en esas columnas (documentos anteriores), fallback a fecha_subida
         $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo
                 FROM {$this->table} d
                 WHERE d.item_id = ?
-                AND d.fecha_subida >= DATE_SUB(CONCAT(?, '-', LPAD(?, 2, '0'), '-01'), INTERVAL 60 DAY)
+                AND (
+                    (d.mes_carga = ? AND d.ano_carga = ?)
+                    OR
+                    (d.mes_carga IS NULL AND MONTH(d.fecha_subida) = ? AND YEAR(d.fecha_subida) = ?)
+                )
                 ORDER BY d.fecha_subida DESC";
         
         $stmt = $this->db->prepare($sql);
         if (!$stmt) return null;
-        $stmt->bind_param("iii", $item_id, $ano, $mes);
+        $stmt->bind_param("iiiii", $item_id, $mes, $ano, $mes, $ano);
         $stmt->execute();
         return $stmt->get_result();
     }

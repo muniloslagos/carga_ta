@@ -93,13 +93,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
-    // Ahora crear el documento con el nombre de archivo
+    // Ahora crear el documento con el nombre de archivo y mes/año de período
     $resultado = $documento->create([
         'usuario_id' => $user_id,
         'item_id' => $item_id,
         'titulo' => $titulo,
         'descripcion' => $descripcion,
-        'archivo' => $uploadResult['filename']  // ✅ SOLO EL NOMBRE
+        'archivo' => $uploadResult['filename'],
+        'mes_carga' => $mes_carga_calc,
+        'ano_carga' => $ano_actual
     ]);
     
     if ($resultado) {
