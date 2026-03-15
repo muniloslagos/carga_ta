@@ -48,18 +48,16 @@ $documento = $result->fetch_assoc();
 $stmt->close();
 
 if (!$documento) {
-    $_SESSION['error'] = 'Documento no encontrado o no tienes permiso';
-    header('Location: dashboard.php');
-    exit;
+    // Debug: mostrar el error directamente
+    die("ERROR: Documento no encontrado. doc_id=$doc_id, user_id=" . $_SESSION['user_id'] . ", perfil=" . $perfil);
 }
 
 // Ruta segura del archivo
 $archivo = dirname(__DIR__) . '/uploads/' . $documento['archivo'];
 
 if (!file_exists($archivo)) {
-    $_SESSION['error'] = 'Archivo no encontrado en el servidor';
-    header('Location: dashboard.php');
-    exit;
+    // Debug: mostrar ruta del archivo
+    die("ERROR: Archivo no encontrado. Ruta: $archivo");
 }
 
 // Descargar el archivo
