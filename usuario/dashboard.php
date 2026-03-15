@@ -966,6 +966,16 @@ if (isset($_SESSION['success'])) {
                         <label for="archivo_verificador" class="form-label">Archivo Verificador (imagen o PDF) <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" id="archivo_verificador" name="archivo_verificador" required accept=".pdf,.jpg,.jpeg,.png">
                         <small class="text-muted">Formatos: PDF, JPG, PNG (máx. 10MB)</small>
+                        <!-- Zona de pegado desde portapapeles -->
+                        <div id="pasteZone" style="margin-top:10px; border:2px dashed #f0ad4e; border-radius:8px; padding:18px; text-align:center; color:#888; cursor:pointer; background:#fffbf2;">
+                            <i class="bi bi-clipboard-image" style="font-size:1.5rem;"></i><br>
+                            <span id="pasteZoneText">Haz clic aquí y pega una imagen con <kbd>Ctrl+V</kbd></span>
+                        </div>
+                        <div id="pastePreview" style="display:none; margin-top:8px; text-align:center;">
+                            <img id="pastePreviewImg" src="" style="max-width:100%; max-height:200px; border-radius:6px; border:1px solid #ddd;">
+                            <br><small class="text-success"><i class="bi bi-check-circle"></i> Imagen pegada desde portapapeles</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="clearPaste"><i class="bi bi-x"></i> Quitar</button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="comentarios_verificador" class="form-label">Comentarios (Opcional)</label>
@@ -1067,7 +1077,82 @@ function prepararVerificador(itemId, docId, itemNombre) {
     document.getElementById('verificadorItemId').value = itemId;
     document.getElementById('verificadorDocId').value = docId;
     document.getElementById('verificadorItemNombre').textContent = itemNombre;
+    // Limpiar zona de pegado al abrir el modal
+    resetPasteZone();
 }
+
+function resetPasteZone() {
+    document.getElementById('pastePreview').style.display = 'none';
+    document.getElementById('pasteZone').style.display = 'block';
+    document.getElementById('pasteZoneText').textContent = 'Haz clic aquí y pega una imagen con Ctrl+V';
+    document.getElementById('archivo_verificador').removeAttribute('required');
+    document.getElementById('archivo_verificador').value = '';
+}
+
+// Pegar imagen desde portapapeles
+const pasteZone = document.getElementById('pasteZone');
+const fileInput = document.getElementById('archivo_verificador');
+
+// Activar foco en la zona al hacer clic
+pasteZone.addEventListener('click', function() {
+    pasteZone.style.borderColor = '#e67e00';
+    pasteZone.style.background = '#fff3e0';
+    document.getElementById('pasteZoneText').textContent = 'Zona activa — pega ahora con Ctrl+V';
+    pasteZone.focus();
+});
+
+pasteZone.setAttribute('tabindex', '0');
+
+// Escuchar pegado tanto en la zona como en el documento (cuando el modal está abierto)
+function handlePasteEvent(e) {
+    const modal = document.getElementById('modalSubirVerificador');
+    if (!modal.classList.contains('show')) return;
+
+    const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            e.preventDefault();
+            const blob = items[i].getAsFile();
+            const fileName = 'captura_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.png';
+            const file = new File([blob], fileName, { type: blob.type });
+
+            // Asignar al input file usando DataTransfer
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+
+            // Mostrar preview
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('pastePreviewImg').src = ev.target.result;
+                document.getElementById('pastePreview').style.display = 'block';
+                document.getElementById('pasteZone').style.display = 'none';
+            };
+            reader.readAsDataURL(blob);
+            break;
+        }
+    }
+}
+
+document.addEventListener('paste', handlePasteEvent);
+pasteZone.addEventListener('paste', handlePasteEvent);
+
+// Botón para quitar imagen pegada
+document.getElementById('clearPaste').addEventListener('click', function() {
+    fileInput.value = '';
+    fileInput.setAttribute('required', 'required');
+    resetPasteZone();
+});
+
+// Si el usuario elige un archivo, ocultar la zona de pegado
+fileInput.addEventListener('change', function() {
+    if (fileInput.files.length > 0) {
+        document.getElementById('pasteZone').style.display = 'none';
+        document.getElementById('pastePreview').style.display = 'none';
+    }
+});
 
 function seleccionarItem(itemId, itemNombre, mesCarga = null) {
     document.getElementById('itemIdInput').value = itemId;
