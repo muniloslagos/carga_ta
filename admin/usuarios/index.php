@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['success'] = 'Usuario creado correctamente';
                 $redirect = true;
             } else {
-                $error = 'Error al crear el usuario';
+                $error = 'Error al crear el usuario: ' . $db->getConnection()->error;
             }
         } else {
             $error = 'Complete todos los campos requeridos';
