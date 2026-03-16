@@ -71,8 +71,8 @@ class PlazoCalculator {
         $p = strtolower($periodicidad);
 
         if ($p === 'mensual') {
-            // M+2: eneroâ†’marzo, noviembreâ†’enero siguiente, diciembreâ†’febrero siguiente
-            $deadlineMonth = $mes + 2;
+            // M+1: enero→febrero, diciembre→enero siguiente
+            $deadlineMonth = $mes + 1;
             $deadlineYear  = $ano;
             if ($deadlineMonth > 12) {
                 $deadlineMonth -= 12;
