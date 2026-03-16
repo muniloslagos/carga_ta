@@ -15,6 +15,7 @@ require_once '../config/Database.php';
 require_once '../classes/Documento.php';
 require_once '../classes/ItemPlazo.php';
 require_once '../classes/Item.php';
+require_once '../classes/PlazoCalculator.php';
 
 $user_id = $_SESSION['user_id'] ?? null;
 $db = new Database();
@@ -106,6 +107,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     
     if ($resultado) {
+        // ── Calcular y guardar cumplimiento del plazo de envío ──────────────
+        $itemPlazoClass = new ItemPlazo($db_conn);
+        $plazoEnvio = $itemPlazoClass->getPlazoFinal($item_id, $ano_actual, $mes_carga_calc, $periodicidad);
+        if ($plazoEnvio) {
+            $cumple = (strtotime(date('Y-m-d')) <= strtotime($plazoEnvio)) ? 1 : 0;
+            $upd = $db_conn->prepare("UPDATE documentos SET cumple_plazo_envio = ? WHERE id = ?");
+            $upd->bind_param("ii", $cumple, $resultado);
+            $upd->execute();
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         // Si es modificación, eliminar el documento anterior
         if ($doc_id_reemplazar > 0) {
             $docAnterior = new Documento($db_conn);

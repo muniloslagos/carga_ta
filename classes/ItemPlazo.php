@@ -96,30 +96,53 @@ class ItemPlazo {
     }
 
     /**
-     * Obtiene el plazo FINAL para un item en un período
-     * Considera: plazos automáticos (trimestral, semestral) y personalizados
-     * @return string fecha en formato 'Y-m-d' o null
+     * Obtiene el plazo FINAL de ENVÍO para un item en un período.
+     * Prioridad: personalizado en item_plazos > calculado automáticamente.
+     * @return string|null  'Y-m-d' o null
      */
     public function getPlazoFinal($item_id, $ano, $mes, $periodicidad = null) {
-        // Si no se proporciona periodicidad, obtenerla de la BD
         if (!$periodicidad) {
-            $sql = "SELECT i.periodicidad FROM items i WHERE i.id = ?";
+            $sql = "SELECT periodicidad FROM items_transparencia WHERE id = ?";
             $stmt = $this->db->prepare($sql);
             $stmt->bind_param("i", $item_id);
             $stmt->execute();
-            $result = $stmt->get_result();
-            $item = $result->fetch_assoc();
-            $periodicidad = $item['periodicidad'] ?? 'mensual';
+            $row = $stmt->get_result()->fetch_assoc();
+            $periodicidad = $row['periodicidad'] ?? 'mensual';
         }
 
-        // Obtener plazo personalizado si existe
-        $plazoPersonalizado = $this->getByItemAndMes($item_id, $ano, $mes);
-        if ($plazoPersonalizado && !empty($plazoPersonalizado['plazo_interno'])) {
-            return $plazoPersonalizado['plazo_interno'];
+        // Plazo personalizado (columna plazo_interno)
+        $personalizado = $this->getByItemAndMes($item_id, $ano, $mes);
+        if ($personalizado && !empty($personalizado['plazo_interno'])) {
+            return $personalizado['plazo_interno'];
         }
 
-        // Si no hay personalizado, calcular automático
-        return PlazoCalculator::calcularPlazo($periodicidad, $ano, $mes, null);
+        // Calcular automáticamente
+        return PlazoCalculator::calcularPlazoEnvio($periodicidad, (int)$ano, (int)$mes);
+    }
+
+    /**
+     * Obtiene el plazo FINAL de PUBLICACIÓN para un item en un período.
+     * Prioridad: personalizado en item_plazos (columna fecha_carga_portal) > calculado automáticamente.
+     * @return string|null 'Y-m-d' o null
+     */
+    public function getPlazoPublicacionFinal($item_id, $ano, $mes, $periodicidad = null) {
+        if (!$periodicidad) {
+            $sql = "SELECT periodicidad FROM items_transparencia WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param("i", $item_id);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $periodicidad = $row['periodicidad'] ?? 'mensual';
+        }
+
+        // Plazo personalizado (columna fecha_carga_portal reutilizada como plazo publicación)
+        $personalizado = $this->getByItemAndMes($item_id, $ano, $mes);
+        if ($personalizado && !empty($personalizado['fecha_carga_portal'])) {
+            return $personalizado['fecha_carga_portal'];
+        }
+
+        // Calcular automáticamente (10.° día hábil)
+        return PlazoCalculator::calcularPlazoPublicacion($periodicidad, (int)$ano, (int)$mes);
     }
 }
-?>
+

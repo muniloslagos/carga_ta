@@ -14,6 +14,7 @@ require_once '../classes/ItemPlazo.php';
 require_once '../classes/ItemConPlazo.php';
 require_once '../classes/Documento.php';
 require_once '../classes/Verificador.php';
+require_once '../classes/PlazoCalculator.php';
 
 $conn = $db->getConnection();
 $itemPlazoClass   = new ItemPlazo($conn);
@@ -85,7 +86,7 @@ $estadosOcurrencia = contarEstados($itemsPorPeriodicidad['ocurrencia'],$document
 // Función para renderizar la tabla de items de auditor
 function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPlazoClass, $mesS, $anoS, $periodicidad, $anoActual, $mesActual, $meses) {
     if (empty($items)) {
-        echo '<tr><td colspan="8" class="text-center text-muted">No hay items</td></tr>';
+        echo '<tr><td colspan="9" class="text-center text-muted">No hay items</td></tr>';
         return;
     }
     foreach ($items as $item) {
@@ -114,8 +115,35 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
         $fechaPortal = $verif ? date('d/m/Y', strtotime($verif['fecha_carga_portal'])): '<span class="text-muted">—</span>';
         $responsables = $item['responsables'] ? htmlspecialchars($item['responsables']) : '<span class="text-muted">Sin asignar</span>';
 
-        $plazoFinal   = $itemPlazoClass->getPlazoFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
-        $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">—</span>';
+        // --- Plazos ---
+        $plazoEnvioFinal   = $itemPlazoClass->getPlazoFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
+        $plazoPublicFinal  = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
+        $cumpleEnvio       = isset($doc['cumple_plazo_envio'])        ? (int)$doc['cumple_plazo_envio']        : null;
+        $cumplePublic      = isset($verif['cumple_plazo_publicacion']) ? (int)$verif['cumple_plazo_publicacion'] : null;
+        $hoy = date('Y-m-d');
+
+        // Build plazo HTML
+        ob_start();
+        if ($plazoEnvioFinal) {
+            $vE = $hoy > $plazoEnvioFinal;
+            $cE = $vE ? 'text-danger' : 'text-success';
+            $iE = $vE ? '🔴' : '🟢';
+            if ($cumpleEnvio === 1)      $bE = ' <span class="badge bg-success" title="Enviado en plazo">✓</span>';
+            elseif ($cumpleEnvio === 0)  $bE = ' <span class="badge bg-danger"  title="Enviado fuera de plazo">!</span>';
+            else                        $bE = '';
+            echo '<small><strong>Envío:</strong> <span class="'.$cE.'">'.$iE.' '.date('d/m/Y', strtotime($plazoEnvioFinal)).'</span>'.$bE.'</small><br>';
+        }
+        if ($plazoPublicFinal) {
+            $vP = $hoy > $plazoPublicFinal;
+            $cP = $vP ? 'text-danger' : 'text-success';
+            $iP = $vP ? '🔴' : '🟢';
+            if ($cumplePublic === 1)     $bP = ' <span class="badge bg-success" title="Publicado en plazo">✓</span>';
+            elseif ($cumplePublic === 0) $bP = ' <span class="badge bg-danger"  title="Publicado fuera de plazo">!</span>';
+            else                        $bP = '';
+            echo '<small><strong>Public.:</strong> <span class="'.$cP.'">'.$iP.' '.date('d/m/Y', strtotime($plazoPublicFinal)).'</span>'.$bP.'</small>';
+        }
+        if (!$plazoEnvioFinal && !$plazoPublicFinal) echo '<span class="text-muted small">—</span>';
+        $plazoHtml = ob_get_clean();
         ?>
         <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
             <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
@@ -125,6 +153,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <td><small><?php echo $publicador; ?></small></td>
             <td><small><?php echo $fechaEnvio; ?></small></td>
             <td><small><?php echo $fechaPortal; ?></small></td>
+            <td><?php echo $plazoHtml; ?></td>
             <td>
                 <div class="d-flex gap-1 flex-wrap">
                     <?php if ($doc): ?>
@@ -238,7 +267,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <table class="table table-hover table-sm" id="tablaMensualAud">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['mensual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'mensual', $anoActual, $mesActual, $meses); ?>
@@ -254,7 +283,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['trimestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'trimestral', $anoActual, $mesActual, $meses); ?>
@@ -270,7 +299,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['semestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'semestral', $anoActual, $mesActual, $meses); ?>
@@ -286,7 +315,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['anual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'anual', $anoActual, $mesActual, $meses); ?>
@@ -302,7 +331,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['ocurrencia'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'ocurrencia', $anoActual, $mesActual, $meses); ?>

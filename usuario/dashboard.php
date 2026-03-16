@@ -57,6 +57,52 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 // Perfil del usuario actual
 $user_perfil = $current_profile ?? ($current_user['perfil'] ?? '');
 
+/**
+ * Genera el HTML para la celda de plazos (envío + publicación).
+ * @param string|null $plazoEnvio        'Y-m-d' del plazo de envío
+ * @param string|null $plazoPublicacion  'Y-m-d' del plazo de publicación
+ * @param string|null $fechaEnvioDoc     'Y-m-d H:i:s' — cuándo se subió el doc (null=no subido)
+ * @param int|null    $cumplePlazoEnvio  1=en plazo, 0=fuera, NULL=sin dato
+ */
+function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
+                      ?string $fechaEnvioDoc = null, ?int $cumplePlazoEnvio = null): string {
+    $hoy = date('Y-m-d');
+    $html = '<div class="d-flex flex-column gap-1 lh-sm">';
+
+    // ── Plazo de envío ──────────────────────────────────
+    if ($plazoEnvio) {
+        $vencido  = $hoy > $plazoEnvio;
+        $clase    = $vencido ? 'text-danger' : 'text-success';
+        $icono    = $vencido ? '🔴' : '🟢';
+        // Badge de cumplimiento si ya se subió el doc
+        $badge = '';
+        if ($cumplePlazoEnvio === 1) {
+            $badge = ' <span class="badge bg-success" title="Enviado en plazo">✓</span>';
+        } elseif ($cumplePlazoEnvio === 0) {
+            $badge = ' <span class="badge bg-danger" title="Enviado fuera de plazo">!</span>';
+        }
+        $html .= '<small><strong>Envío:</strong> <span class="' . $clase . '">' . $icono . ' '
+               . date('d/m/Y', strtotime($plazoEnvio)) . '</span>' . $badge . '</small>';
+    } else {
+        $html .= '<small class="text-muted">Envío: —</small>';
+    }
+
+    // ── Plazo de publicación ─────────────────────────────
+    if ($plazoPublicacion) {
+        $vencidoP = $hoy > $plazoPublicacion;
+        $claseP   = $vencidoP ? 'text-danger' : 'text-success';
+        $iconoP   = $vencidoP ? '🔴' : '🟢';
+        $html .= '<small><strong>Public.:</strong> <span class="' . $claseP . '">' . $iconoP . ' '
+               . date('d/m/Y', strtotime($plazoPublicacion)) . '</span></small>';
+    } else {
+        $html .= '<small class="text-muted">Public.: —</small>';
+    }
+
+    $html .= '</div>';
+    return $html;
+}
+
+
 // Filtro de usuario: cargadores solo ven sus propios documentos; otros ven todos
 $userIdFiltro = ($user_perfil === 'cargador_informacion') ? $user_id : null;
 
@@ -361,7 +407,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
                                 <th width="12%">Mes Carga</th>
-                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="8%">Acciones</th>
@@ -388,9 +434,11 @@ if (isset($_SESSION['success'])) {
                                     
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
                                     
-                                    // Calcular plazo final (automático o personalizado)
+                                    // Calcular plazos de envío y publicación (mensual)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
-                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
+                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc);
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
                                     
@@ -504,7 +552,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="8%">Numeración</th>
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
-                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -512,26 +560,23 @@ if (isset($_SESSION['success'])) {
                         </thead>
                         <tbody>
                             <?php
-                            if (!empty($itemsPorPeriodicidad['trimestral'])) {
-                                foreach ($itemsPorPeriodicidad['trimestral'] as $item) {
-                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
-                                    
-                                    // Obtener documentos
-                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
-                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
-                                    
-                                    // Obtener verificador si existe
-                                    $verificador = null;
-                                    if ($ultimoDoc) {
-                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
-                                    }
-                                    
-                                    // Calcular plazo final (automático o personalizado)
+                                    // Calcular plazos de envío y publicación (trimestral)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
+                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc);
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
+                                    // Clase y estado para filtro de tabs
+                                    if ($user_perfil === 'publicador') {
+                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
+                                    } else {
+                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
+                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                    }
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
@@ -620,7 +665,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="8%">Numeración</th>
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
-                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -642,9 +687,11 @@ if (isset($_SESSION['success'])) {
                                         $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                     }
                                     
-                                    // Calcular plazo final (automático o personalizado)
+                                    // Calcular plazos de envío y publicación (semestral)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
+                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc);
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
@@ -742,7 +789,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="8%">Numeración</th>
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
-                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -779,9 +826,11 @@ if (isset($_SESSION['success'])) {
                                         }
                                     }
                                     
-                                    // Calcular plazo final (automático o personalizado)
+                                    // Calcular plazos de envío y publicación (anual)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
-                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
+                                    $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
+                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc);
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
@@ -878,7 +927,7 @@ if (isset($_SESSION['success'])) {
                             <tr>
                                 <th width="10%">Numeración</th>
                                 <th width="25%">Nombre Item</th>
-                                <th width="15%">Plazo Interno</th>
+                                <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -900,9 +949,11 @@ if (isset($_SESSION['success'])) {
                                         $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                     }
                                     
-                                    // Calcular plazo final (automático o personalizado)
+                                    // Calcular plazos de envío y publicación (ocurrencia)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $plazoInterno = $plazoFinal ? date('d/m/Y', strtotime($plazoFinal)) : '<span class="text-muted">No configurado</span>';
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
+                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc);
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';

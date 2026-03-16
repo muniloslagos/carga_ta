@@ -18,6 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once '../classes/Verificador.php';
+require_once '../classes/ItemPlazo.php';
+require_once '../classes/PlazoCalculator.php';
 
 $conn = $db->getConnection();
 $verificadorClass = new Verificador($conn);
@@ -36,7 +38,7 @@ if (!$item_id || !$documento_id || !$fecha_carga) {
 }
 
 // Validar que el documento exista
-$checkDoc = $conn->prepare("SELECT id, usuario_id FROM documentos WHERE id = ? AND item_id = ?");
+$checkDoc = $conn->prepare("SELECT id, usuario_id, mes_carga, ano_carga FROM documentos WHERE id = ? AND item_id = ?");
 $checkDoc->bind_param("ii", $documento_id, $item_id);
 $checkDoc->execute();
 $doc = $checkDoc->get_result()->fetch_assoc();
@@ -99,6 +101,23 @@ $data = [
 $verificadorId = $verificadorClass->create($data);
 
 if ($verificadorId) {
+    // ── Calcular y guardar cumplimiento plazo de publicación ────────────
+    $itemPlazoClass = new ItemPlazo($conn);
+    $docMes = (int)($doc['mes_carga'] ?? 0);
+    $docAno = (int)($doc['ano_carga'] ?? 0);
+    if ($docMes > 0 && $docAno > 0) {
+        // Obtener periodicidad del item
+        $rowItem = $conn->query("SELECT periodicidad FROM items_transparencia WHERE id = $item_id")->fetch_assoc();
+        $periItem = $rowItem['periodicidad'] ?? 'mensual';
+        $plazoPublicacion = $itemPlazoClass->getPlazoPublicacionFinal($item_id, $docAno, $docMes, $periItem);
+        if ($plazoPublicacion) {
+            $cumple = (strtotime(date('Y-m-d')) <= strtotime($plazoPublicacion)) ? 1 : 0;
+            $updV = $conn->prepare("UPDATE verificadores_publicador SET cumple_plazo_publicacion = ? WHERE id = ?");
+            $updV->bind_param("ii", $cumple, $verificadorId);
+            $updV->execute();
+        }
+    }
+    // ────────────────────────────────────────────────────────────────────
     $_SESSION['success'] = 'Verificador subido correctamente. El documento ha sido marcado como Publicado.';
 
     // Registrar en historial si existe la clase y el método
