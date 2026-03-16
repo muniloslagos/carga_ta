@@ -440,6 +440,14 @@ if (isset($_SESSION['success'])) {
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $ultimoDoc['id']; ?>)"
+                                                            style="white-space: nowrap;" title="Reemplazar documento existente">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php else: ?>
                                                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
@@ -671,6 +679,14 @@ if (isset($_SESSION['success'])) {
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Documento
                                                     </a>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', null, <?php echo $ultimoDoc['id']; ?>)"
+                                                            style="white-space: nowrap;" title="Reemplazar documento existente">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php else: ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
@@ -800,6 +816,14 @@ if (isset($_SESSION['success'])) {
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['documento_id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Documento
                                                     </a>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $ultimoDoc['documento_id']; ?>)"
+                                                            style="white-space: nowrap;" title="Reemplazar documento existente">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php else: ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
@@ -904,6 +928,14 @@ if (isset($_SESSION['success'])) {
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Documento
                                                     </a>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', null, <?php echo $ultimoDoc['id']; ?>)"
+                                                            style="white-space: nowrap;" title="Reemplazar documento existente">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php else: ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
@@ -1018,6 +1050,7 @@ if (isset($_SESSION['success'])) {
                 <div class="modal-body">
                     <input type="hidden" name="item_id" id="itemIdInput">
                     <input type="hidden" name="mes_carga" id="mesCargaInput">
+                    <input type="hidden" name="doc_id_reemplazar" id="docIdReemplazarInput" value="0">
 
                     <div class="mb-3">
                         <label for="titulo" class="form-label">Título del Documento <span class="text-danger">*</span></label>
@@ -1161,9 +1194,21 @@ fileInput.addEventListener('change', function() {
     }
 });
 
-function seleccionarItem(itemId, itemNombre, mesCarga = null) {
+function seleccionarItem(itemId, itemNombre, mesCarga = null, docIdReemplazar = 0) {
     document.getElementById('itemIdInput').value = itemId;
+    document.getElementById('docIdReemplazarInput').value = docIdReemplazar;
     document.getElementById('itemNombreModal').textContent = itemNombre;
+    const modalTitle = document.querySelector('#modalCargar .modal-title');
+    const modalHeader = document.querySelector('#modalCargar .modal-header');
+    if (docIdReemplazar > 0) {
+        modalTitle.textContent = 'Modificar Documento';
+        modalHeader.classList.add('bg-warning');
+        modalHeader.classList.remove('bg-light');
+    } else {
+        modalTitle.textContent = 'Cargar Documento';
+        modalHeader.classList.add('bg-light');
+        modalHeader.classList.remove('bg-warning');
+    }
     
     // Rellenar automáticamente el título con: Item Name + Mes
     let titulo = itemNombre;

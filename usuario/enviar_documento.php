@@ -31,6 +31,7 @@ if ($db_conn->connect_error) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $item_id = (int)($_POST['item_id'] ?? 0);
     $mes_carga = (int)($_POST['mes_carga'] ?? 0);
+    $doc_id_reemplazar = (int)($_POST['doc_id_reemplazar'] ?? 0);
     $titulo = trim($_POST['titulo'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     
@@ -105,7 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
     
     if ($resultado) {
-        $_SESSION['success'] = 'Documento cargado exitosamente';
+        // Si es modificación, eliminar el documento anterior
+        if ($doc_id_reemplazar > 0) {
+            $docAnterior = new Documento($db_conn);
+            $docAnterior->delete($doc_id_reemplazar);
+        }
+        $_SESSION['success'] = $doc_id_reemplazar > 0 ? 'Documento modificado exitosamente' : 'Documento cargado exitosamente';
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;
