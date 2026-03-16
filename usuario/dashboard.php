@@ -3,6 +3,13 @@
 require_once '../includes/check_auth.php';
 require_login();
 
+// Redirigir auditor a su propio dashboard (ANTES de cualquier salida HTML)
+$_perfil_check = $current_profile ?? ($current_user['perfil'] ?? '');
+if ($_perfil_check === 'auditor') {
+    header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
+    exit;
+}
+
 // LUEGO: Incluir header con HTML
 require_once '../includes/header.php';
 
@@ -49,12 +56,6 @@ $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 
 // Perfil del usuario actual
 $user_perfil = $current_profile ?? ($current_user['perfil'] ?? '');
-
-// Redirigir auditor a su propio dashboard
-if ($user_perfil === 'auditor') {
-    header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
-    exit;
-}
 
 // Filtro de usuario: cargadores solo ven sus propios documentos; otros ven todos
 $userIdFiltro = ($user_perfil === 'cargador_informacion') ? $user_id : null;
