@@ -560,6 +560,20 @@ if (isset($_SESSION['success'])) {
                         </thead>
                         <tbody>
                             <?php
+                            if (!empty($itemsPorPeriodicidad['trimestral'])) {
+                                foreach ($itemsPorPeriodicidad['trimestral'] as $item) {
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
+                                    
+                                    // Obtener documentos
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
+                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
+                                    
+                                    // Obtener verificador si existe
+                                    $verificador = null;
+                                    if ($ultimoDoc) {
+                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
+                                    }
+                                    
                                     // Calcular plazos de envío y publicación (trimestral)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
@@ -568,15 +582,6 @@ if (isset($_SESSION['success'])) {
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
                                     $fechaEnvio = $ultimoDoc ? date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio'])) : '<span class="text-muted">Sin envío</span>';
-                                    // Clase y estado para filtro de tabs
-                                    if ($user_perfil === 'publicador') {
-                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
-                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
-                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
-                                    } else {
-                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
-                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
-                                    }
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
