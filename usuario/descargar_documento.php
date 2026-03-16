@@ -24,8 +24,8 @@ $db_conn = $db->getConnection();
 // Verificar permisos según el perfil
 $perfil = isset($_SESSION['profile']) ? $_SESSION['profile'] : '';
 
-if ($perfil === 'publicador') {
-    // Publicador puede ver TODOS los documentos
+if ($perfil === 'publicador' || $perfil === 'auditor') {
+    // Publicador y Auditor pueden ver TODOS los documentos
     $sql = "SELECT d.*
             FROM documentos d
             WHERE d.id = ?";
