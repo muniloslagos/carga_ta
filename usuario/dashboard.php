@@ -108,6 +108,17 @@ function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
 // Filtro de usuario: cargadores solo ven sus propios documentos; otros ven todos
 $userIdFiltro = ($user_perfil === 'cargador_informacion') ? $user_id : null;
 
+// Pre-fetch item IDs asignados al usuario actual (para controlar quién puede cargar documentos)
+$itemsAsignadosUsuario = [];
+$stmtAsig = $conn->prepare("SELECT item_id FROM item_usuarios WHERE usuario_id = ?");
+$stmtAsig->bind_param('i', $user_id);
+$stmtAsig->execute();
+$resAsig = $stmtAsig->get_result();
+while ($rowAsig = $resAsig->fetch_assoc()) {
+    $itemsAsignadosUsuario[(int)$rowAsig['item_id']] = true;
+}
+$stmtAsig->close();
+
 // Query SQL: Filtrar items según perfil del usuario
 // Cargadores solo ven items asignados, otros perfiles ven todos
 $whereUsuario = '';
@@ -502,12 +513,14 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php else: ?>
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>)"
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -626,11 +639,13 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-file-earmark-check"></i> Ver Documento
                                                     </a>
                                                 <?php else: ?>
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -758,11 +773,13 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php else: ?>
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -900,11 +917,13 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php else: ?>
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1);">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -1017,11 +1036,13 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php else: ?>
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success"
