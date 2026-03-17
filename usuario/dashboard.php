@@ -327,11 +327,9 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5>Items Mensuales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
-                            <?php if ($plazoTituloE || $plazoTituloP): ?>
-                            <small class="text-muted fw-normal ms-2">
-                                <?php if ($plazoTituloE): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloE)); ?><?php endif; ?>
-                                <?php if ($plazoTituloE && $plazoTituloP): ?> &nbsp;|&nbsp; <?php endif; ?>
-                                <?php if ($plazoTituloP): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloP)); ?><?php endif; ?>
+                            <?php if ($plazoTituloE): ?>
+                            <small class="fw-normal ms-2" style="color: #ff8c00;">
+                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloE)); ?>
                             </small>
                             <?php endif; ?>
                         </h5>
@@ -523,11 +521,9 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5>Items Trimestrales
-                            <?php if ($plazoTituloET || $plazoTituloPT): ?>
-                            <small class="text-muted fw-normal ms-2">
-                                <?php if ($plazoTituloET): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloET)); ?><?php endif; ?>
-                                <?php if ($plazoTituloET && $plazoTituloPT): ?> &nbsp;|&nbsp; <?php endif; ?>
-                                <?php if ($plazoTituloPT): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPT)); ?><?php endif; ?>
+                            <?php if ($plazoTituloET): ?>
+                            <small class="fw-normal ms-2" style="color: #ff8c00;">
+                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloET)); ?>
                             </small>
                             <?php endif; ?>
                         </h5>
@@ -666,11 +662,9 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5>Items Semestrales
-                            <?php if ($plazoTituloES || $plazoTituloPS): ?>
-                            <small class="text-muted fw-normal ms-2">
-                                <?php if ($plazoTituloES): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloES)); ?><?php endif; ?>
-                                <?php if ($plazoTituloES && $plazoTituloPS): ?> &nbsp;|&nbsp; <?php endif; ?>
-                                <?php if ($plazoTituloPS): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPS)); ?><?php endif; ?>
+                            <?php if ($plazoTituloES): ?>
+                            <small class="fw-normal ms-2" style="color: #ff8c00;">
+                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloES)); ?>
                             </small>
                             <?php endif; ?>
                         </h5>
@@ -814,11 +808,9 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5>Items Anuales &mdash; <?php echo $anoActual; ?>
-                            <?php if ($plazoTituloEA || $plazoTituloPA): ?>
-                            <small class="text-muted fw-normal ms-2">
-                                <?php if ($plazoTituloEA): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEA)); ?><?php endif; ?>
-                                <?php if ($plazoTituloEA && $plazoTituloPA): ?> &nbsp;|&nbsp; <?php endif; ?>
-                                <?php if ($plazoTituloPA): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPA)); ?><?php endif; ?>
+                            <?php if ($plazoTituloEA): ?>
+                            <small class="fw-normal ms-2" style="color: #ff8c00;">
+                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEA)); ?>
                             </small>
                             <?php endif; ?>
                         </h5>
@@ -974,11 +966,9 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5>Items de Ocurrencia Libre
-                            <?php if ($plazoTituloEO || $plazoTituloPO): ?>
-                            <small class="text-muted fw-normal ms-2">
-                                <?php if ($plazoTituloEO): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEO)); ?><?php endif; ?>
-                                <?php if ($plazoTituloEO && $plazoTituloPO): ?> &nbsp;|&nbsp; <?php endif; ?>
-                                <?php if ($plazoTituloPO): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPO)); ?><?php endif; ?>
+                            <?php if ($plazoTituloEO): ?>
+                            <small class="fw-normal ms-2" style="color: #ff8c00;">
+                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEO)); ?>
                             </small>
                             <?php endif; ?>
                         </h5>
