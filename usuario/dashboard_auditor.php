@@ -86,7 +86,7 @@ $estadosOcurrencia = contarEstados($itemsPorPeriodicidad['ocurrencia'],$document
 // Función para renderizar la tabla de items de auditor
 function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPlazoClass, $mesS, $anoS, $periodicidad, $anoActual, $mesActual, $meses) {
     if (empty($items)) {
-        echo '<tr><td colspan="9" class="text-center text-muted">No hay items</td></tr>';
+        echo '<tr><td colspan="8" class="text-center text-muted">No hay items</td></tr>';
         return;
     }
     foreach ($items as $item) {
@@ -111,38 +111,29 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
         // Datos a mostrar
         $cargador    = $doc   ? htmlspecialchars($doc['usuario_nombre'] ?? '—')       : '<span class="text-muted">Sin doc</span>';
         $publicador  = $verif ? htmlspecialchars($verif['publicador_nombre'] ?? '—') : '<span class="text-muted">—</span>';
-        $fechaEnvio  = $doc   ? date('d/m/Y', strtotime($doc['fecha_subida']))        : '<span class="text-muted">—</span>';
-        $fechaPortal = $verif ? date('d/m/Y', strtotime($verif['fecha_carga_portal'])): '<span class="text-muted">—</span>';
-        $responsables = $item['responsables'] ? htmlspecialchars($item['responsables']) : '<span class="text-muted">Sin asignar</span>';
-
         // --- Plazos ---
         $plazoEnvioFinal   = $itemPlazoClass->getPlazoFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
         $plazoPublicFinal  = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
 
-        // Build plazo HTML — color based on actual upload date vs deadline (not today vs deadline)
-        ob_start();
-        if ($plazoEnvioFinal) {
-            if ($doc) {
-                $enPlazoE = date('Y-m-d', strtotime($doc['fecha_subida'])) <= $plazoEnvioFinal;
-                $cE = $enPlazoE ? 'text-success' : 'text-danger';
-                $iE = $enPlazoE ? '🟢 ' : '🔴 ';
-            } else {
-                $cE = 'text-muted'; $iE = '';
-            }
-            echo '<small><strong>Plazo Interno:</strong> <span class="'.$cE.'">'.$iE.date('d/m/Y', strtotime($plazoEnvioFinal)).'</span></small><br>';
+        // Fecha Envío con icono de cumplimiento
+        if ($doc) {
+            if ($plazoEnvioFinal) {
+                $icoE = date('Y-m-d', strtotime($doc['fecha_subida'])) <= $plazoEnvioFinal ? '🟢 ' : '🔴 ';
+            } else { $icoE = ''; }
+            $fechaEnvio = $icoE . date('d/m/Y', strtotime($doc['fecha_subida']));
+        } else {
+            $fechaEnvio = '<span class="text-muted">—</span>';
         }
-        if ($plazoPublicFinal) {
-            if ($verif) {
-                $enPlazoP = date('Y-m-d', strtotime($verif['fecha_carga_portal'])) <= $plazoPublicFinal;
-                $cP = $enPlazoP ? 'text-success' : 'text-danger';
-                $iP = $enPlazoP ? '🟢 ' : '🔴 ';
-            } else {
-                $cP = 'text-muted'; $iP = '';
-            }
-            echo '<small><strong>Plazo Ley:</strong> <span class="'.$cP.'">'.$iP.date('d/m/Y', strtotime($plazoPublicFinal)).'</span></small>';
+        // Fecha Portal con icono de cumplimiento
+        if ($verif) {
+            if ($plazoPublicFinal) {
+                $icoP = date('Y-m-d', strtotime($verif['fecha_carga_portal'])) <= $plazoPublicFinal ? '🟢 ' : '🔴 ';
+            } else { $icoP = ''; }
+            $fechaPortal = $icoP . date('d/m/Y', strtotime($verif['fecha_carga_portal']));
+        } else {
+            $fechaPortal = '<span class="text-muted">—</span>';
         }
-        if (!$plazoEnvioFinal && !$plazoPublicFinal) echo '<span class="text-muted small">—</span>';
-        $plazoHtml = ob_get_clean();
+        $responsables = $item['responsables'] ? htmlspecialchars($item['responsables']) : '<span class="text-muted">Sin asignar</span>';
         ?>
         <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
             <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
@@ -152,7 +143,6 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <td><small><?php echo $publicador; ?></small></td>
             <td><small><?php echo $fechaEnvio; ?></small></td>
             <td><small><?php echo $fechaPortal; ?></small></td>
-            <td><?php echo $plazoHtml; ?></td>
             <td>
                 <div class="d-flex gap-1 flex-wrap">
                     <?php if ($doc): ?>
@@ -238,8 +228,23 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
 
     <!-- TAB MENSUAL -->
     <div class="tab-pane fade show active" id="tab-mensual-aud" role="tabpanel">
+        <?php
+            $primerItemAM = !empty($itemsPorPeriodicidad['mensual']) ? $itemsPorPeriodicidad['mensual'][0] : null;
+            $plazoTituloEAM = $primerItemAM ? $itemPlazoClass->getPlazoFinal($primerItemAM['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAM['periodicidad']) : null;
+            $plazoTituloPAM = $primerItemAM ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAM['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAM['periodicidad']) : null;
+        ?>
         <div class="row align-items-center mb-3">
-            <div class="col"><h5>Items Mensuales — <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5></div>
+            <div class="col">
+                <h5>Items Mensuales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
+                    <?php if ($plazoTituloEAM || $plazoTituloPAM): ?>
+                    <small class="text-muted fw-normal ms-2">
+                        <?php if ($plazoTituloEAM): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAM)); ?><?php endif; ?>
+                        <?php if ($plazoTituloEAM && $plazoTituloPAM): ?> &nbsp;|&nbsp; <?php endif; ?>
+                        <?php if ($plazoTituloPAM): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAM)); ?><?php endif; ?>
+                    </small>
+                    <?php endif; ?>
+                </h5>
+            </div>
             <div class="col-auto">
                 <form method="GET" class="d-flex gap-2 align-items-center">
                     <select name="mes" class="form-select form-select-sm" style="width:130px;" onchange="this.form.submit()">
@@ -266,7 +271,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <table class="table table-hover table-sm" id="tablaMensualAud">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['mensual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'mensual', $anoActual, $mesActual, $meses); ?>
@@ -277,12 +282,27 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
 
     <!-- TAB TRIMESTRAL -->
     <div class="tab-pane fade" id="tab-trimestral-aud" role="tabpanel">
-        <div class="mb-3"><h5>Items Trimestrales</h5></div>
+        <?php
+            $primerItemAT = !empty($itemsPorPeriodicidad['trimestral']) ? $itemsPorPeriodicidad['trimestral'][0] : null;
+            $plazoTituloEAT = $primerItemAT ? $itemPlazoClass->getPlazoFinal($primerItemAT['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAT['periodicidad']) : null;
+            $plazoTituloPAT = $primerItemAT ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAT['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAT['periodicidad']) : null;
+        ?>
+        <div class="mb-3">
+            <h5>Items Trimestrales
+                <?php if ($plazoTituloEAT || $plazoTituloPAT): ?>
+                <small class="text-muted fw-normal ms-2">
+                    <?php if ($plazoTituloEAT): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAT)); ?><?php endif; ?>
+                    <?php if ($plazoTituloEAT && $plazoTituloPAT): ?> &nbsp;|&nbsp; <?php endif; ?>
+                    <?php if ($plazoTituloPAT): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAT)); ?><?php endif; ?>
+                </small>
+                <?php endif; ?>
+            </h5>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['trimestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'trimestral', $anoActual, $mesActual, $meses); ?>
@@ -293,12 +313,27 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
 
     <!-- TAB SEMESTRAL -->
     <div class="tab-pane fade" id="tab-semestral-aud" role="tabpanel">
-        <div class="mb-3"><h5>Items Semestrales</h5></div>
+        <?php
+            $primerItemAS = !empty($itemsPorPeriodicidad['semestral']) ? $itemsPorPeriodicidad['semestral'][0] : null;
+            $plazoTituloEAS = $primerItemAS ? $itemPlazoClass->getPlazoFinal($primerItemAS['id'], $anoActual, $mesActual, $primerItemAS['periodicidad']) : null;
+            $plazoTituloPAS = $primerItemAS ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAS['id'], $anoActual, $mesActual, $primerItemAS['periodicidad']) : null;
+        ?>
+        <div class="mb-3">
+            <h5>Items Semestrales
+                <?php if ($plazoTituloEAS || $plazoTituloPAS): ?>
+                <small class="text-muted fw-normal ms-2">
+                    <?php if ($plazoTituloEAS): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAS)); ?><?php endif; ?>
+                    <?php if ($plazoTituloEAS && $plazoTituloPAS): ?> &nbsp;|&nbsp; <?php endif; ?>
+                    <?php if ($plazoTituloPAS): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAS)); ?><?php endif; ?>
+                </small>
+                <?php endif; ?>
+            </h5>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['semestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'semestral', $anoActual, $mesActual, $meses); ?>
@@ -309,12 +344,27 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
 
     <!-- TAB ANUAL -->
     <div class="tab-pane fade" id="tab-anual-aud" role="tabpanel">
-        <div class="mb-3"><h5>Items Anuales — <?php echo $anoActual; ?></h5></div>
+        <?php
+            $primerItemAA = !empty($itemsPorPeriodicidad['anual']) ? $itemsPorPeriodicidad['anual'][0] : null;
+            $plazoTituloEAA = $primerItemAA ? $itemPlazoClass->getPlazoFinal($primerItemAA['id'], $anoActual, 1, $primerItemAA['periodicidad']) : null;
+            $plazoTituloPAA = $primerItemAA ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAA['id'], $anoActual, 1, $primerItemAA['periodicidad']) : null;
+        ?>
+        <div class="mb-3">
+            <h5>Items Anuales &mdash; <?php echo $anoActual; ?>
+                <?php if ($plazoTituloEAA || $plazoTituloPAA): ?>
+                <small class="text-muted fw-normal ms-2">
+                    <?php if ($plazoTituloEAA): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAA)); ?><?php endif; ?>
+                    <?php if ($plazoTituloEAA && $plazoTituloPAA): ?> &nbsp;|&nbsp; <?php endif; ?>
+                    <?php if ($plazoTituloPAA): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAA)); ?><?php endif; ?>
+                </small>
+                <?php endif; ?>
+            </h5>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['anual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'anual', $anoActual, $mesActual, $meses); ?>
@@ -325,12 +375,27 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
 
     <!-- TAB OCURRENCIA -->
     <div class="tab-pane fade" id="tab-ocurrencia-aud" role="tabpanel">
-        <div class="mb-3"><h5>Items por Ocurrencia</h5></div>
+        <?php
+            $primerItemAO = !empty($itemsPorPeriodicidad['ocurrencia']) ? $itemsPorPeriodicidad['ocurrencia'][0] : null;
+            $plazoTituloEAO = $primerItemAO ? $itemPlazoClass->getPlazoFinal($primerItemAO['id'], $anoActual, $mesActual, $primerItemAO['periodicidad']) : null;
+            $plazoTituloPAO = $primerItemAO ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAO['id'], $anoActual, $mesActual, $primerItemAO['periodicidad']) : null;
+        ?>
+        <div class="mb-3">
+            <h5>Items por Ocurrencia
+                <?php if ($plazoTituloEAO || $plazoTituloPAO): ?>
+                <small class="text-muted fw-normal ms-2">
+                    <?php if ($plazoTituloEAO): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAO)); ?><?php endif; ?>
+                    <?php if ($plazoTituloEAO && $plazoTituloPAO): ?> &nbsp;|&nbsp; <?php endif; ?>
+                    <?php if ($plazoTituloPAO): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAO)); ?><?php endif; ?>
+                </small>
+                <?php endif; ?>
+            </h5>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
                     <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Plazos <small class="text-muted">(Envío / Public.)</small></th><th>Acciones</th>
+                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
                     <?php renderTablaAuditor($itemsPorPeriodicidad['ocurrencia'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'ocurrencia', $anoActual, $mesActual, $meses); ?>
