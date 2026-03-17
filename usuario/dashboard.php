@@ -59,31 +59,31 @@ $user_perfil = $current_profile ?? ($current_user['perfil'] ?? '');
 
 /**
  * Genera el HTML para la celda de plazos (envío + publicación).
+ * Colores: verde si fecha real <= plazo, rojo si fecha real > plazo, neutro si no hay doc/verif.
  * @param string|null $plazoEnvio        'Y-m-d' del plazo de envío
  * @param string|null $plazoPublicacion  'Y-m-d' del plazo de publicación
- * @param string|null $fechaEnvioDoc     'Y-m-d H:i:s' — cuándo se subió el doc (null=no subido)
- * @param int|null    $cumplePlazoEnvio  1=en plazo, 0=fuera, NULL=sin dato
+ * @param string|null $fechaEnvioDoc     fecha en que se subió el doc (null = no subido aún)
+ * @param int|null    $cumplePlazoEnvio  (reservado, sin uso visual)
+ * @param bool        $mostrarEnvio      false oculta la fila de envío
+ * @param string|null $fechaCargaPortal  fecha en que se subió el verificador (null = pendiente)
  */
 function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
                       ?string $fechaEnvioDoc = null, ?int $cumplePlazoEnvio = null,
-                      bool $mostrarEnvio = true): string {
-    $hoy = date('Y-m-d');
+                      bool $mostrarEnvio = true, ?string $fechaCargaPortal = null): string {
     $html = '<div class="d-flex flex-column gap-1 lh-sm">';
 
-    // ── Plazo de envío (solo visible para el cargador) ───
+    // ── Plazo de envío ───────────────────────────────────
     if ($mostrarEnvio) {
         if ($plazoEnvio) {
-            $vencido  = $hoy > $plazoEnvio;
-            $clase    = $vencido ? 'text-danger' : 'text-success';
-            $icono    = $vencido ? '🔴' : '🟢';
-            $badge = '';
-            if ($cumplePlazoEnvio === 1) {
-                $badge = ' <span class="badge bg-success" title="Enviado en plazo">✓</span>';
-            } elseif ($cumplePlazoEnvio === 0) {
-                $badge = ' <span class="badge bg-danger" title="Enviado fuera de plazo">!</span>';
+            if ($fechaEnvioDoc !== null) {
+                $enPlazo = date('Y-m-d', strtotime($fechaEnvioDoc)) <= $plazoEnvio;
+                $clase   = $enPlazo ? 'text-success' : 'text-danger';
+                $icono   = $enPlazo ? '🟢 ' : '🔴 ';
+            } else {
+                $clase = 'text-muted'; $icono = '';
             }
-            $html .= '<small><strong>Envío:</strong> <span class="' . $clase . '">' . $icono . ' '
-                   . date('d/m/Y', strtotime($plazoEnvio)) . '</span>' . $badge . '</small>';
+            $html .= '<small><strong>Envío:</strong> <span class="' . $clase . '">'
+                   . $icono . date('d/m/Y', strtotime($plazoEnvio)) . '</span></small>';
         } else {
             $html .= '<small class="text-muted">Envío: —</small>';
         }
@@ -91,13 +91,17 @@ function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
 
     // ── Plazo de publicación ─────────────────────────────
     if ($plazoPublicacion) {
-        $vencidoP = $hoy > $plazoPublicacion;
-        $claseP   = $vencidoP ? 'text-danger' : 'text-success';
-        $iconoP   = $vencidoP ? '🔴' : '🟢';
-        $html .= '<small><strong>Public.:</strong> <span class="' . $claseP . '">' . $iconoP . ' '
-               . date('d/m/Y', strtotime($plazoPublicacion)) . '</span></small>';
+        if ($fechaCargaPortal !== null) {
+            $enPlazoP = date('Y-m-d', strtotime($fechaCargaPortal)) <= $plazoPublicacion;
+            $claseP   = $enPlazoP ? 'text-success' : 'text-danger';
+            $iconoP   = $enPlazoP ? '🟢 ' : '🔴 ';
+        } else {
+            $claseP = 'text-muted'; $iconoP = '';
+        }
+        $html .= '<small><strong>Publicado T.A.:</strong> <span class="' . $claseP . '">'
+               . $iconoP . date('d/m/Y', strtotime($plazoPublicacion)) . '</span></small>';
     } else {
-        $html .= '<small class="text-muted">Public.: —</small>';
+        $html .= '<small class="text-muted">Publicado T.A.: —</small>';
     }
 
     $html .= '</div>';
@@ -435,7 +439,14 @@ if (isset($_SESSION['success'])) {
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
-                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc, $user_perfil !== 'publicador');
+                                    $plazoInterno = renderPlazos(
+                                        $plazoFinal,
+                                        $plazoPublicFinal,
+                                        $ultimoDoc ? $ultimoDoc['fecha_envio'] : null,
+                                        null,
+                                        $user_perfil !== 'publicador',
+                                        $verificador ? $verificador['fecha_carga_portal'] : null
+                                    );
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
@@ -584,7 +595,14 @@ if (isset($_SESSION['success'])) {
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
-                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc, $user_perfil !== 'publicador');
+                                    $plazoInterno = renderPlazos(
+                                        $plazoFinal,
+                                        $plazoPublicFinal,
+                                        $ultimoDoc ? $ultimoDoc['fecha_envio'] : null,
+                                        null,
+                                        $user_perfil !== 'publicador',
+                                        $verificador ? $verificador['fecha_carga_portal'] : null
+                                    );
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
@@ -710,7 +728,14 @@ if (isset($_SESSION['success'])) {
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
-                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc, $user_perfil !== 'publicador');
+                                    $plazoInterno = renderPlazos(
+                                        $plazoFinal,
+                                        $plazoPublicFinal,
+                                        $ultimoDoc ? $ultimoDoc['fecha_envio'] : null,
+                                        null,
+                                        $user_perfil !== 'publicador',
+                                        $verificador ? $verificador['fecha_carga_portal'] : null
+                                    );
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
@@ -854,7 +879,14 @@ if (isset($_SESSION['success'])) {
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
                                     $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
-                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc, $user_perfil !== 'publicador');
+                                    $plazoInterno = renderPlazos(
+                                        $plazoFinal,
+                                        $plazoPublicFinal,
+                                        $ultimoDoc ? $ultimoDoc['fecha_envio'] : null,
+                                        null,
+                                        $user_perfil !== 'publicador',
+                                        $verificador ? $verificador['fecha_carga_portal'] : null
+                                    );
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
@@ -982,7 +1014,14 @@ if (isset($_SESSION['success'])) {
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
                                     $cumplePlazoEnvioDoc = isset($ultimoDoc['cumple_plazo_envio']) ? (int)$ultimoDoc['cumple_plazo_envio'] : null;
-                                    $plazoInterno = renderPlazos($plazoFinal, $plazoPublicFinal, null, $cumplePlazoEnvioDoc, $user_perfil !== 'publicador');
+                                    $plazoInterno = renderPlazos(
+                                        $plazoFinal,
+                                        $plazoPublicFinal,
+                                        $ultimoDoc ? $ultimoDoc['fecha_envio'] : null,
+                                        null,
+                                        $user_perfil !== 'publicador',
+                                        $verificador ? $verificador['fecha_carga_portal'] : null
+                                    );
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     
                                     $cargaPortal = $verificador ? date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) : '<span class="text-muted">Pendiente</span>';
