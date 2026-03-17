@@ -563,11 +563,15 @@ if (isset($_SESSION['success'])) {
                         <tbody>
                             <?php
                             if (!empty($itemsPorPeriodicidad['trimestral'])) {
+                                // Meses del trimestre actual (Q1=1-3, Q2=4-6, Q3=7-9, Q4=10-12)
+                                $trimestreActual = (int)ceil($mesActual / 3);
+                                $mesInicioTrimestre = ($trimestreActual - 1) * 3 + 1;
+                                $mesesTrimestre = [$mesInicioTrimestre, $mesInicioTrimestre + 1, $mesInicioTrimestre + 2];
                                 foreach ($itemsPorPeriodicidad['trimestral'] as $item) {
                                     $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
                                     
-                                    // Obtener documentos
-                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
+                                    // Obtener documento del trimestre completo
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoActual, $mesesTrimestre);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Obtener verificador si existe
@@ -681,11 +685,14 @@ if (isset($_SESSION['success'])) {
                         <tbody>
                             <?php
                             if (!empty($itemsPorPeriodicidad['semestral'])) {
+                                // Meses del semestre actual (H1=1-6, H2=7-12)
+                                $semestreActual = $mesActual <= 6 ? 1 : 2;
+                                $mesesSemestre = $semestreActual === 1 ? [1,2,3,4,5,6] : [7,8,9,10,11,12];
                                 foreach ($itemsPorPeriodicidad['semestral'] as $item) {
                                     $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
                                     
-                                    // Obtener último documento
-                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoActual, $mesActual);
+                                    // Obtener documento del semestre completo
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoActual, $mesesSemestre);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Obtener verificador si existe
@@ -822,13 +829,13 @@ if (isset($_SESSION['success'])) {
                                             // Para publicador, si existe documento está cubierto
                                             $tieneDocDelUsuario = true;
                                             // Obtener verificador si existe
-                                            $verificador = $verificadorClass->getByDocumento($ultimoDoc['documento_id']);
+                                            $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                         } else {
                                             // Para cargador, verificar que sea suyo
                                             if ((int)$ultimoDoc['usuario_id'] === (int)$user_id) {
                                                 $tieneDocDelUsuario = true;
                                                 // Obtener verificador si existe
-                                                $verificador = $verificadorClass->getByDocumento($ultimoDoc['documento_id']);
+                                                $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                             }
                                         }
                                     }
@@ -869,13 +876,13 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($tieneDocDelUsuario): ?>
-                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['documento_id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Documento
                                                     </a>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $ultimoDoc['documento_id']; ?>)"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $ultimoDoc['id']; ?>)"
                                                             style="white-space: nowrap;" title="Reemplazar documento existente">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -899,7 +906,7 @@ if (isset($_SESSION['success'])) {
                                                     <button type="button" class="btn btn-sm btn-warning"
                                                             data-bs-toggle="modal"
                                                             data-bs-target="#modalSubirVerificador"
-                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['documento_id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-upload"></i> Subir Verificador
                                                     </button>

@@ -139,5 +139,46 @@ class ItemConPlazo {
         $stmt->execute();
         return $stmt->get_result();
     }
+
+    /**
+     * Obtener el último documento de un item en un conjunto de meses (para trimestral/semestral).
+     * @param int        $item_id
+     * @param int|null   $usuario_id  null = todos los usuarios
+     * @param int        $ano
+     * @param array      $meses       Ej: [1,2,3] para Q1
+     */
+    public function getDocumentosPorPeriodo($item_id, $usuario_id, $ano, array $meses) {
+        if (empty($meses)) return null;
+
+        $placeholders = implode(',', array_fill(0, count($meses), '?'));
+        $types        = str_repeat('i', count($meses));
+
+        if ($usuario_id === null) {
+            $sql = "SELECT d.*, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                    FROM documentos d
+                    LEFT JOIN usuarios u ON d.usuario_id = u.id
+                    WHERE d.item_id = ? AND d.ano_carga = ?
+                      AND d.mes_carga IN ($placeholders)
+                    ORDER BY d.fecha_subida DESC LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return null;
+            $params = array_merge([$item_id, $ano], $meses);
+            $stmt->bind_param('ii' . $types, ...$params);
+        } else {
+            $sql = "SELECT d.*, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                    FROM documentos d
+                    LEFT JOIN usuarios u ON d.usuario_id = u.id
+                    WHERE d.item_id = ? AND d.usuario_id = ? AND d.ano_carga = ?
+                      AND d.mes_carga IN ($placeholders)
+                    ORDER BY d.fecha_subida DESC LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            if (!$stmt) return null;
+            $params = array_merge([$item_id, $usuario_id, $ano], $meses);
+            $stmt->bind_param('iii' . $types, ...$params);
+        }
+
+        $stmt->execute();
+        return $stmt->get_result();
+    }
 }
 ?>
