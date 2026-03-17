@@ -39,16 +39,16 @@ $esImagen = in_array(strtolower(pathinfo($verificador['archivo_verificador'], PA
         <div class="col-12">
             <h6>Verificador</h6>
             <div style="text-align: center; margin-bottom: 1rem;">
-                <img src="<?php echo SITE_URL; ?>uploads/<?php echo urlencode($verificador['archivo_verificador']); ?>" 
+                <img src="<?php echo SITE_URL; ?>uploads/<?php echo htmlspecialchars($verificador['archivo_verificador']); ?>" 
                      alt="Verificador" 
                      style="max-width: 100%; max-height: 400px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
             </div>
             <div style="text-align: center;">
                 <button type="button" class="btn btn-sm btn-info" 
-                        onclick="verEnPantallaCompleta('<?php echo SITE_URL; ?>uploads/<?php echo urlencode($verificador['archivo_verificador']); ?>')">
+                        onclick="verEnPantallaCompleta('<?php echo SITE_URL; ?>uploads/<?php echo htmlspecialchars($verificador['archivo_verificador']); ?>')">
                     <i class="bi bi-fullscreen"></i> Ver en Pantalla Completa
                 </button>
-                <a href="<?php echo SITE_URL; ?>uploads/<?php echo urlencode($verificador['archivo_verificador']); ?>" 
+                <a href="<?php echo SITE_URL; ?>uploads/<?php echo htmlspecialchars($verificador['archivo_verificador']); ?>" 
                    class="btn btn-sm btn-success" target="_blank" download>
                     <i class="bi bi-download"></i> Descargar
                 </a>
@@ -61,7 +61,7 @@ $esImagen = in_array(strtolower(pathinfo($verificador['archivo_verificador'], PA
         <div class="col-12">
             <h6>Archivo de Verificación</h6>
             <p class="text-muted">Este archivo no se puede mostrar en línea</p>
-            <a href="<?php echo SITE_URL; ?>uploads/<?php echo urlencode($verificador['archivo_verificador']); ?>" 
+            <a href="<?php echo SITE_URL; ?>uploads/<?php echo htmlspecialchars($verificador['archivo_verificador']); ?>" 
                class="btn btn-success btn-sm" target="_blank" download>
                 <i class="bi bi-download"></i> Descargar <?php echo strtoupper(pathinfo($verificador['archivo_verificador'], PATHINFO_EXTENSION)); ?>
             </a>

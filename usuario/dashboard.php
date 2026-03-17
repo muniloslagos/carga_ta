@@ -487,7 +487,7 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalVerVerificador"
                                                             onclick="verVerificador(<?php echo $verificador['id']; ?>)"
                                                             style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                        <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
                                                 <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
                                                     <button type="button" class="btn btn-sm btn-warning"
@@ -629,7 +629,7 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalVerVerificador"
                                                             onclick="verVerificador(<?php echo $verificador['id']; ?>)"
                                                             style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                        <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
                                                 <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
                                                     <button type="button" class="btn btn-sm btn-warning"
@@ -780,7 +780,7 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalVerVerificador"
                                                             onclick="verVerificador(<?php echo $verificador['id']; ?>)"
                                                             style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                        <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
                                                 <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
                                                     <button type="button" class="btn btn-sm btn-warning"
@@ -941,7 +941,7 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalVerVerificador"
                                                             onclick="verVerificador(<?php echo $verificador['id']; ?>)"
                                                             style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                        <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
                                                 <?php elseif ($tieneDocDelUsuario && $user_perfil === 'publicador'): ?>
                                                     <button type="button" class="btn btn-sm btn-warning"
@@ -1077,7 +1077,7 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalVerVerificador"
                                                             onclick="verVerificador(<?php echo $verificador['id']; ?>)"
                                                             style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Ver Verif
+                                                        <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
                                                 <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
                                                     <button type="button" class="btn btn-sm btn-warning"
