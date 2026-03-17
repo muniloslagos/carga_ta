@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Clase para calcular plazos automÃ¡ticos segÃºn la periodicidad
  * 
