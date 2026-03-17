@@ -404,7 +404,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="22%">Nombre Item</th>
                                 <th width="12%">Mes Carga</th>
                                 <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
-                                <?php if ($user_perfil === 'publicador'): ?><th width="12%">Cargó</th><?php endif; ?>
+                                <th width="12%">Enviado por</th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="8%">Acciones</th>
@@ -478,7 +478,7 @@ if (isset($_SESSION['success'])) {
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><?php echo $mesCargaNombre . ' ' . $anoSeleccionado; ?></td>
                                         <td><?php echo $plazoInterno; ?></td>
-                                        <?php if ($user_perfil === 'publicador'): ?><td><small><?php echo $cargador; ?></small></td><?php endif; ?>
+                                        <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
                                         <td>
@@ -554,7 +554,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
                                 <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
-                                <?php if ($user_perfil === 'publicador'): ?><th width="12%">Cargó</th><?php endif; ?>
+                                <th width="12%">Enviado por</th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -612,7 +612,7 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><?php echo $plazoInterno; ?></td>
-                                        <?php if ($user_perfil === 'publicador'): ?><td><small><?php echo $cargador; ?></small></td><?php endif; ?>
+                                        <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
                                         <td>
@@ -681,7 +681,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
                                 <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
-                                <?php if ($user_perfil === 'publicador'): ?><th width="12%">Cargó</th><?php endif; ?>
+                                <th width="12%">Enviado por</th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -738,7 +738,7 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><?php echo $plazoInterno; ?></td>
-                                        <?php if ($user_perfil === 'publicador'): ?><td><small><?php echo $cargador; ?></small></td><?php endif; ?>
+                                        <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
                                         <td>
@@ -813,7 +813,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="3%" style="text-align: center;">Historial</th>
                                 <th width="22%">Nombre Item</th>
                                 <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
-                                <?php if ($user_perfil === 'publicador'): ?><th width="12%">Cargó</th><?php endif; ?>
+                                <th width="12%">Enviado por</th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -882,7 +882,7 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><?php echo $plazoInterno; ?></td>
-                                        <?php if ($user_perfil === 'publicador'): ?><td><small><?php echo $cargador; ?></small></td><?php endif; ?>
+                                        <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
                                         <td>
@@ -956,7 +956,7 @@ if (isset($_SESSION['success'])) {
                                 <th width="10%">Numeración</th>
                                 <th width="25%">Nombre Item</th>
                                 <th width="15%">Plazos <small class="text-muted">(Envío / Public.)</small></th>
-                                <?php if ($user_perfil === 'publicador'): ?><th width="12%">Cargó</th><?php endif; ?>
+                                <th width="12%">Enviado por</th>
                                 <th width="15%">Fecha Envío</th>
                                 <th width="15%">Carga Portal</th>
                                 <th width="20%">Acciones</th>
@@ -1001,7 +1001,7 @@ if (isset($_SESSION['success'])) {
                                         <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><?php echo $plazoInterno; ?></td>
-                                        <?php if ($user_perfil === 'publicador'): ?><td><small><?php echo $cargador; ?></small></td><?php endif; ?>
+                                        <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
                                         <td>
