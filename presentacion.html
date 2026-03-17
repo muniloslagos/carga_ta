@@ -157,8 +157,9 @@
         }
 
         .flow-box {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: white;
+            border: 3px solid #667eea;
+            color: #2d3748;
             padding: 30px;
             border-radius: 15px;
             width: 200px;
@@ -166,6 +167,10 @@
             margin: 15px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             transition: transform 0.3s;
+        }
+
+        .flow-box i {
+            color: #667eea;
         }
 
         .flow-box:hover {
@@ -315,13 +320,13 @@
 </head>
 <body>
     <div class="slide-counter">
-        <span id="currentSlide">1</span> / <span id="totalSlides">9</span>
+        <span id="currentSlide">1</span> / <span id="totalSlides">8</span>
     </div>
 
     <div class="slide-container">
         <!-- Slide 1: Portada -->
         <div class="slide active portada">
-            <i class="bi bi-file-earmark-check logo"></i>
+            <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo2025.png" alt="Logo Municipalidad" style="max-width: 250px; margin-bottom: 30px;">
             <h1>Sistema de Gestión de<br>Transparencia Activa</h1>
             <p class="subtitle">Municipalidad de Los Lagos</p>
             <p style="font-size: 1.3rem; color: #a0aec0; margin-top: 40px;">
@@ -358,12 +363,51 @@
                 <div class="feature-card">
                     <i class="bi bi-graph-up"></i>
                     <h4>Reportes en Tiempo Real</h4>
-                    <p>Dashboards con estadísticas de cumplimiento y alertas de plazos.</p>
+                    <p>Resumen con estadísticas de cumplimiento y alertas de plazos.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <i class="bi bi-envelope"></i>
+                    <h4>Notificaciones por Email</h4>
+                    <p>Alertas automáticas al inicio y fin de cada proceso, manteniendo informados a todos los responsables.</p>
                 </div>
             </div>
         </div>
 
-        <!-- Slide 3: Perfil Cargador de Información -->
+        <!-- Slide 3: Responsabilidades -->
+        <div class="slide">
+            <h2><i class="bi bi-person-check me-3"></i>Responsabilidades</h2>
+            
+            <div style="background: #fef3c7; padding: 30px; border-radius: 15px; border-left: 6px solid #f59e0b; margin-bottom: 30px;">
+                <h3 style="color: #d97706; margin-bottom: 20px;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Decreto Municipal
+                </h3>
+                <p style="font-size: 1.3rem; color: #78350f; line-height: 1.8;">
+                    Se realizará un <strong>decreto municipal</strong> que oficializará la asignación de usuarios y responsables del envío de información para cumplir con la Ley de Transparencia.
+                </p>
+            </div>
+
+            <h3 style="margin-top: 40px; color: #667eea;"><i class="bi bi-building me-2"></i>Rol del Director de cada Dirección:</h3>
+            <ul style="margin-top: 20px;">
+                <li><strong><i class="bi bi-shield-check text-primary me-2"></i>Responsable principal:</strong> Cada director es el responsable directo del envío oportuno de la información de su dirección.</li>
+                
+                <li><strong><i class="bi bi-people text-success me-2"></i>Designación de cargadores:</strong> Debe asignar oficialmente a <span class="highlight">dos (2) personas</span> para la carga de documentos en la plataforma.</li>
+                
+                <li><strong><i class="bi bi-person-plus text-info me-2"></i>Participación activa:</strong> El director puede cargar documentos directamente en el sistema, además de supervisar el trabajo de su equipo.</li>
+                
+                <li><strong><i class="bi bi-clipboard-check text-warning me-2"></i>Supervisión:</strong> Verificar que los documentos se carguen completos, en plazo y con la calidad requerida.</li>
+            </ul>
+
+            <div style="background: #e0e7ff; padding: 25px; border-radius: 10px; margin-top: 40px; text-align: center;">
+                <p style="font-size: 1.3rem; color: #4338ca; font-weight: 600; margin: 0;">
+                    <i class="bi bi-info-circle me-2"></i>
+                    La responsabilidad legal recae en el director de cada unidad
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 4: Perfil Cargador de Información -->
         <div class="slide">
             <h2><i class="bi bi-person-badge me-3"></i>Perfil: Cargador de Información</h2>
             <span class="badge-cargador"><i class="bi bi-upload me-2"></i>CARGADOR DE INFORMACIÓN</span>
@@ -384,53 +428,6 @@
                     <i class="bi bi-info-circle me-2"></i>
                     <strong>Nota importante:</strong> El cargador NO publica en el portal. Solo prepara y envía la información al publicador.
                 </p>
-            </div>
-        </div>
-
-        <!-- Slide 4: Dashboard del Cargador -->
-        <div class="slide">
-            <h2><i class="bi bi-speedometer2 me-3"></i>Dashboard del Cargador</h2>
-            
-            <h3>Vista organizada por periodicidad:</h3>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <i class="bi bi-calendar"></i>
-                    <h4>Mensual</h4>
-                    <p>Items que deben cargarse cada mes (ej: remuneraciones, actas)</p>
-                </div>
-                
-                <div class="feature-card">
-                    <i class="bi bi-calendar3"></i>
-                    <h4>Trimestral</h4>
-                    <p>Items cada 3 meses (ej: informes de gestión)</p>
-                </div>
-                
-                <div class="feature-card">
-                    <i class="bi bi-calendar2-range"></i>
-                    <h4>Semestral/Anual</h4>
-                    <p>Items cada 6 o 12 meses (ej: presupuesto anual)</p>
-                </div>
-                
-                <div class="feature-card">
-                    <i class="bi bi-calendar-event"></i>
-                    <h4>Ocurrencia</h4>
-                    <p>Items que se cargan cuando ocurren (ej: licitaciones)</p>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 40px;">
-                <div class="stats-box">
-                    <span class="number"><i class="bi bi-clock"></i></span>
-                    <span class="label">Plazo de Envío visible</span>
-                </div>
-                <div class="stats-box">
-                    <span class="number"><i class="bi bi-check2-square"></i></span>
-                    <span class="label">Estado del documento</span>
-                </div>
-                <div class="stats-box">
-                    <span class="number"><i class="bi bi-eye"></i></span>
-                    <span class="label">Solo ve sus items asignados</span>
-                </div>
             </div>
         </div>
 
@@ -554,7 +551,7 @@
                 
                 <div class="feature-card">
                     <i class="bi bi-check-circle"></i>
-                    <h4>100% Cumplimiento</h4>
+                    <h4>Mejorar el Cumplimiento</h4>
                     <p>Alertas automáticas evitan olvidos y retrasos en publicaciones.</p>
                 </div>
                 
