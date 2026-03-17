@@ -118,29 +118,28 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
         // --- Plazos ---
         $plazoEnvioFinal   = $itemPlazoClass->getPlazoFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
         $plazoPublicFinal  = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoS, $mesS, $item['periodicidad']);
-        $cumpleEnvio       = isset($doc['cumple_plazo_envio'])        ? (int)$doc['cumple_plazo_envio']        : null;
-        $cumplePublic      = isset($verif['cumple_plazo_publicacion']) ? (int)$verif['cumple_plazo_publicacion'] : null;
-        $hoy = date('Y-m-d');
 
-        // Build plazo HTML
+        // Build plazo HTML — color based on actual upload date vs deadline (not today vs deadline)
         ob_start();
         if ($plazoEnvioFinal) {
-            $vE = $hoy > $plazoEnvioFinal;
-            $cE = $vE ? 'text-danger' : 'text-success';
-            $iE = $vE ? '🔴' : '🟢';
-            if ($cumpleEnvio === 1)      $bE = ' <span class="badge bg-success" title="Enviado en plazo">✓</span>';
-            elseif ($cumpleEnvio === 0)  $bE = ' <span class="badge bg-danger"  title="Enviado fuera de plazo">!</span>';
-            else                        $bE = '';
-            echo '<small><strong>Envío:</strong> <span class="'.$cE.'">'.$iE.' '.date('d/m/Y', strtotime($plazoEnvioFinal)).'</span>'.$bE.'</small><br>';
+            if ($doc) {
+                $enPlazoE = date('Y-m-d', strtotime($doc['fecha_subida'])) <= $plazoEnvioFinal;
+                $cE = $enPlazoE ? 'text-success' : 'text-danger';
+                $iE = $enPlazoE ? '🟢 ' : '🔴 ';
+            } else {
+                $cE = 'text-muted'; $iE = '';
+            }
+            echo '<small><strong>Envío:</strong> <span class="'.$cE.'">'.$iE.date('d/m/Y', strtotime($plazoEnvioFinal)).'</span></small><br>';
         }
         if ($plazoPublicFinal) {
-            $vP = $hoy > $plazoPublicFinal;
-            $cP = $vP ? 'text-danger' : 'text-success';
-            $iP = $vP ? '🔴' : '🟢';
-            if ($cumplePublic === 1)     $bP = ' <span class="badge bg-success" title="Publicado en plazo">✓</span>';
-            elseif ($cumplePublic === 0) $bP = ' <span class="badge bg-danger"  title="Publicado fuera de plazo">!</span>';
-            else                        $bP = '';
-            echo '<small><strong>Public.:</strong> <span class="'.$cP.'">'.$iP.' '.date('d/m/Y', strtotime($plazoPublicFinal)).'</span>'.$bP.'</small>';
+            if ($verif) {
+                $enPlazoP = date('Y-m-d', strtotime($verif['fecha_carga_portal'])) <= $plazoPublicFinal;
+                $cP = $enPlazoP ? 'text-success' : 'text-danger';
+                $iP = $enPlazoP ? '🟢 ' : '🔴 ';
+            } else {
+                $cP = 'text-muted'; $iP = '';
+            }
+            echo '<small><strong>Publicado T.A.:</strong> <span class="'.$cP.'">'.$iP.date('d/m/Y', strtotime($plazoPublicFinal)).'</span></small>';
         }
         if (!$plazoEnvioFinal && !$plazoPublicFinal) echo '<span class="text-muted small">—</span>';
         $plazoHtml = ob_get_clean();
