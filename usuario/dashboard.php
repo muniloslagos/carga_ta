@@ -326,13 +326,16 @@ if (isset($_SESSION['success'])) {
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5>Items Mensuales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
-                            <?php if ($plazoTituloE): ?>
-                            <small class="fw-normal ms-2" style="color: #ff8c00;">
-                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloE)); ?>
-                            </small>
-                            <?php endif; ?>
-                        </h5>
+                        <h5 class="d-inline-block mb-0">Items Mensuales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5>
+                        <?php if ($plazoTituloE): ?>
+                        <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="top" 
+                              data-bs-html="true"
+                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
+                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloE)); ?>
+                        </span>
+                        <?php endif; ?>
                     </div>
                     <div class="col-auto">
                         <form method="GET" class="d-flex gap-2">
@@ -520,13 +523,16 @@ if (isset($_SESSION['success'])) {
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5>Items Trimestrales
-                            <?php if ($plazoTituloET): ?>
-                            <small class="fw-normal ms-2" style="color: #ff8c00;">
-                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloET)); ?>
-                            </small>
-                            <?php endif; ?>
-                        </h5>
+                        <h5 class="d-inline-block mb-0">Items Trimestrales</h5>
+                        <?php if ($plazoTituloET): ?>
+                        <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="top" 
+                              data-bs-html="true"
+                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
+                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloET)); ?>
+                        </span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -661,13 +667,16 @@ if (isset($_SESSION['success'])) {
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5>Items Semestrales
-                            <?php if ($plazoTituloES): ?>
-                            <small class="fw-normal ms-2" style="color: #ff8c00;">
-                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloES)); ?>
-                            </small>
-                            <?php endif; ?>
-                        </h5>
+                        <h5 class="d-inline-block mb-0">Items Semestrales</h5>
+                        <?php if ($plazoTituloES): ?>
+                        <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="top" 
+                              data-bs-html="true"
+                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
+                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloES)); ?>
+                        </span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -807,13 +816,16 @@ if (isset($_SESSION['success'])) {
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5>Items Anuales &mdash; <?php echo $anoActual; ?>
-                            <?php if ($plazoTituloEA): ?>
-                            <small class="fw-normal ms-2" style="color: #ff8c00;">
-                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEA)); ?>
-                            </small>
-                            <?php endif; ?>
-                        </h5>
+                        <h5 class="d-inline-block mb-0">Items Anuales &mdash; <?php echo $anoActual; ?></h5>
+                        <?php if ($plazoTituloEA): ?>
+                        <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="top" 
+                              data-bs-html="true"
+                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
+                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEA)); ?>
+                        </span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -965,13 +977,16 @@ if (isset($_SESSION['success'])) {
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5>Items de Ocurrencia Libre
-                            <?php if ($plazoTituloEO): ?>
-                            <small class="fw-normal ms-2" style="color: #ff8c00;">
-                                Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEO)); ?>
-                            </small>
-                            <?php endif; ?>
-                        </h5>
+                        <h5 class="d-inline-block mb-0">Items de Ocurrencia Libre</h5>
+                        <?php if ($plazoTituloEO): ?>
+                        <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="top" 
+                              data-bs-html="true"
+                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
+                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEO)); ?>
+                        </span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -1489,6 +1504,16 @@ function verEnPantallaCompleta(imageSrc) {
         </div>
     </div>
 </div>
+
+<script>
+// Inicializar tooltips de Bootstrap
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>
 
