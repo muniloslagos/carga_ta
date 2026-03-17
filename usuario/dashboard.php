@@ -105,8 +105,9 @@ function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
 }
 
 
-// Filtro de usuario: cargadores solo ven sus propios documentos; otros ven todos
-$userIdFiltro = ($user_perfil === 'cargador_informacion') ? $user_id : null;
+// Filtro de documento: null = mostrar documentos de cualquier usuario para el item
+// (los items ya están filtrados por asignación, así que cualquier doc del item es válido)
+$userIdFiltro = null;
 
 // Pre-fetch item IDs asignados al usuario actual (para controlar quién puede cargar documentos)
 $itemsAsignadosUsuario = [];
@@ -217,19 +218,10 @@ foreach ($itemsPorPeriodicidad['mensual'] as $item) {
     $tieneDocumento = false;
     
     if ($docsResult && $docsResult->num_rows > 0) {
-        if ($current_user['perfil'] === 'publicador') {
-            // Para publicador: si existe documento (de cualquier usuario) está cubierto
+            // Si existe cualquier documento para el item, está cubierto
+            // (los items ya están filtrados por asignación para cargadores)
             $tieneDocumento = true;
-        } else {
-            // Para cargador: verificar que el documento pertenece al usuario actual
-            while ($doc = $docsResult->fetch_assoc()) {
-                if ((int)$doc['usuario_id'] === (int)$user_id) {
-                    $tieneDocumento = true;
-                    break;
-                }
-            }
         }
-    }
     
     if (!$tieneDocumento) {
         $contador++;
@@ -252,18 +244,9 @@ foreach (['trimestral', 'semestral', 'anual', 'ocurrencia'] as $periodicidad) {
         $tieneDocumento = false;
         
         if ($docsResult && $docsResult->num_rows > 0) {
-            if ($current_user['perfil'] === 'publicador') {
-                // Para publicador: si existe documento (de cualquier usuario) está cubierto
-                $tieneDocumento = true;
-            } else {
-                // Para cargador: verificar que el documento pertenece al usuario actual
-                while ($doc = $docsResult->fetch_assoc()) {
-                    if ((int)$doc['usuario_id'] === (int)$user_id) {
-                        $tieneDocumento = true;
-                        break;
-                    }
-                }
-            }
+            // Si existe cualquier documento para el item, está cubierto
+            // (los items ya están filtrados por asignación para cargadores)
+            $tieneDocumento = true;
         }
         
         if (!$tieneDocumento) {
