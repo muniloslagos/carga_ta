@@ -121,8 +121,10 @@ class Documento {
 
     // Obtener documentos por item y año (SIN mes) - para periodicidad ANUAL
     public function getByItemFollowUpAnual($item_id, $ano) {
-        $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo
+        $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo,
+                       u.nombre as usuario_nombre
                 FROM {$this->table} d
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
                 WHERE d.item_id = ? AND YEAR(d.fecha_subida) = ?
                 ORDER BY d.fecha_subida DESC
                 LIMIT 1";
