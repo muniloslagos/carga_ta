@@ -85,9 +85,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="row justify-content-center">
             <div class="col-md-6">
                 <div class="card shadow-lg">
-                    <div class="card-header text-center">
-                        <i class="bi bi-shield-check" style="font-size: 2rem; color: white;"></i>
-                        <h2 class="mt-2"><?php echo SITE_NAME; ?></h2>
+                    <div class="card-header text-center" style="padding: 30px 20px;">
+                        <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo2025.png" alt="Logo Municipalidad" style="max-width: 180px; margin-bottom: 20px;">
+                        <div>
+                            <i class="bi bi-shield-check" style="font-size: 2rem; color: white;"></i>
+                            <h2 class="mt-2"><?php echo SITE_NAME; ?></h2>
+                        </div>
                     </div>
                     <div class="card-body">
                         <?php if ($error): ?>

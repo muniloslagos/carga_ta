@@ -34,9 +34,12 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
     <!-- Navbar Mejorada -->
     <nav class="navbar navbar-expand-lg" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
         <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold" href="<?php echo SITE_URL; ?>" style="font-size: 1rem; letter-spacing: 0.5px;">
-                <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.3rem;"></i> 
-                <span style="color: #ffffff;">Transparencia Activa</span>
+            <a class="navbar-brand fw-bold d-flex align-items-center" href="<?php echo SITE_URL; ?>" style="font-size: 1rem; letter-spacing: 0.5px;">
+                <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo2025.png" alt="Logo Municipalidad" style="height: 45px; margin-right: 15px;">
+                <div>
+                    <i class="bi bi-shield-check" style="color: #3498db; font-size: 1.3rem;"></i> 
+                    <span style="color: #ffffff;">Transparencia Activa</span>
+                </div>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
