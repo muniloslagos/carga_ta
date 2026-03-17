@@ -107,6 +107,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'message' => "Guardado: $success_count usuarios, Errores: $error_count"
         ]);
         exit;
+    } elseif ($action === 'bulk_assign_users') {
+        // Asignación masiva de usuarios a múltiples items
+        $item_ids = json_decode($_POST['item_ids'] ?? '[]', true);
+        $usuario_ids = json_decode($_POST['usuario_ids'] ?? '[]', true);
+        
+        header('Content-Type: application/json');
+        
+        if (!is_array($item_ids) || !is_array($usuario_ids) || empty($item_ids) || empty($usuario_ids)) {
+            echo json_encode(['success' => false, 'message' => 'Debe seleccionar items y usuarios']);
+            exit;
+        }
+        
+        $success_count = 0;
+        $error_count = 0;
+        
+        foreach ($item_ids as $item_id) {
+            foreach ($usuario_ids as $usuario_id) {
+                if ($itemClass->assignUser(intval($item_id), intval($usuario_id))) {
+                    $success_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+        
+        echo json_encode([
+            'success' => $error_count === 0,
+            'message' => "Asignados: $success_count, Errores: $error_count"
+        ]);
+        exit;
     }
     
     // PRG Pattern: Redirigir después del POST exitoso
@@ -122,7 +152,33 @@ if (isset($_SESSION['success'])) {
     unset($_SESSION['success']);
 }
 
-$items = $itemClass->getAll();
+// Obtener filtros
+$filter_direccion = isset($_GET['direccion_id']) ? intval($_GET['direccion_id']) : null;
+$filter_periodicidad = isset($_GET['periodicidad']) ? $_GET['periodicidad'] : null;
+$filter_numeracion = isset($_GET['numeracion']) ? trim($_GET['numeracion']) : null;
+
+// Aplicar filtros
+$items = $itemClass->getAll($filter_direccion, $filter_periodicidad);
+
+// Filtrar por numeración si se proporciona (búsqueda parcial)
+if ($filter_numeracion) {
+    $items_filtered = [];
+    while ($item = $items->fetch_assoc()) {
+        if (stripos($item['numeracion'], $filter_numeracion) !== false || 
+            stripos($item['nombre'], $filter_numeracion) !== false) {
+            $items_filtered[] = $item;
+        }
+    }
+    // Convertir array a resultado similar
+    $items = (object)['filtered' => $items_filtered, 'is_filtered' => true];
+} else {
+    $items_array = [];
+    while ($item = $items->fetch_assoc()) {
+        $items_array[] = $item;
+    }
+    $items = (object)['filtered' => $items_array, 'is_filtered' => false];
+}
+
 $direcciones = $direccionClass->getAll();
 
 // DESPUÉS: Incluir header con HTML
@@ -147,6 +203,9 @@ if (!isset($PERIODICIDADES)) {
             <h1><i class="bi bi-file-text"></i> Gestión de Items de Transparencia</h1>
         </div>
         <div class="col text-end">
+            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">
+                <i class="bi bi-people-fill"></i> Asignación Masiva
+            </button>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal">
                 <i class="bi bi-plus-circle"></i> Nuevo Item
             </button>
@@ -168,11 +227,72 @@ if (!isset($PERIODICIDADES)) {
     </div>
 <?php endif; ?>
 
+<!-- Filtros -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Dirección</label>
+                <select name="direccion_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todas las direcciones</option>
+                    <?php 
+                    $direcciones->data_seek(0);
+                    while ($dir = $direcciones->fetch_assoc()): 
+                    ?>
+                        <option value="<?php echo $dir['id']; ?>" <?php echo ($filter_direccion == $dir['id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($dir['nombre']); ?>
+                        </option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Periodicidad</label>
+                <select name="periodicidad" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todas las periodicidades</option>
+                    <?php foreach ($PERIODICIDADES as $key => $value): ?>
+                        <option value="<?php echo $key; ?>" <?php echo ($filter_periodicidad === $key) ? 'selected' : ''; ?>>
+                            <?php echo $value; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Buscar por numeración/nombre</label>
+                <input type="text" name="numeracion" class="form-control" placeholder="Ej: 1.1 o nombre" value="<?php echo htmlspecialchars($filter_numeracion ?? ''); ?>">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Filtrar</button>
+                    <?php if ($filter_direccion || $filter_periodicidad || $filter_numeracion): ?>
+                        <a href="index.php" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Limpiar</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
+    <div class="card-header bg-light">
+        <div class="row align-items-center">
+            <div class="col">
+                <span class="badge bg-info">Total: <?php echo count($items->filtered); ?> items</span>
+            </div>
+            <div class="col text-end">
+                <button class="btn btn-sm btn-outline-primary" onclick="toggleSelectAll()">
+                    <i class="bi bi-check-square"></i> Seleccionar Todo
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
+                    <th width="50">
+                        <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()">
+                    </th>
                     <th>Numeración</th>
                     <th>Nombre</th>
                     <th>Dirección</th>
@@ -182,8 +302,11 @@ if (!isset($PERIODICIDADES)) {
                 </tr>
             </thead>
             <tbody>
-                <?php while ($item = $items->fetch_assoc()): ?>
+                <?php foreach ($items->filtered as $item): ?>
                     <tr>
+                        <td>
+                            <input type="checkbox" class="item-checkbox" value="<?php echo $item['id']; ?>">
+                        </td>
                         <td>
                             <strong><?php echo htmlspecialchars($item['numeracion']); ?></strong>
                         </td>
@@ -221,7 +344,7 @@ if (!isset($PERIODICIDADES)) {
                             </form>
                         </td>
                     </tr>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>
@@ -303,7 +426,141 @@ if (!isset($PERIODICIDADES)) {
     </div>
 </div>
 
+<!-- Modal para asignación masiva -->
+<div class="modal fade" id="bulkAssignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Asignación Masiva de Usuarios</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Seleccione los items en la tabla y luego elija los usuarios a asignar.
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Items seleccionados: <span id="selectedItemsCount" class="badge bg-primary">0</span></h6>
+                    <div id="selectedItemsList" class="small text-muted"></div>
+                </div>
+                
+                <hr>
+                
+                <h6>Seleccionar Usuarios:</h6>
+                <?php 
+                $usuarios = $usuarioClass->getAll();
+                ?>
+                <div class="row">
+                    <?php while ($usuario = $usuarios->fetch_assoc()): ?>
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input bulk-user-check" type="checkbox" value="<?php echo $usuario['id']; ?>" id="bulkuser<?php echo $usuario['id']; ?>">
+                                <label class="form-check-label" for="bulkuser<?php echo $usuario['id']; ?>">
+                                    <?php echo htmlspecialchars($usuario['nombre']); ?> - <?php echo htmlspecialchars($usuario['email']); ?>
+                                </label>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnBulkAssign">
+                    <i class="bi bi-check-circle"></i> Asignar a Items Seleccionados
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Función para seleccionar/deseleccionar todos los items
+function toggleSelectAll() {
+    const mainCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => cb.checked = mainCheckbox.checked);
+    updateBulkAssignModal();
+}
+
+// Actualizar contador de items seleccionados
+function updateBulkAssignModal() {
+    const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+    const count = checkboxes.length;
+    document.getElementById('selectedItemsCount').textContent = count;
+    
+    if (count > 0) {
+        let itemsList = 'Items: ';
+        checkboxes.forEach((cb, index) => {
+            const row = cb.closest('tr');
+            const numeracion = row.querySelector('td:nth-child(2) strong').textContent;
+            itemsList += numeracion + (index < count - 1 ? ', ' : '');
+        });
+        document.getElementById('selectedItemsList').textContent = itemsList;
+    } else {
+        document.getElementById('selectedItemsList').textContent = 'Ningún item seleccionado';
+    }
+}
+
+// Actualizar cuando se cambie un checkbox individual
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.item-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateBulkAssignModal);
+    });
+    
+    // Asignación masiva
+    document.getElementById('btnBulkAssign').addEventListener('click', function() {
+        const itemCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+        const userCheckboxes = document.querySelectorAll('.bulk-user-check:checked');
+        
+        if (itemCheckboxes.length === 0) {
+            alert('Debe seleccionar al menos un item');
+            return;
+        }
+        
+        if (userCheckboxes.length === 0) {
+            alert('Debe seleccionar al menos un usuario');
+            return;
+        }
+        
+        const itemIds = Array.from(itemCheckboxes).map(cb => parseInt(cb.value));
+        const userIds = Array.from(userCheckboxes).map(cb => parseInt(cb.value));
+        
+        if (!confirm(`¿Asignar ${userIds.length} usuario(s) a ${itemIds.length} item(s)?`)) {
+            return;
+        }
+        
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+        
+        const form = new FormData();
+        form.append('action', 'bulk_assign_users');
+        form.append('item_ids', JSON.stringify(itemIds));
+        form.append('usuario_ids', JSON.stringify(userIds));
+        
+        fetch('', {
+            method: 'POST',
+            body: form
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Asignación completada: ' + data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Error al asignar'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Asignar a Items Seleccionados';
+            }
+        })
+        .catch(error => {
+            alert('Error de conexión');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Asignar a Items Seleccionados';
+        });
+    });
+});
+
 function editItem(id) {
     fetch('get_item.php?id=' + id)
         .then(response => response.json())
@@ -386,6 +643,11 @@ document.getElementById('itemModal').addEventListener('hide.bs.modal', function(
     document.getElementById('itemModalLabel').textContent = 'Nuevo Item';
     document.getElementById('formAction').value = 'create';
     document.getElementById('itemId').value = '';
+});
+
+// Actualizar items seleccionados cuando se abre el modal de asignación masiva
+document.getElementById('bulkAssignModal').addEventListener('show.bs.modal', function() {
+    updateBulkAssignModal();
 });
 </script>
 
