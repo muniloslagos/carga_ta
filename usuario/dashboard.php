@@ -82,10 +82,10 @@ function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
             } else {
                 $clase = 'text-muted'; $icono = '';
             }
-            $html .= '<small><strong>Envío:</strong> <span class="' . $clase . '">'
+            $html .= '<small><strong>Plazo Interno:</strong> <span class="' . $clase . '">'
                    . $icono . date('d/m/Y', strtotime($plazoEnvio)) . '</span></small>';
         } else {
-            $html .= '<small class="text-muted">Envío: —</small>';
+            $html .= '<small class="text-muted">Plazo Interno: —</small>';
         }
     }
 
@@ -98,10 +98,10 @@ function renderPlazos(?string $plazoEnvio, ?string $plazoPublicacion,
         } else {
             $claseP = 'text-muted'; $iconoP = '';
         }
-        $html .= '<small><strong>Publicado T.A.:</strong> <span class="' . $claseP . '">'
+        $html .= '<small><strong>Plazo Ley:</strong> <span class="' . $claseP . '">'
                . $iconoP . date('d/m/Y', strtotime($plazoPublicacion)) . '</span></small>';
     } else {
-        $html .= '<small class="text-muted">Publicado T.A.: —</small>';
+        $html .= '<small class="text-muted">Plazo Ley: —</small>';
     }
 
     $html .= '</div>';

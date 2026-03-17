@@ -129,7 +129,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             } else {
                 $cE = 'text-muted'; $iE = '';
             }
-            echo '<small><strong>Envío:</strong> <span class="'.$cE.'">'.$iE.date('d/m/Y', strtotime($plazoEnvioFinal)).'</span></small><br>';
+            echo '<small><strong>Plazo Interno:</strong> <span class="'.$cE.'">'.$iE.date('d/m/Y', strtotime($plazoEnvioFinal)).'</span></small><br>';
         }
         if ($plazoPublicFinal) {
             if ($verif) {
@@ -139,7 +139,7 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             } else {
                 $cP = 'text-muted'; $iP = '';
             }
-            echo '<small><strong>Publicado T.A.:</strong> <span class="'.$cP.'">'.$iP.date('d/m/Y', strtotime($plazoPublicFinal)).'</span></small>';
+            echo '<small><strong>Plazo Ley:</strong> <span class="'.$cP.'">'.$iP.date('d/m/Y', strtotime($plazoPublicFinal)).'</span></small>';
         }
         if (!$plazoEnvioFinal && !$plazoPublicFinal) echo '<span class="text-muted small">—</span>';
         $plazoHtml = ob_get_clean();
