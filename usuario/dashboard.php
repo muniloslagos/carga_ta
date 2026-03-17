@@ -1064,7 +1064,7 @@ if (isset($_SESSION['success'])) {
                     </div>
                     <div class="mb-3">
                         <label for="fecha_carga_portal" class="form-label">Fecha de Carga en Portal <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="fecha_carga_portal" name="fecha_carga_portal" required value="<?php echo date('Y-m-d'); ?>">
+                        <input type="datetime-local" class="form-control" id="fecha_carga_portal" name="fecha_carga_portal" required value="<?php echo date('Y-m-d\TH:i'); ?>">
                     </div>
                     <div class="mb-3">
                         <label for="archivo_verificador" class="form-label">Archivo Verificador (imagen o PDF) <span class="text-danger">*</span></label>

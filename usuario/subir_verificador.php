@@ -26,7 +26,9 @@ $verificadorClass = new Verificador($conn);
 
 $item_id      = intval($_POST['item_id'] ?? 0);
 $documento_id = intval($_POST['documento_id'] ?? 0);
-$fecha_carga  = trim($_POST['fecha_carga_portal'] ?? '');
+$fecha_carga_raw = trim($_POST['fecha_carga_portal'] ?? '');
+// datetime-local envía "Y-m-dTH:i" → convertir a "Y-m-d H:i:s" para MySQL
+$fecha_carga = $fecha_carga_raw ? date('Y-m-d H:i:s', strtotime(str_replace('T', ' ', $fecha_carga_raw))) : '';
 $comentarios  = trim($_POST['comentarios'] ?? '');
 $publicador_id = $current_user['id'];
 
@@ -111,7 +113,8 @@ if ($verificadorId) {
         $periItem = $rowItem['periodicidad'] ?? 'mensual';
         $plazoPublicacion = $itemPlazoClass->getPlazoPublicacionFinal($item_id, $docAno, $docMes, $periItem);
         if ($plazoPublicacion) {
-            $cumple = (strtotime(date('Y-m-d')) <= strtotime($plazoPublicacion)) ? 1 : 0;
+            $fechaVerif = date('Y-m-d', strtotime($fecha_carga));
+            $cumple = (strtotime($fechaVerif) <= strtotime($plazoPublicacion)) ? 1 : 0;
             $updV = $conn->prepare("UPDATE verificadores_publicador SET cumple_plazo_publicacion = ? WHERE id = ?");
             $updV->bind_param("ii", $cumple, $verificadorId);
             $updV->execute();
