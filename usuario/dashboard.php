@@ -244,47 +244,71 @@ if (isset($_SESSION['success'])) {
 <!-- TAB: ITEMS MENSUAL -->
 <div class="row mb-4">
     <div class="col-12">
+        <?php
+        // Determinar qué pestaña debe estar activa (la primera disponible)
+        $primeraActiva = '';
+        foreach (['mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'] as $per) {
+            if (count($itemsPorPeriodicidad[$per]) > 0) {
+                $primeraActiva = $per;
+                break;
+            }
+        }
+        ?>
         <ul class="nav nav-tabs" role="tablist">
+            <?php if (count($itemsPorPeriodicidad['mensual']) > 0): ?>
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-mensual" data-bs-toggle="tab" data-bs-target="#mensual" type="button" role="tab">
+                <button class="nav-link <?php echo ($primeraActiva === 'mensual') ? 'active' : ''; ?>" id="tab-mensual" data-bs-toggle="tab" data-bs-target="#mensual" type="button" role="tab">
                     <i class="bi bi-calendar-month"></i> Mensual
                     <?php if ($documentosPendientes['mensual'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['mensual']; ?></span>
                     <?php endif; ?>
                 </button>
             </li>
+            <?php endif; ?>
+            
+            <?php if (count($itemsPorPeriodicidad['trimestral']) > 0): ?>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-trimestral" data-bs-toggle="tab" data-bs-target="#trimestral" type="button" role="tab">
+                <button class="nav-link <?php echo ($primeraActiva === 'trimestral') ? 'active' : ''; ?>" id="tab-trimestral" data-bs-toggle="tab" data-bs-target="#trimestral" type="button" role="tab">
                     <i class="bi bi-calendar-week"></i> Trimestral
                     <?php if ($documentosPendientes['trimestral'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['trimestral']; ?></span>
                     <?php endif; ?>
                 </button>
             </li>
+            <?php endif; ?>
+            
+            <?php if (count($itemsPorPeriodicidad['semestral']) > 0): ?>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-semestral" data-bs-toggle="tab" data-bs-target="#semestral" type="button" role="tab">
+                <button class="nav-link <?php echo ($primeraActiva === 'semestral') ? 'active' : ''; ?>" id="tab-semestral" data-bs-toggle="tab" data-bs-target="#semestral" type="button" role="tab">
                     <i class="bi bi-calendar-range"></i> Semestral
                     <?php if ($documentosPendientes['semestral'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['semestral']; ?></span>
                     <?php endif; ?>
                 </button>
             </li>
+            <?php endif; ?>
+            
+            <?php if (count($itemsPorPeriodicidad['anual']) > 0): ?>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-anual" data-bs-toggle="tab" data-bs-target="#anual" type="button" role="tab">
+                <button class="nav-link <?php echo ($primeraActiva === 'anual') ? 'active' : ''; ?>" id="tab-anual" data-bs-toggle="tab" data-bs-target="#anual" type="button" role="tab">
                     <i class="bi bi-calendar-year"></i> Anual
                     <?php if ($documentosPendientes['anual'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['anual']; ?></span>
                     <?php endif; ?>
                 </button>
             </li>
+            <?php endif; ?>
+            
+            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-ocurrencia" data-bs-toggle="tab" data-bs-target="#ocurrencia" type="button" role="tab">
+                <button class="nav-link <?php echo ($primeraActiva === 'ocurrencia') ? 'active' : ''; ?>" id="tab-ocurrencia" data-bs-toggle="tab" data-bs-target="#ocurrencia" type="button" role="tab">
                     <i class="bi bi-exclamation-square"></i> Ocurrencia
                     <?php if ($documentosPendientes['ocurrencia'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['ocurrencia']; ?></span>
                     <?php endif; ?>
                 </button>
             </li>
+            <?php endif; ?>
         </ul>
 
         <!-- FILTRO DE ESTADO -->
@@ -318,7 +342,8 @@ if (isset($_SESSION['success'])) {
 
         <div class="tab-content mt-3">
             <!-- TAB MENSUAL -->
-            <div class="tab-pane fade show active" id="mensual" role="tabpanel">
+            <?php if (count($itemsPorPeriodicidad['mensual']) > 0): ?>
+            <div class="tab-pane fade <?php echo ($primeraActiva === 'mensual') ? 'show active' : ''; ?>" id="mensual" role="tabpanel">
                 <?php
                     $primerItem = !empty($itemsPorPeriodicidad['mensual']) ? $itemsPorPeriodicidad['mensual'][0] : null;
                     $plazoTituloE = $primerItem ? $itemPlazoClass->getPlazoFinal($primerItem['id'], $anoSeleccionado, $mesSeleccionado, $primerItem['periodicidad']) : null;
@@ -513,9 +538,11 @@ if (isset($_SESSION['success'])) {
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- TAB TRIMESTRAL -->
-            <div class="tab-pane fade" id="trimestral" role="tabpanel">
+            <?php if (count($itemsPorPeriodicidad['trimestral']) > 0): ?>
+            <div class="tab-pane fade <?php echo ($primeraActiva === 'trimestral') ? 'show active' : ''; ?>" id="trimestral" role="tabpanel">
                 <?php
                     $primerItemT = !empty($itemsPorPeriodicidad['trimestral']) ? $itemsPorPeriodicidad['trimestral'][0] : null;
                     $plazoTituloET = $primerItemT ? $itemPlazoClass->getPlazoFinal($primerItemT['id'], $anoActual, $mesActual, $primerItemT['periodicidad']) : null;
@@ -657,9 +684,11 @@ if (isset($_SESSION['success'])) {
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- TAB SEMESTRAL -->
-            <div class="tab-pane fade" id="semestral" role="tabpanel">
+            <?php if (count($itemsPorPeriodicidad['semestral']) > 0): ?>
+            <div class="tab-pane fade <?php echo ($primeraActiva === 'semestral') ? 'show active' : ''; ?>" id="semestral" role="tabpanel">
                 <?php
                     $primerItemS = !empty($itemsPorPeriodicidad['semestral']) ? $itemsPorPeriodicidad['semestral'][0] : null;
                     $plazoTituloES = $primerItemS ? $itemPlazoClass->getPlazoFinal($primerItemS['id'], $anoActual, $mesActual, $primerItemS['periodicidad']) : null;
@@ -806,9 +835,11 @@ if (isset($_SESSION['success'])) {
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- TAB ANUAL -->
-            <div class="tab-pane fade" id="anual" role="tabpanel">
+            <?php if (count($itemsPorPeriodicidad['anual']) > 0): ?>
+            <div class="tab-pane fade <?php echo ($primeraActiva === 'anual') ? 'show active' : ''; ?>" id="anual" role="tabpanel">
                 <?php
                     $primerItemA = !empty($itemsPorPeriodicidad['anual']) ? $itemsPorPeriodicidad['anual'][0] : null;
                     $plazoTituloEA = $primerItemA ? $itemPlazoClass->getPlazoFinal($primerItemA['id'], $anoActual, 1, $primerItemA['periodicidad']) : null;
@@ -960,16 +991,18 @@ if (isset($_SESSION['success'])) {
                                     <?php
                                 }
                             } else {
-                                echo '<tr><td colspan="5" class="text-center text-muted">No hay items de ocurrencia asignados</td></tr>';
+                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items anuales asignados</td></tr>';
                             }
                             ?>
                         </tbody>
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
 
-            <!-- MODAL CARGAR DOCUMENTO -->
-            <div class="tab-pane fade" id="ocurrencia" role="tabpanel">
+            <!-- TAB OCURRENCIA -->
+            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
+            <div class="tab-pane fade <?php echo ($primeraActiva === 'ocurrencia') ? 'show active' : ''; ?>" id="ocurrencia" role="tabpanel">
                 <?php
                     $primerItemO = !empty($itemsPorPeriodicidad['ocurrencia']) ? $itemsPorPeriodicidad['ocurrencia'][0] : null;
                     $plazoTituloEO = $primerItemO ? $itemPlazoClass->getPlazoFinal($primerItemO['id'], $anoActual, $mesActual, $primerItemO['periodicidad']) : null;
@@ -1103,6 +1136,7 @@ if (isset($_SESSION['success'])) {
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
