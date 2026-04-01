@@ -145,6 +145,16 @@ $totalDocumentos = $conn->query("SELECT COUNT(*) as total FROM documentos WHERE 
                 </div>
             </div>
         </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-envelope-at display-1 text-danger"></i>
+                    <h5 class="card-title mt-3">Configuración de Correo</h5>
+                    <p class="card-text">Configurar servidor SMTP para notificaciones</p>
+                    <a href="smtp/" class="btn btn-danger">Configurar SMTP</a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

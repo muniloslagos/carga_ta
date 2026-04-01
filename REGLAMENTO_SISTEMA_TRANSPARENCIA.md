@@ -84,11 +84,37 @@ El perfil Administrativo corresponde al responsable técnico y operativo del Sis
 
 El perfil Cargador de Información corresponde a los funcionarios responsables de generar y cargar los documentos de transparencia activa en sus respectivas unidades (Finanzas, Recursos Humanos, Adquisiciones, Obras, etc.). Sus funciones son:
 
-- **Carga de documentos según ítems asignados**: Responsabilidad de subir al Sistema los archivos correspondientes a los items de transparencia que le han sido asignados por decreto o resolución, verificando que el documento esté en formato PDF (preferentemente), contenga información completa y actualizada, y cumpla con la periodicidad establecida (mensual, trimestral, semestral o anual).
+- **Carga de documentos según ítems asignados**: Responsabilidad de subir al Sistema los archivos correspondientes a los ítems de transparencia asignados, verificando que el documento esté en formato correspondiente, que contenga información completa y actualizada, y cumpla con la periodicidad establecida (mensual, trimestral, semestral o anual).
+
+  La omisión o retraso en la carga de la información será considerada una falta, por cuanto afecta directamente el cumplimiento de las obligaciones de transparencia establecidas en la Ley 20.285 y podrá dar lugar a sanciones por parte del Consejo para la Transparencia.
+
+  **Responsabilidad especial para responsables de Fondos Menores (Cajas Chicas)**: Los usuarios que tengan fondos menores asignados mediante decreto (cajas chicas) deberán cumplir **obligatoriamente** con la carga mensual de la información de compras menores del mes en curso. Esta carga deberá incluir:
+  
+  - **Planilla con detalle de compras** en formato PDF, debidamente firmada por el Director(a) de la dirección
+  - **Detalle en formato Excel** con el desglose completo de las transacciones realizadas
 
 - **Visualización de plazos y alertas**: Acceso a un panel de control personal ("Mi Panel de Carga") donde puede consultar en tiempo real el estado de cada item asignado, visualizar alertas de color según proximidad del vencimiento (verde: al día, amarillo: próximo a vencer, rojo: vencido), conocer las fechas exactas de plazo de envío al Sistema y plazo de publicación en web, y planificar sus cargas de manera oportuna.
 
 - **Consulta de historial de cargas propias**: Capacidad para revisar el registro completo de sus cargas anteriores, incluyendo fecha y hora de carga, nombre del archivo subido, estado actual del documento (pendiente revisión, aprobado, rechazado), comentarios u observaciones realizadas por el Administrativo, y verificadores de publicación cuando estén disponibles. Esta función permite al Cargador mantener trazabilidad de su gestión y aprender de observaciones previas.
+
+- **Protección de datos personales y seguridad de la información**: El Cargador tiene la responsabilidad primaria de verificar que los documentos que suba al Sistema no contengan datos sensibles o información personal que deba ser protegida conforme a la Ley N° 19.628 sobre Protección de la Vida Privada y la Ley N° 21.096 sobre Neutralización de Datos Personales en Documentos de Transparencia Activa. 
+
+  Antes de cargar cualquier documento al Sistema, el funcionario deberá:
+  
+  - **Revisar exhaustivamente** el contenido para identificar datos personales sensibles tales como: RUT completo (debe anonimizarse dejando solo los últimos 4 dígitos), domicilios particulares, números de teléfono personales, correos electrónicos privados, información de salud, situación patrimonial de personas naturales, datos bancarios, firmas manuscritas digitalizadas, u otra información que permita identificar personas naturales no sujetas a publicidad.
+  
+  - **Aplicar técnicas de anonimización** cuando corresponda, tales como: enmascaramiento de RUT (ejemplo: **.****.***-5), eliminación de direcciones particulares, supresión de datos de contacto personal, tachado digital de firmas manuscritas (excepto cuando sean estrictamente necesarias para la validez del acto administrativo).
+  
+  - **Coordinar con su jefatura directa** cuando existan dudas sobre la publicabilidad de ciertos datos, especialmente en casos de nóminas de personal, subsidios sociales, beneficiarios de programas municipales, o información que pudiera afectar derechos fundamentales de terceros.
+  
+  El Director de la unidad administrativa es **corresponsable** de supervisar que la información remitida al Sistema cumpla con los estándares de protección de datos personales. La publicación de datos sensibles sin anonimizar constituye una **infracción grave** que puede dar lugar a:
+  
+  - Responsabilidad administrativa del Cargador y su jefatura
+  - Sanciones del Consejo para la Transparencia conforme al artículo 47 de la Ley 20.285
+  - Eventual responsabilidad civil por daños a terceros según la Ley 19.628
+  - Deber de remoción inmediata de la información y notificación a los afectados
+  
+  En caso de detectarse datos sensibles en documentos ya publicados, se deberá aplicar el procedimiento de rectificación urgente establecido en el Artículo 11 letra b) del presente manual, con notificación inmediata al Administrativo del Sistema y al Oficial de Información de la institución.
 
 - **Sin acceso a funciones administrativas**: Por razones de seguridad y segregación de funciones, el Cargador no puede crear usuarios, modificar configuraciones del Sistema, eliminar documentos de otros usuarios, ni acceder a información de items que no le han sido asignados. Su acceso está limitado estrictamente a sus propias responsabilidades de carga.
 
@@ -207,12 +233,22 @@ c) Rechazar con comentarios específicos aquellos que presenten deficiencias
 d) Registrar las observaciones en el campo de comentarios del Sistema
 
 ### Artículo 10° - Publicación y Verificación
-Una vez aprobado el documento:
 
-a) El Publicador procederá a publicar en el sitio web institucional
-b) Se tomará captura de pantalla como verificador visual
-c) Se registrará la URL exacta de publicación
-d) El verificador será cargado al Sistema dentro de las 24 horas
+El Publicador tendrá como plazo máximo los primeros 10 días hábiles del mes correspondiente al período de publicación, contados desde el primer día hábil del mes, para materializar la publicación de los documentos en el portal de transparencia activa y cargar los verificadores al Sistema. Este plazo es independiente de la fecha en que el Cargador de Información suba el documento al Sistema.
+
+El Publicador deberá:
+
+a) Publicar el documento en el portal de transparencia activa institucional dentro de los primeros 10 días hábiles del mes correspondiente
+
+b) Tomar captura de pantalla completa como verificador visual que muestre claramente el documento publicado, la URL en la barra de navegación y la fecha de visualización
+
+c) Registrar en el Sistema la imagen del verificador junto con la URL exacta de publicación
+
+d) Cargar el verificador al Sistema dentro de las 24 horas siguientes a la publicación efectiva en el sitio web
+
+**Ejemplo:** Para documentos del período marzo 2026, el plazo de publicación vence el décimo día hábil de abril 2026, independientemente de si el Cargador subió el documento el día 5 u 8 de abril.
+
+El incumplimiento del plazo de 10 días hábiles para publicar será considerado responsabilidad del Publicador y deberá ser informado al Administrativo del Sistema para los efectos administrativos correspondientes.
 
 ### Artículo 11° - Rectificación de Documentos
 
