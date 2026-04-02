@@ -486,10 +486,10 @@ class CorreoManager {
             }
             
             // Buscar documento
-            $stmt = $this->conn->prepare("SELECT d.id, d.fecha_envio 
+            $stmt = $this->conn->prepare("SELECT d.id, d.fecha_subida 
                 FROM documentos d
                 WHERE d.item_id = ? AND d.mes_carga = ? AND d.ano_carga = ?
-                ORDER BY d.fecha_envio DESC
+                ORDER BY d.fecha_subida DESC
                 LIMIT 1");
             $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
             $stmt->execute();
@@ -534,12 +534,12 @@ class CorreoManager {
             if ($verificador) {
                 $items_publicados++;
                 $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
-                $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_envio'])) . '</td>';
+                $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) . '</td>';
             } elseif ($documento) {
                 $items_cargados++;
                 $html .= '<td style="color:orange;"><strong>⚠ Cargado (sin publicar)</strong></td>';
-                $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_envio'])) . '</td>';
+                $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
                 $html .= '<td><em>Pendiente</em></td>';
             } elseif ($sinMovimiento) {
                 $items_cargados++;
