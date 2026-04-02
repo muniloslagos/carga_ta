@@ -163,6 +163,20 @@ while ($row = $resultado->fetch_assoc()) {
     }
 }
 
+// Pre-fetch observaciones "Sin Movimiento" para todos los items del usuario
+$sinMovimientoCache = [];
+$tableCheck = $conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
+if ($tableCheck && $tableCheck->num_rows > 0) {
+    $stmtSinMov = $conn->prepare("SELECT item_id, mes, ano FROM observaciones_sin_movimiento GROUP BY item_id, mes, ano");
+    $stmtSinMov->execute();
+    $resSinMov = $stmtSinMov->get_result();
+    while ($rowSinMov = $resSinMov->fetch_assoc()) {
+        $key = $rowSinMov['item_id'] . '_' . $rowSinMov['mes'] . '_' . $rowSinMov['ano'];
+        $sinMovimientoCache[$key] = true;
+    }
+    $stmtSinMov->close();
+}
+
 // Calcular documentos pendientes por periodicidad
 // Para MENSUAL: usar mes/año seleccionado (del selector)
 $contador = 0;
@@ -171,10 +185,14 @@ foreach ($itemsPorPeriodicidad['mensual'] as $item) {
     $tieneDocumento = false;
     
     if ($docsResult && $docsResult->num_rows > 0) {
-            // Si existe cualquier documento para el item, está cubierto
-            // (los items ya están filtrados por asignación para cargadores)
             $tieneDocumento = true;
         }
+    
+    // Sin Movimiento cuenta como documento enviado
+    $sinMovKeyM = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
+    if (isset($sinMovimientoCache[$sinMovKeyM])) {
+        $tieneDocumento = true;
+    }
     
     if (!$tieneDocumento) {
         $contador++;
@@ -190,15 +208,20 @@ foreach (['trimestral', 'semestral', 'anual', 'ocurrencia'] as $periodicidad) {
         // Para ANUAL, buscar sin mes (por año completo)
         if ($periodicidad === 'anual') {
             $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
+            $sinMovKeyP = $item['id'] . '_1_' . $anoActual;
         } else {
             $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesActual, $anoActual);
+            $sinMovKeyP = $item['id'] . '_' . $mesActual . '_' . $anoActual;
         }
         
         $tieneDocumento = false;
         
         if ($docsResult && $docsResult->num_rows > 0) {
-            // Si existe cualquier documento para el item, está cubierto
-            // (los items ya están filtrados por asignación para cargadores)
+            $tieneDocumento = true;
+        }
+        
+        // Sin Movimiento cuenta como documento enviado
+        if (isset($sinMovimientoCache[$sinMovKeyP])) {
             $tieneDocumento = true;
         }
         
@@ -442,14 +465,18 @@ if (isset($_SESSION['success'])) {
                                     } else {
                                         $cargaPortal = '<span class="text-muted">Pendiente</span>';
                                     }
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
-                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
-                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                        if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'pendiente'; }
                                     }
                                     
                                     // Badge estado
@@ -628,14 +655,18 @@ if (isset($_SESSION['success'])) {
                                         $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
-                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
-                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                        if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'pendiente'; }
                                     }
                                     ?>
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
@@ -677,7 +708,7 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
-                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <?php if (!$ultimoDoc && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
                                                 <button class="btn btn-sm btn-outline-dark" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalSinMovimiento"
@@ -791,14 +822,18 @@ if (isset($_SESSION['success'])) {
                                         $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
-                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
-                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                        if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'pendiente'; }
                                     }
                                     ?>
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
@@ -848,7 +883,7 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
-                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <?php if (!$ultimoDoc && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
                                                 <button class="btn btn-sm btn-outline-dark" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalSinMovimiento"
@@ -972,14 +1007,18 @@ if (isset($_SESSION['success'])) {
                                         $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_1_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs (anual)
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($tieneDocDelUsuario) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
-                                        $rowClass = $tieneDocDelUsuario ? 'table-success' : 'table-danger';
-                                        $dataEstado = $tieneDocDelUsuario ? 'cargado' : 'pendiente';
+                                        if ($tieneDocDelUsuario || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'pendiente'; }
                                     }
                                     ?>
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
@@ -1029,7 +1068,7 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
-                                                <?php if (!$tieneDocDelUsuario && ($user_perfil !== 'publicador')): ?>
+                                                <?php if (!$tieneDocDelUsuario && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
                                                 <button class="btn btn-sm btn-outline-dark" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalSinMovimiento"
@@ -1138,14 +1177,18 @@ if (isset($_SESSION['success'])) {
                                         $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
-                                        $rowClass = $ultimoDoc ? 'table-success' : 'table-danger';
-                                        $dataEstado = $ultimoDoc ? 'cargado' : 'pendiente';
+                                        if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
+                                        else { $rowClass = 'table-danger'; $dataEstado = 'pendiente'; }
                                     }
                                     ?>
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
@@ -1195,7 +1238,7 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
-                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <?php if (!$ultimoDoc && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
                                                 <button class="btn btn-sm btn-outline-dark" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalSinMovimiento"
@@ -1746,11 +1789,8 @@ function guardarSinMovimiento() {
             // Cerrar modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalSinMovimiento'));
             modal.hide();
-            // Mostrar mensaje
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
-            alertDiv.innerHTML = '<i class="bi bi-check-circle"></i> ' + data.message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-            document.querySelector('.page-header').after(alertDiv);
+            // Recargar para actualizar colores y contadores
+            location.reload();
         } else {
             alert('Error: ' + (data.error || 'Error desconocido'));
         }
