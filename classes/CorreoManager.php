@@ -186,7 +186,7 @@ class CorreoManager {
                     u.email
                 FROM usuarios u
                 INNER JOIN usuario_items ui ON u.id = ui.usuario_id
-                INNER JOIN items i ON ui.item_id = i.id AND i.activo = 1
+                INNER JOIN items_transparencia i ON ui.item_id = i.id AND i.activo = 1
                 WHERE u.perfil = 'cargador_informacion' AND u.activo = 1
                 ORDER BY u.nombre";
         
@@ -225,7 +225,7 @@ class CorreoManager {
      */
     private function obtenerItemsUsuario($usuario_id) {
         $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.codigo, i.periodicidad
-            FROM items i
+            FROM items_transparencia i
             INNER JOIN usuario_items ui ON i.id = ui.item_id
             WHERE ui.usuario_id = ? AND i.activo = 1
             ORDER BY i.codigo, i.nombre");
