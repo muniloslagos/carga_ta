@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'danger';
         }
     } elseif (isset($_POST['probar_smtp'])) {
-        // Probar conexión SMTP usando datos del formulario (no necesariamente guardados)
+        // Probar conexión SMTP usando datos guardados en BD
         try {
             $correo_prueba = trim($_POST['correo_prueba'] ?? '');
             
@@ -109,18 +109,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Ingrese un correo electrónico válido para la prueba');
             }
             
-            // Obtener datos del formulario
-            $smtp_host = trim($_POST['smtp_host'] ?? '');
-            $smtp_port = (int)($_POST['smtp_port'] ?? 587);
-            $smtp_usuario = trim($_POST['smtp_usuario'] ?? '');
-            $smtp_password = trim($_POST['smtp_password'] ?? '');
-            $smtp_encriptacion = $_POST['smtp_encriptacion'] ?? 'tls';
-            $smtp_de_correo = trim($_POST['smtp_de_correo'] ?? '');
-            $smtp_de_nombre = trim($_POST['smtp_de_nombre'] ?? 'Sistema de Transparencia');
+            // Obtener configuración guardada de la BD
+            $config_bd = $conn->query("SELECT * FROM configuracion_smtp ORDER BY id DESC LIMIT 1")->fetch_assoc();
             
-            // Validar datos requeridos
+            if (!$config_bd) {
+                throw new Exception('No existe configuración SMTP. Guarde la configuración primero antes de probar.');
+            }
+            
+            $smtp_host = $config_bd['smtp_host'];
+            $smtp_port = (int)$config_bd['smtp_port'];
+            $smtp_usuario = $config_bd['smtp_usuario'];
+            $smtp_password = $config_bd['smtp_password'];
+            $smtp_encriptacion = $config_bd['smtp_encriptacion'];
+            $smtp_de_correo = $config_bd['smtp_de_correo'];
+            $smtp_de_nombre = $config_bd['smtp_de_nombre'];
+            
+            // Validar datos guardados
             if (empty($smtp_host) || empty($smtp_usuario) || empty($smtp_password) || empty($smtp_de_correo)) {
-                throw new Exception('Complete todos los campos obligatorios antes de probar');
+                throw new Exception('La configuración guardada está incompleta. Complete todos los campos y guarde antes de probar.');
             }
             
             // Usar PHPMailer directamente para probar
@@ -169,12 +175,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mail->send();
             
             $mensaje = '✓ Correo de prueba enviado exitosamente a ' . htmlspecialchars($correo_prueba);
-            $mensaje .= '<br><small class="text-muted">Revisa tu bandeja de entrada y carpeta de spam. Si llegó, guarda la configuración para activarla.</small>';
+            $mensaje .= '<br><small class="text-muted">Revisa tu bandeja de entrada y carpeta de spam.</small>';
             $tipo_mensaje = 'success';
+            
+            // Marcar como verificado
+            $conn->query("UPDATE configuracion_smtp SET smtp_verificado = 1");
             
         } catch (Exception $e) {
             $error = 'Error en prueba SMTP: ' . $e->getMessage();
             $tipo_mensaje = 'danger';
+            
+            // Marcar como no verificado si existe configuración
+            $conn->query("UPDATE configuracion_smtp SET smtp_verificado = 0");
         }
     }
 }
@@ -379,7 +391,11 @@ if (!$config_smtp) {
                     <h5 class="mb-0"><i class="bi bi-send-check"></i> Probar Conexión</h5>
                 </div>
                 <div class="card-body">
-                    <p class="mb-3">Envíe un correo de prueba para verificar que la configuración funciona correctamente.</p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Importante:</strong> Guarde la configuración arriba primero, luego envíe una prueba aquí.
+                    </div>
+                    <p class="mb-3">Envíe un correo de prueba para verificar que la configuración guardada funciona correctamente.</p>
                     <form method="POST">
                         <div class="mb-3">
                             <label for="correo_prueba" class="form-label">Correo de destino:</label>
