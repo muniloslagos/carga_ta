@@ -101,42 +101,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'danger';
         }
     } elseif (isset($_POST['probar_smtp'])) {
-        // Probar conexión SMTP
-        require_once dirname(dirname(__DIR__)) . '/classes/EmailSender.php';
-        
+        // Probar conexión SMTP usando datos del formulario (no necesariamente guardados)
         try {
-            $email_sender = new EmailSender();
             $correo_prueba = trim($_POST['correo_prueba'] ?? '');
             
             if (empty($correo_prueba) || !filter_var($correo_prueba, FILTER_VALIDATE_EMAIL)) {
                 throw new Exception('Ingrese un correo electrónico válido para la prueba');
             }
             
-            $asunto = 'Prueba de Configuración SMTP - Sistema de Transparencia';
-            $cuerpo = '<h2>Prueba de Configuración SMTP</h2>';
-            $cuerpo .= '<p>Este es un correo de prueba para verificar la configuración del servidor SMTP.</p>';
-            $cuerpo .= '<p><strong>Fecha:</strong> ' . date('d/m/Y H:i:s') . '</p>';
-            $cuerpo .= '<p><strong>Sistema:</strong> Sistema de Transparencia Activa</p>';
-            $cuerpo .= '<p><strong>Municipalidad:</strong> Los Lagos</p>';
-            $cuerpo .= '<hr>';
-            $cuerpo .= '<p><small>Si recibió este correo, la configuración SMTP está funcionando correctamente.</small></p>';
+            // Obtener datos del formulario
+            $smtp_host = trim($_POST['smtp_host'] ?? '');
+            $smtp_port = (int)($_POST['smtp_port'] ?? 587);
+            $smtp_usuario = trim($_POST['smtp_usuario'] ?? '');
+            $smtp_password = trim($_POST['smtp_password'] ?? '');
+            $smtp_encriptacion = $_POST['smtp_encriptacion'] ?? 'tls';
+            $smtp_de_correo = trim($_POST['smtp_de_correo'] ?? '');
+            $smtp_de_nombre = trim($_POST['smtp_de_nombre'] ?? 'Sistema de Transparencia');
             
-            if ($email_sender->enviarCorreo($correo_prueba, $asunto, $cuerpo)) {
-                $mensaje = 'Correo de prueba enviado exitosamente a ' . htmlspecialchars($correo_prueba);
-                $tipo_mensaje = 'success';
-                
-                // Marcar como verificado
-                $conn->query("UPDATE configuracion_smtp SET smtp_verificado = 1");
-            } else {
-                throw new Exception('Error al enviar el correo de prueba: ' . $email_sender->getError());
+            // Validar datos requeridos
+            if (empty($smtp_host) || empty($smtp_usuario) || empty($smtp_password) || empty($smtp_de_correo)) {
+                throw new Exception('Complete todos los campos obligatorios antes de probar');
             }
+            
+            // Usar PHPMailer directamente para probar
+            require_once dirname(dirname(__DIR__)) . '/vendor/phpmailer/phpmailer/src/Exception.php';
+            require_once dirname(dirname(__DIR__)) . '/vendor/phpmailer/phpmailer/src/PHPMailer.php';
+            require_once dirname(dirname(__DIR__)) . '/vendor/phpmailer/phpmailer/src/SMTP.php';
+            
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+            
+            // Configuración del servidor
+            $mail->isSMTP();
+            $mail->Host = $smtp_host;
+            $mail->SMTPAuth = true;
+            $mail->Username = $smtp_usuario;
+            $mail->Password = $smtp_password;
+            $mail->Port = $smtp_port;
+            
+            // Configurar encriptación
+            if ($smtp_encriptacion === 'ssl') {
+                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+            } elseif ($smtp_encriptacion === 'tls') {
+                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            }
+            
+            // Configuración de caracteres
+            $mail->CharSet = 'UTF-8';
+            $mail->Encoding = 'base64';
+            
+            // Remitente
+            $mail->setFrom($smtp_de_correo, $smtp_de_nombre);
+            
+            // Destinatario
+            $mail->addAddress($correo_prueba);
+            
+            // Contenido
+            $mail->isHTML(true);
+            $mail->Subject = 'Prueba de Configuración SMTP - Sistema de Transparencia';
+            $mail->Body = '<h2>Prueba de Configuración SMTP</h2>';
+            $mail->Body .= '<p>Este es un correo de prueba para verificar la configuración del servidor SMTP.</p>';
+            $mail->Body .= '<p><strong>Fecha:</strong> ' . date('d/m/Y H:i:s') . '</p>';
+            $mail->Body .= '<p><strong>Servidor:</strong> ' . htmlspecialchars($smtp_host) . ':' . $smtp_port . '</p>';
+            $mail->Body .= '<p><strong>Encriptación:</strong> ' . strtoupper($smtp_encriptacion) . '</p>';
+            $mail->Body .= '<hr><p><small>Si recibió este correo, la configuración SMTP está funcionando correctamente.</small></p>';
+            $mail->AltBody = 'Prueba SMTP';
+            
+            $mail->send();
+            
+            $mensaje = '✓ Correo de prueba enviado exitosamente a ' . htmlspecialchars($correo_prueba);
+            $mensaje .= '<br><small class="text-muted">Revisa tu bandeja de entrada y carpeta de spam. Si llegó, guarda la configuración para activarla.</small>';
+            $tipo_mensaje = 'success';
             
         } catch (Exception $e) {
             $error = 'Error en prueba SMTP: ' . $e->getMessage();
             $tipo_mensaje = 'danger';
-            
-            // Marcar como no verificado
-            $conn->query("UPDATE configuracion_smtp SET smtp_verificado = 0");
         }
     }
 }
