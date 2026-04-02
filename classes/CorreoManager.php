@@ -224,11 +224,11 @@ class CorreoManager {
      * Obtener ítems asignados a un usuario
      */
     private function obtenerItemsUsuario($usuario_id) {
-        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.codigo, i.periodicidad
+        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.numeracion, i.periodicidad
             FROM items_transparencia i
             INNER JOIN item_usuarios ui ON i.id = ui.item_id
             WHERE ui.usuario_id = ? AND i.activo = 1
-            ORDER BY i.codigo, i.nombre");
+            ORDER BY i.numeracion, i.nombre");
         $stmt->bind_param('i', $usuario_id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -251,7 +251,7 @@ class CorreoManager {
         
         $html = '<ul>';
         foreach ($items as $item) {
-            $html .= '<li><strong>' . htmlspecialchars($item['codigo']) . '</strong>: ' . 
+            $html .= '<li><strong>' . htmlspecialchars($item['numeracion']) . '</strong>: ' . 
                      htmlspecialchars($item['nombre']) . ' (' . htmlspecialchars($item['periodicidad']) . ')</li>';
         }
         $html .= '</ul>';
