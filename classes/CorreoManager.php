@@ -52,7 +52,7 @@ class CorreoManager {
             try {
                 // Reemplazar variables en la plantilla
                 $variables = [
-                    '{nombre_usuario}' => $cargador['nombre'] . ' ' . $cargador['apellido'],
+                    '{nombre_usuario}' => $cargador['nombre'],
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
                     '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
@@ -65,7 +65,7 @@ class CorreoManager {
                 $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
                 
                 // Enviar correo
-                if ($this->email_sender->enviarCorreo($cargador['email'], $asunto, $cuerpo, $cargador['nombre'] . ' ' . $cargador['apellido'])) {
+                if ($this->email_sender->enviarCorreo($cargador['email'], $asunto, $cuerpo, $cargador['nombre'])) {
                     $exitosos++;
                     $detalles[] = [
                         'usuario_id' => $cargador['id'],
@@ -135,7 +135,7 @@ class CorreoManager {
         
         // Reemplazar variables
         $variables = [
-            '{nombre_usuario}' => $cargador['nombre'] . ' ' . $cargador['apellido'],
+            '{nombre_usuario}' => $cargador['nombre'],
             '{mes_carga}' => $this->nombreMes($mes),
             '{ano_carga}' => $ano,
             '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
@@ -148,7 +148,7 @@ class CorreoManager {
         $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
         
         // Enviar correo
-        if (!$this->email_sender->enviarCorreo($cargador['email'], $asunto, $cuerpo, $cargador['nombre'] . ' ' . $cargador['apellido'])) {
+        if (!$this->email_sender->enviarCorreo($cargador['email'], $asunto, $cuerpo, $cargador['nombre'])) {
             throw new Exception('Error al enviar correo: ' . $this->email_sender->getError());
         }
         
@@ -183,13 +183,12 @@ class CorreoManager {
         $query = "SELECT DISTINCT 
                     u.id, 
                     u.nombre, 
-                    u.apellido, 
                     u.email
                 FROM usuarios u
                 INNER JOIN usuario_items ui ON u.id = ui.usuario_id
                 INNER JOIN items i ON ui.item_id = i.id AND i.activo = 1
                 WHERE u.perfil = 'cargador_informacion' AND u.activo = 1
-                ORDER BY u.nombre, u.apellido";
+                ORDER BY u.nombre";
         
         $result = $this->conn->query($query);
         $cargadores = [];
@@ -206,7 +205,7 @@ class CorreoManager {
      * Obtener un cargador específico con sus ítems
      */
     private function obtenerCargadorConItems($usuario_id) {
-        $stmt = $this->conn->prepare("SELECT id, nombre, apellido, email 
+        $stmt = $this->conn->prepare("SELECT id, nombre, email 
             FROM usuarios 
             WHERE id = ? AND perfil = 'cargador_informacion' AND activo = 1");
         $stmt->bind_param('i', $usuario_id);

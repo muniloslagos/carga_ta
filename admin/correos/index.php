@@ -103,7 +103,7 @@ while ($row = $result->fetch_assoc()) {
 }
 
 // Obtener usuarios cargadores para selector
-$cargadores_query = "SELECT id, nombre, apellido, email FROM usuarios WHERE perfil = 'cargador_informacion' AND activo = 1 ORDER BY nombre, apellido";
+$cargadores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'cargador_informacion' AND activo = 1 ORDER BY nombre";
 $cargadores = $conn->query($cargadores_query);
 
 // Obtener historial reciente de envíos
@@ -278,7 +278,7 @@ $meses = [
                                                 <option value="">Seleccione un cargador...</option>
                                                 <?php while ($cargador = $cargadores->fetch_assoc()): ?>
                                                     <option value="<?= $cargador['id'] ?>">
-                                                        <?= htmlspecialchars($cargador['nombre'] . ' ' . $cargador['apellido']) ?>
+                                                        <?= htmlspecialchars($cargador['nombre']) ?>
                                                         (<?= htmlspecialchars($cargador['email']) ?>)
                                                     </option>
                                                 <?php endwhile; ?>
