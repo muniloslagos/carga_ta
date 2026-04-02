@@ -6,7 +6,12 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 require_once 'config/config.php';
+require_once 'config/Database.php';
 require_once 'classes/EmailSender.php';
+
+// Inicializar base de datos
+$database = new Database();
+$conn = $database->getConnection();
 
 echo "<h2>Diagnóstico de Envío de Correo</h2>";
 echo "<pre>";
@@ -27,7 +32,7 @@ if (file_exists($phpmailer_path)) {
 
 // 2. Verificar configuración SMTP
 echo "\n2. Verificando configuración SMTP...\n";
-$result = $db->getConnection()->query("SELECT * FROM configuracion_smtp WHERE smtp_activo = 1 LIMIT 1");
+$result = $conn->query("SELECT * FROM configuracion_smtp WHERE smtp_activo = 1 LIMIT 1");
 if ($result && $result->num_rows > 0) {
     $config = $result->fetch_assoc();
     echo "   ✓ Host: " . $config['smtp_host'] . "\n";
