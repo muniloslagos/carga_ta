@@ -93,6 +93,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'danger';
         }
     }
+    
+    // Enviar correo masivo (fin de proceso cargadores)
+    elseif (isset($_POST['enviar_masivo_fin_cargadores'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarFinProcesoCargadores($mes, $ano);
+            
+            $mensaje = "Envío masivo completado: {$resultado['exitosos']} correos enviados, {$resultado['fallidos']} fallidos";
+            $tipo_mensaje = $resultado['fallidos'] > 0 ? 'warning' : 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error en envío masivo: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+    
+    // Enviar correo individual (fin de proceso cargadores)
+    elseif (isset($_POST['enviar_individual_fin_cargadores'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $usuario_id = (int)$_POST['usuario_id'];
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarFinProcesoCargadoresIndividual($usuario_id, $mes, $ano);
+            
+            $mensaje = "Correo enviado exitosamente";
+            $tipo_mensaje = 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error al enviar: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
 }
 
 // Obtener plantillas
@@ -105,6 +146,7 @@ while ($row = $result->fetch_assoc()) {
 // Obtener usuarios cargadores para selector
 $cargadores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'cargador_informacion' AND activo = 1 ORDER BY nombre";
 $cargadores = $conn->query($cargadores_query);
+$cargadores2 = $conn->query($cargadores_query); // Segunda copia para el segundo form
 
 // Obtener historial reciente de envíos
 $historial_query = "SELECT h.*, p.tipo, u.nombre as enviado_por_nombre 
@@ -321,10 +363,125 @@ $meses = [
                 <div class="card-body">
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i>
-                        <strong>Descripción:</strong> Este correo se envía cuando vence el plazo de carga (6 días hábiles) con el resumen del estado de cada cargador.
+                        <strong>Descripción:</strong> Este correo se envía cuando vence el plazo de carga con el resumen del estado de cada cargador (documentos cargados, pendientes, fechas).
                     </div>
+
+                    <!-- Editor de Plantilla -->
+                    <form method="POST" class="mb-4">
+                        <input type="hidden" name="tipo_plantilla" value="fin_proceso_cargadores">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-10">
+                                <label class="form-label">Asunto del correo:</label>
+                                <input type="text" name="asunto" class="form-control" 
+                                       value="<?= htmlspecialchars($plantillas['fin_proceso_cargadores']['asunto']) ?>" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Envío automático:</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="envio_automatico" 
+                                           <?= $plantillas['fin_proceso_cargadores']['envio_automatico'] ? 'checked' : '' ?>>
+                                    <label class="form-check-label">Activar</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Cuerpo del mensaje (HTML):</label>
+                            <textarea name="cuerpo" class="form-control" rows="12" required><?= htmlspecialchars($plantillas['fin_proceso_cargadores']['cuerpo']) ?></textarea>
+                            <small class="text-muted">
+                                <strong>Variables disponibles:</strong> 
+                                {nombre_usuario}, {mes_carga}, {ano_carga}, {resumen_carga}, {fecha_limite}
+                            </small>
+                        </div>
+
+                        <button type="submit" name="guardar_plantilla" class="btn btn-success">
+                            <i class="bi bi-save"></i> Guardar Plantilla
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <!-- Formulario de Envío -->
+                    <h5><i class="bi bi-send"></i> Enviar Notificaciones</h5>
                     
-                    <p class="text-muted"><em>Funcionalidad en desarrollo...</em></p>
+                    <div class="row">
+                        <!-- Envío Masivo -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">Envío Masivo</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="enviar_masivo_fin_cargadores" class="btn btn-success w-100">
+                                            <i class="bi bi-send-fill"></i> Enviar a Todos los Cargadores
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Envío Individual -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-warning">
+                                    <h6 class="mb-0">Envío Individual</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Usuario:</label>
+                                            <select name="usuario_id" class="form-select" required>
+                                                <option value="">Seleccione un cargador...</option>
+                                                <?php while ($cargador = $cargadores2->fetch_assoc()): ?>
+                                                    <option value="<?= $cargador['id'] ?>">
+                                                        <?= htmlspecialchars($cargador['nombre']) ?>
+                                                        (<?= htmlspecialchars($cargador['email']) ?>)
+                                                    </option>
+                                                <?php endwhile; ?>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="enviar_individual_fin_cargadores" class="btn btn-warning w-100">
+                                            <i class="bi bi-send"></i> Enviar a Usuario Específico
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
