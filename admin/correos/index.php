@@ -1,0 +1,410 @@
+<?php
+require_once dirname(dirname(__DIR__)) . '/includes/check_auth.php';
+
+// Verificar permisos - Solo administrativo
+if ($current_profile !== 'administrativo') {
+    header('Location: ' . SITE_URL . 'login.php');
+    exit;
+}
+
+require_once dirname(dirname(__DIR__)) . '/includes/header.php';
+require_once dirname(dirname(__DIR__)) . '/classes/EmailSender.php';
+
+$conn = $db->getConnection();
+$mensaje = '';
+$error = '';
+$tipo_mensaje = 'success';
+
+// Procesar formularios
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    
+    // Guardar plantilla editada
+    if (isset($_POST['guardar_plantilla'])) {
+        try {
+            $tipo = $_POST['tipo_plantilla'];
+            $asunto = trim($_POST['asunto']);
+            $cuerpo = trim($_POST['cuerpo']);
+            $envio_automatico = isset($_POST['envio_automatico']) ? 1 : 0;
+            
+            if (empty($asunto) || empty($cuerpo)) {
+                throw new Exception('El asunto y el cuerpo son obligatorios');
+            }
+            
+            $stmt = $conn->prepare("UPDATE plantillas_correo SET 
+                asunto = ?, 
+                cuerpo = ?, 
+                envio_automatico = ?,
+                modificado_por = ?
+                WHERE tipo = ?");
+            $stmt->bind_param('ssiss', $asunto, $cuerpo, $envio_automatico, $_SESSION['user_id'], $tipo);
+            
+            if ($stmt->execute()) {
+                $mensaje = 'Plantilla guardada exitosamente';
+                $tipo_mensaje = 'success';
+            } else {
+                throw new Exception('Error al guardar la plantilla');
+            }
+            
+            $stmt->close();
+            
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+    
+    // Enviar correo masivo (inicio de proceso)
+    elseif (isset($_POST['enviar_masivo_inicio'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarInicioProceso($mes, $ano);
+            
+            $mensaje = "Envío masivo completado: {$resultado['exitosos']} correos enviados, {$resultado['fallidos']} fallidos";
+            $tipo_mensaje = $resultado['fallidos'] > 0 ? 'warning' : 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error en envío masivo: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+    
+    // Enviar correo individual (inicio de proceso)
+    elseif (isset($_POST['enviar_individual_inicio'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $usuario_id = (int)$_POST['usuario_id'];
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarInicioProcesoIndividual($usuario_id, $mes, $ano);
+            
+            $mensaje = "Correo enviado exitosamente";
+            $tipo_mensaje = 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error al enviar: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+}
+
+// Obtener plantillas
+$plantillas = [];
+$result = $conn->query("SELECT * FROM plantillas_correo ORDER BY FIELD(tipo, 'inicio_proceso', 'fin_proceso_cargadores', 'fin_proceso_general')");
+while ($row = $result->fetch_assoc()) {
+    $plantillas[$row['tipo']] = $row;
+}
+
+// Obtener usuarios cargadores para selector
+$cargadores_query = "SELECT id, nombre, apellido, email FROM usuarios WHERE perfil = 'cargador_informacion' AND activo = 1 ORDER BY nombre, apellido";
+$cargadores = $conn->query($cargadores_query);
+
+// Obtener historial reciente de envíos
+$historial_query = "SELECT h.*, p.tipo, u.nombre as enviado_por_nombre 
+    FROM historial_envios_correo h
+    JOIN plantillas_correo p ON h.plantilla_id = p.id
+    JOIN usuarios u ON h.enviado_por = u.id
+    ORDER BY h.fecha_envio DESC
+    LIMIT 20";
+$historial = $conn->query($historial_query);
+
+// Mes y año actuales
+$mes_actual = (int)date('n');
+$ano_actual = (int)date('Y');
+$meses = [
+    1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+    5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+    9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+];
+?>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="bi bi-envelope"></i> Gestión de Correos Automáticos</h2>
+                    <p class="text-muted">Configure y envíe notificaciones automáticas a los usuarios</p>
+                </div>
+                <a href="../index.php" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <?php if (!empty($mensaje)): ?>
+        <div class="alert alert-<?= $tipo_mensaje ?> alert-dismissible fade show">
+            <?= htmlspecialchars($mensaje) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger alert-dismissible fade show">
+            <?= htmlspecialchars($error) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+
+    <!-- Tabs de navegación -->
+    <ul class="nav nav-tabs" id="correosTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="inicio-tab" data-bs-toggle="tab" data-bs-target="#inicio" type="button">
+                <i class="bi bi-play-circle"></i> Inicio de Proceso
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="fin-cargadores-tab" data-bs-toggle="tab" data-bs-target="#fin-cargadores" type="button">
+                <i class="bi bi-clock-history"></i> Fin Proceso - Cargadores
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="fin-general-tab" data-bs-toggle="tab" data-bs-target="#fin-general" type="button">
+                <i class="bi bi-bar-chart"></i> Fin Proceso - General
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="historial-tab" data-bs-toggle="tab" data-bs-target="#historial" type="button">
+                <i class="bi bi-list-check"></i> Historial de Envíos
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="correosTabContent">
+        
+        <!-- TAB 1: INICIO DE PROCESO -->
+        <div class="tab-pane fade show active" id="inicio" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-play-circle"></i> Notificación de Inicio de Proceso</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Descripción:</strong> Este correo se envía a cada Cargador de Información al inicio del mes con los ítems que debe cargar.
+                    </div>
+
+                    <!-- Editor de Plantilla -->
+                    <form method="POST" class="mb-4">
+                        <input type="hidden" name="tipo_plantilla" value="inicio_proceso">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-10">
+                                <label class="form-label">Asunto del correo:</label>
+                                <input type="text" name="asunto" class="form-control" 
+                                       value="<?= htmlspecialchars($plantillas['inicio_proceso']['asunto']) ?>" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Envío automático:</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="envio_automatico" 
+                                           <?= $plantillas['inicio_proceso']['envio_automatico'] ? 'checked' : '' ?>>
+                                    <label class="form-check-label">Activar</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Cuerpo del mensaje (HTML):</label>
+                            <textarea name="cuerpo" class="form-control" rows="12" required><?= htmlspecialchars($plantillas['inicio_proceso']['cuerpo']) ?></textarea>
+                            <small class="text-muted">
+                                <strong>Variables disponibles:</strong> 
+                                {nombre_usuario}, {mes_carga}, {ano_carga}, {mes_siguiente}, {items_asignados}, {plazo_dias}, {fecha_limite}
+                            </small>
+                        </div>
+
+                        <button type="submit" name="guardar_plantilla" class="btn btn-success">
+                            <i class="bi bi-save"></i> Guardar Plantilla
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <!-- Formulario de Envío -->
+                    <h5><i class="bi bi-send"></i> Enviar Notificaciones</h5>
+                    
+                    <div class="row">
+                        <!-- Envío Masivo -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">Envío Masivo</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="enviar_masivo_inicio" class="btn btn-success w-100">
+                                            <i class="bi bi-send-fill"></i> Enviar a Todos los Cargadores
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Envío Individual -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-warning">
+                                    <h6 class="mb-0">Envío Individual</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Usuario:</label>
+                                            <select name="usuario_id" class="form-select" required>
+                                                <option value="">Seleccione un cargador...</option>
+                                                <?php while ($cargador = $cargadores->fetch_assoc()): ?>
+                                                    <option value="<?= $cargador['id'] ?>">
+                                                        <?= htmlspecialchars($cargador['nombre'] . ' ' . $cargador['apellido']) ?>
+                                                        (<?= htmlspecialchars($cargador['email']) ?>)
+                                                    </option>
+                                                <?php endwhile; ?>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="enviar_individual_inicio" class="btn btn-warning w-100">
+                                            <i class="bi bi-send"></i> Enviar a Usuario Específico
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: FIN PROCESO CARGADORES -->
+        <div class="tab-pane fade" id="fin-cargadores" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Notificación de Fin de Proceso - Cargadores</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Descripción:</strong> Este correo se envía cuando vence el plazo de carga (6 días hábiles) con el resumen del estado de cada cargador.
+                    </div>
+                    
+                    <p class="text-muted"><em>Funcionalidad en desarrollo...</em></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: FIN PROCESO GENERAL -->
+        <div class="tab-pane fade" id="fin-general" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Resumen General del Proceso</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Descripción:</strong> Correo de resumen con estadísticas para Director/Administrador cuando finaliza todo el proceso.
+                    </div>
+                    
+                    <p class="text-muted"><em>Funcionalidad en desarrollo...</em></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: HISTORIAL -->
+        <div class="tab-pane fade" id="historial" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Historial de Envíos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Envío</th>
+                                    <th>Período</th>
+                                    <th>Enviados</th>
+                                    <th>Fallidos</th>
+                                    <th>Enviado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if ($historial->num_rows > 0): ?>
+                                    <?php while ($h = $historial->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= date('d/m/Y H:i', strtotime($h['fecha_envio'])) ?></td>
+                                            <td>
+                                                <?php
+                                                $tipos = [
+                                                    'inicio_proceso' => '<span class="badge bg-primary">Inicio</span>',
+                                                    'fin_proceso_cargadores' => '<span class="badge bg-warning">Fin Cargadores</span>',
+                                                    'fin_proceso_general' => '<span class="badge bg-info">Fin General</span>'
+                                                ];
+                                                echo $tipos[$h['tipo']] ?? $h['tipo'];
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <?= $h['tipo_envio'] === 'masivo' ? 
+                                                    '<span class="badge bg-success">Masivo</span>' : 
+                                                    '<span class="badge bg-secondary">Individual</span>' ?>
+                                            </td>
+                                            <td><?= $h['mes_periodo'] ? $meses[$h['mes_periodo']] . ' ' . $h['ano_periodo'] : '-' ?></td>
+                                            <td><?= $h['correos_enviados'] ?></td>
+                                            <td><?= $h['correos_fallidos'] > 0 ? '<span class="text-danger">' . $h['correos_fallidos'] . '</span>' : '0' ?></td>
+                                            <td><?= htmlspecialchars($h['enviado_por_nombre']) ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">No hay envíos registrados</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tab-content -->
+</div>
+
+<?php require_once dirname(dirname(__DIR__)) . '/includes/footer.php'; ?>
