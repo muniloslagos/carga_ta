@@ -9,31 +9,31 @@ class Historial {
 
     /**
      * Obtener historial completo de un item
-     * Incluye: documentos cargados, verificadores agregados
+     * Incluye: documentos cargados, verificadores agregados, observaciones sin movimiento
      */
     public function getHistorialItem($item_id, $mes = null, $ano = null) {
         $movimientos = [];
 
         // 1. Documentos cargados (con usuario y fecha)
+        // Usar mes_carga/ano_carga de documentos (más confiable que documento_seguimiento)
         $sql = "SELECT 
                 d.id as documento_id,
                 'documento_cargado' as tipo_movimiento,
                 u.nombre as usuario,
                 d.fecha_subida as fecha,
                 d.titulo,
-                ds.mes,
-                ds.ano,
+                d.mes_carga as mes,
+                d.ano_carga as ano,
                 d.archivo
                 FROM documentos d
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
-                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 WHERE d.item_id = ?";
 
         $params = [$item_id];
         $types = "i";
 
         if ($mes !== null && $ano !== null) {
-            $sql .= " AND ds.mes = ? AND ds.ano = ?";
+            $sql .= " AND d.mes_carga = ? AND d.ano_carga = ?";
             $params[] = $mes;
             $params[] = $ano;
             $types .= "ii";
@@ -67,19 +67,18 @@ class Historial {
                 vp.fecha_carga_portal as fecha,
                 vp.archivo_verificador,
                 d.titulo as documento_titulo,
-                ds.mes,
-                ds.ano
+                d.mes_carga as mes,
+                d.ano_carga as ano
                 FROM verificadores_publicador vp
                 LEFT JOIN usuarios u ON vp.publicador_id = u.id
                 LEFT JOIN documentos d ON vp.documento_id = d.id
-                LEFT JOIN documento_seguimiento ds ON vp.documento_id = ds.documento_id
                 WHERE vp.item_id = ?";
 
         $params = [$item_id];
         $types = "i";
 
         if ($mes !== null && $ano !== null) {
-            $sql .= " AND ds.mes = ? AND ds.ano = ?";
+            $sql .= " AND d.mes_carga = ? AND d.ano_carga = ?";
             $params[] = $mes;
             $params[] = $ano;
             $types .= "ii";
@@ -103,6 +102,52 @@ class Historial {
                 'mes' => $row['mes'],
                 'ano' => $row['ano']
             ];
+        }
+
+        // 3. Observaciones "Sin Movimiento"
+        $tableCheck = $this->db->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
+        if ($tableCheck && $tableCheck->num_rows > 0) {
+            $sql = "SELECT 
+                    o.id as observacion_id,
+                    'sin_movimiento' as tipo_movimiento,
+                    u.nombre as usuario,
+                    o.fecha_creacion as fecha,
+                    o.observacion,
+                    o.mes,
+                    o.ano
+                    FROM observaciones_sin_movimiento o
+                    LEFT JOIN usuarios u ON o.usuario_id = u.id
+                    WHERE o.item_id = ?";
+
+            $params = [$item_id];
+            $types = "i";
+
+            if ($mes !== null && $ano !== null) {
+                $sql .= " AND o.mes = ? AND o.ano = ?";
+                $params[] = $mes;
+                $params[] = $ano;
+                $types .= "ii";
+            }
+
+            $sql .= " ORDER BY o.fecha_creacion DESC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $movimientos[] = [
+                    'tipo' => 'sin_movimiento',
+                    'usuario' => $row['usuario'] ?? 'Usuario no identificado',
+                    'fecha' => $row['fecha'],
+                    'descripcion' => 'Sin Movimiento: ' . $row['observacion'],
+                    'observacion_id' => $row['observacion_id'],
+                    'detalle' => 'Observación registrada para el período',
+                    'mes' => $row['mes'],
+                    'ano' => $row['ano']
+                ];
+            }
         }
 
         // Ordenar por fecha descendente

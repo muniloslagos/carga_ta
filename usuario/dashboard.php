@@ -391,14 +391,14 @@ if (isset($_SESSION['success'])) {
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th width="8%">Numeración</th>
-                                <th width="3%" style="text-align: center;">Historial</th>
-                                <th width="22%">Nombre Item</th>
-                                <th width="12%">Mes Carga</th>
-                                <th width="12%">Enviado por</th>
-                                <th width="17%">Fecha Envío</th>
-                                <th width="17%">Carga Portal</th>
-                                <th width="8%">Acciones</th>
+                                <th width="7%">Numeración</th>
+                                <th width="6%" style="text-align: center;">Bitácora</th>
+                                <th width="20%">Nombre Item</th>
+                                <th width="10%">Mes Carga</th>
+                                <th width="10%">Enviado por</th>
+                                <th width="14%">Fecha Envío</th>
+                                <th width="14%">Carga Portal</th>
+                                <th width="19%">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -469,13 +469,22 @@ if (isset($_SESSION['success'])) {
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
                                         <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
                                         <td style="text-align: center;">
-                                            <button class="btn btn-sm btn-outline-secondary" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalHistorial"
-                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
-                                                    title="Ver historial de movimientos">
-                                                <i class="bi bi-clock-history"></i>
-                                            </button>
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                        title="Ver historial de movimientos">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalVerObservaciones"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                        title="Ver observaciones">
+                                                    <i class="bi bi-chat-left-text"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><?php echo $mesCargaNombre . ' ' . $anoSeleccionado; ?></td>
@@ -506,6 +515,15 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
+                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <button class="btn btn-sm btn-outline-dark" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalSinMovimiento"
+                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
+                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                </button>
+                                                <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
                                                             data-bs-toggle="modal" 
@@ -531,7 +549,7 @@ if (isset($_SESSION['success'])) {
                                     <?php
                                 }
                             } else {
-                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items mensuales asignados</td></tr>';
+                                echo '<tr><td colspan="8" class="text-center text-muted">No hay items mensuales asignados</td></tr>';
                             }
                             ?>
                         </tbody>
@@ -567,13 +585,13 @@ if (isset($_SESSION['success'])) {
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th width="8%">Numeración</th>
-                                <th width="3%" style="text-align: center;">Historial</th>
-                                <th width="22%">Nombre Item</th>
-                                <th width="12%">Enviado por</th>
-                                <th width="17%">Fecha Envío</th>
-                                <th width="17%">Carga Portal</th>
-                                <th width="20%">Acciones</th>
+                                <th width="7%">Numeración</th>
+                                <th width="6%" style="text-align: center;">Bitácora</th>
+                                <th width="20%">Nombre Item</th>
+                                <th width="10%">Enviado por</th>
+                                <th width="14%">Fecha Envío</th>
+                                <th width="14%">Carga Portal</th>
+                                <th width="19%">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -623,13 +641,22 @@ if (isset($_SESSION['success'])) {
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
                                         <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
                                         <td style="text-align: center;">
-                                            <button class="btn btn-sm btn-outline-secondary" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalHistorial"
-                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                    title="Ver historial de movimientos">
-                                                <i class="bi bi-clock-history"></i>
-                                            </button>
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        title="Ver historial de movimientos">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalVerObservaciones"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        title="Ver observaciones">
+                                                    <i class="bi bi-chat-left-text"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><small><?php echo $cargador; ?></small></td>
@@ -649,6 +676,15 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
                                                     <?php endif; ?>
+                                                <?php endif; ?>
+                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <button class="btn btn-sm btn-outline-dark" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalSinMovimiento"
+                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
+                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                </button>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -677,7 +713,7 @@ if (isset($_SESSION['success'])) {
                                     <?php
                                 }
                             } else {
-                                echo '<tr><td colspan="5" class="text-center text-muted">No hay items trimestrales asignados</td></tr>';
+                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items trimestrales asignados</td></tr>';
                             }
                             ?>
                         </tbody>
@@ -713,13 +749,13 @@ if (isset($_SESSION['success'])) {
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th width="8%">Numeración</th>
-                                <th width="3%" style="text-align: center;">Historial</th>
-                                <th width="22%">Nombre Item</th>
-                                <th width="12%">Enviado por</th>
-                                <th width="17%">Fecha Envío</th>
-                                <th width="17%">Carga Portal</th>
-                                <th width="20%">Acciones</th>
+                                <th width="7%">Numeración</th>
+                                <th width="6%" style="text-align: center;">Bitácora</th>
+                                <th width="20%">Nombre Item</th>
+                                <th width="10%">Enviado por</th>
+                                <th width="14%">Fecha Envío</th>
+                                <th width="14%">Carga Portal</th>
+                                <th width="19%">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -768,13 +804,22 @@ if (isset($_SESSION['success'])) {
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
                                         <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
                                         <td style="text-align: center;">
-                                            <button class="btn btn-sm btn-outline-secondary" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalHistorial"
-                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                    title="Ver historial de movimientos">
-                                                <i class="bi bi-clock-history"></i>
-                                            </button>
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        title="Ver historial de movimientos">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalVerObservaciones"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        title="Ver observaciones">
+                                                    <i class="bi bi-chat-left-text"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><small><?php echo $cargador; ?></small></td>
@@ -803,6 +848,15 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
+                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <button class="btn btn-sm btn-outline-dark" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalSinMovimiento"
+                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
+                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                </button>
+                                                <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
                                                             data-bs-toggle="modal" 
@@ -828,7 +882,7 @@ if (isset($_SESSION['success'])) {
                                     <?php
                                 }
                             } else {
-                                echo '<tr><td colspan="5" class="text-center text-muted">No hay items semestrales asignados</td></tr>';
+                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items semestrales asignados</td></tr>';
                             }
                             ?>
                         </tbody>
@@ -864,13 +918,13 @@ if (isset($_SESSION['success'])) {
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th width="8%">Numeración</th>
-                                <th width="3%" style="text-align: center;">Historial</th>
-                                <th width="22%">Nombre Item</th>
-                                <th width="12%">Enviado por</th>
-                                <th width="17%">Fecha Envío</th>
-                                <th width="17%">Carga Portal</th>
-                                <th width="20%">Acciones</th>
+                                <th width="7%">Numeración</th>
+                                <th width="6%" style="text-align: center;">Bitácora</th>
+                                <th width="20%">Nombre Item</th>
+                                <th width="10%">Enviado por</th>
+                                <th width="14%">Fecha Envío</th>
+                                <th width="14%">Carga Portal</th>
+                                <th width="19%">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -931,13 +985,22 @@ if (isset($_SESSION['success'])) {
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
                                         <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
                                         <td style="text-align: center;">
-                                            <button class="btn btn-sm btn-outline-secondary" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#modalHistorial"
-                                                    onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
-                                                    title="Ver historial de movimientos">
-                                                <i class="bi bi-clock-history"></i>
-                                            </button>
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                        title="Ver historial de movimientos">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalVerObservaciones"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                        title="Ver observaciones">
+                                                    <i class="bi bi-chat-left-text"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><small><?php echo $cargador; ?></small></td>
@@ -965,6 +1028,15 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
                                                     <?php endif; ?>
+                                                <?php endif; ?>
+                                                <?php if (!$tieneDocDelUsuario && ($user_perfil !== 'publicador')): ?>
+                                                <button class="btn btn-sm btn-outline-dark" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalSinMovimiento"
+                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
+                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                </button>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -1027,12 +1099,13 @@ if (isset($_SESSION['success'])) {
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th width="10%">Numeración</th>
-                                <th width="25%">Nombre Item</th>
-                                <th width="12%">Enviado por</th>
-                                <th width="17%">Fecha Envío</th>
-                                <th width="17%">Carga Portal</th>
-                                <th width="20%">Acciones</th>
+                                <th width="7%">Numeración</th>
+                                <th width="6%" style="text-align: center;">Bitácora</th>
+                                <th width="20%">Nombre Item</th>
+                                <th width="10%">Enviado por</th>
+                                <th width="14%">Fecha Envío</th>
+                                <th width="14%">Carga Portal</th>
+                                <th width="19%">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1077,6 +1150,24 @@ if (isset($_SESSION['success'])) {
                                     ?>
                                     <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
                                         <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
+                                        <td style="text-align: center;">
+                                            <div class="d-flex gap-1 justify-content-center">
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalHistorial"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        title="Ver historial de movimientos">
+                                                    <i class="bi bi-clock-history"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalVerObservaciones"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        title="Ver observaciones">
+                                                    <i class="bi bi-chat-left-text"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                         <td><?php echo htmlspecialchars($item['nombre']); ?></td>
                                         <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
@@ -1104,6 +1195,15 @@ if (isset($_SESSION['success'])) {
                                                     </button>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
+                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
+                                                <button class="btn btn-sm btn-outline-dark" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalSinMovimiento"
+                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
+                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                </button>
+                                                <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success"
                                                             data-bs-toggle="modal"
@@ -1129,7 +1229,7 @@ if (isset($_SESSION['success'])) {
                                     <?php
                                 }
                             } else {
-                                echo '<tr><td colspan="6" class="text-center text-muted">No hay items de ocurrencia asignados</td></tr>';
+                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items de ocurrencia asignados</td></tr>';
                             }
                             ?>
                         </tbody>
@@ -1410,14 +1510,30 @@ function mostrarHistorial(itemId, itemNombre, mes, ano) {
                     historialBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay registros de movimientos</td></tr>';
                 } else {
                     data.historial.forEach((mov, index) => {
-                        const icono = mov.tipo === 'documento_cargado' ? '<i class="bi bi-file-earmark-text"></i>' : '<i class="bi bi-check-circle"></i>';
-                        const iconoClass = mov.tipo === 'documento_cargado' ? 'bg-primary' : 'bg-success';
+                        let icono, iconoClass, tipoTexto;
+                        if (mov.tipo === 'documento_cargado') {
+                            icono = '<i class="bi bi-file-earmark-text"></i>';
+                            iconoClass = 'bg-primary';
+                            tipoTexto = 'Documento Cargado';
+                        } else if (mov.tipo === 'verificador_agregado') {
+                            icono = '<i class="bi bi-check-circle"></i>';
+                            iconoClass = 'bg-success';
+                            tipoTexto = 'Verificador Agregado';
+                        } else if (mov.tipo === 'sin_movimiento') {
+                            icono = '<i class="bi bi-dash-circle"></i>';
+                            iconoClass = 'bg-secondary';
+                            tipoTexto = 'Sin Movimiento';
+                        } else {
+                            icono = '<i class="bi bi-question-circle"></i>';
+                            iconoClass = 'bg-dark';
+                            tipoTexto = mov.tipo;
+                        }
                         const fecha = new Date(mov.fecha).toLocaleString('es-CL');
                         
                         const row = `
                             <tr>
                                 <td><span class="badge ${iconoClass}">${icono}</span></td>
-                                <td><strong>${mov.tipo === 'documento_cargado' ? 'Documento Cargado' : 'Verificador Agregado'}</strong></td>
+                                <td><strong>${tipoTexto}</strong></td>
                                 <td>${mov.usuario}</td>
                                 <td>${fecha}</td>
                             </tr>
@@ -1538,6 +1654,151 @@ function verEnPantallaCompleta(imageSrc) {
         </div>
     </div>
 </div>
+
+<!-- MODAL: Sin Movimiento -->
+<div class="modal fade" id="modalSinMovimiento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <div>
+                    <h5 class="modal-title mb-1"><i class="bi bi-dash-circle"></i> Registrar Sin Movimiento</h5>
+                    <small>Item: <strong id="sinMovItemNombre">-</strong> — <span id="sinMovPeriodo">-</span></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="sinMovItemId">
+                <input type="hidden" id="sinMovMes">
+                <input type="hidden" id="sinMovAno">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Registre la observación correspondiente al indicar que este item no presenta movimiento en el período seleccionado.
+                </div>
+                <div class="mb-3">
+                    <label for="sinMovObservacion" class="form-label">Observación <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="sinMovObservacion" rows="4" required placeholder="Indique el motivo por el cual no hay movimiento para este período..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-dark" onclick="guardarSinMovimiento()">
+                    <i class="bi bi-dash-circle"></i> Registrar Sin Movimiento
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Ver Observaciones -->
+<div class="modal fade" id="modalVerObservaciones" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="modalObservacionesTitle"><i class="bi bi-chat-left-text"></i> Observaciones</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="observacionesBody">
+                    <p class="text-center text-muted">Cargando...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Sin Movimiento ---
+function prepararSinMovimiento(itemId, itemNombre, mes, ano) {
+    document.getElementById('sinMovItemId').value = itemId;
+    document.getElementById('sinMovMes').value = mes;
+    document.getElementById('sinMovAno').value = ano;
+    document.getElementById('sinMovItemNombre').textContent = itemNombre;
+    document.getElementById('sinMovPeriodo').textContent = meses[mes] + ' ' + ano;
+    document.getElementById('sinMovObservacion').value = '';
+}
+
+function guardarSinMovimiento() {
+    const itemId = document.getElementById('sinMovItemId').value;
+    const mes = document.getElementById('sinMovMes').value;
+    const ano = document.getElementById('sinMovAno').value;
+    const observacion = document.getElementById('sinMovObservacion').value.trim();
+
+    if (!observacion) {
+        alert('Debe ingresar una observación');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('item_id', itemId);
+    formData.append('mes', mes);
+    formData.append('ano', ano);
+    formData.append('observacion', observacion);
+
+    fetch('guardar_sin_movimiento.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalSinMovimiento'));
+            modal.hide();
+            // Mostrar mensaje
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = '<i class="bi bi-check-circle"></i> ' + data.message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            document.querySelector('.page-header').after(alertDiv);
+        } else {
+            alert('Error: ' + (data.error || 'Error desconocido'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar la observación');
+    });
+}
+
+// --- Ver Observaciones ---
+function verObservaciones(itemId, itemNombre, mes, ano) {
+    document.getElementById('modalObservacionesTitle').innerHTML = '<i class="bi bi-chat-left-text"></i> Observaciones: ' + itemNombre;
+    document.getElementById('observacionesBody').innerHTML = '<p class="text-center text-muted">Cargando...</p>';
+
+    fetch(`get_observaciones.php?item_id=${itemId}&mes=${mes}&ano=${ano}`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('observacionesBody');
+            if (data.success && data.observaciones.length > 0) {
+                let html = '<div class="list-group">';
+                data.observaciones.forEach(obs => {
+                    const fecha = new Date(obs.fecha).toLocaleString('es-CL');
+                    html += `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                    <strong>${obs.usuario}</strong>
+                                </div>
+                                <small class="text-muted">${fecha}</small>
+                            </div>
+                            <p class="mb-0 mt-2">${obs.observacion}</p>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-center text-muted"><i class="bi bi-chat-left-text"></i> No hay observaciones registradas para este período</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('observacionesBody').innerHTML = '<p class="text-danger text-center">Error al cargar las observaciones</p>';
+        });
+}
+</script>
 
 <script>
 // Inicializar tooltips de Bootstrap
