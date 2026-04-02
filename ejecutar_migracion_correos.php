@@ -20,34 +20,41 @@ if (!file_exists($sql_file)) {
 
 $sql = file_get_contents($sql_file);
 
-// Separar queries
-$queries = array_filter(array_map('trim', explode(';', $sql)));
+echo "Ejecutando migraciones...\n\n";
 
-$exitosas = 0;
-$errores = 0;
-
-foreach ($queries as $query) {
-    if (empty($query) || strpos($query, '--') === 0) {
-        continue;
-    }
+// Ejecutar usando multi_query
+if ($conn->multi_query($sql)) {
+    $exitosas = 0;
+    $errores = 0;
     
-    echo "Ejecutando query...\n";
+    do {
+        if ($result = $conn->store_result()) {
+            $result->free();
+        }
+        
+        if ($conn->errno) {
+            echo "✗ Error: " . $conn->error . "\n";
+            $errores++;
+        } else {
+            echo "✓ Query ejecutada\n";
+            $exitosas++;
+        }
+        
+    } while ($conn->more_results() && $conn->next_result());
     
-    if ($conn->query($query)) {
-        echo "✓ OK\n";
-        $exitosas++;
+    echo "\n=== Resultado ===\n";
+    echo "Exitosas: $exitosas\n";
+    echo "Errores: $errores\n\n";
+    
+    if ($errores === 0) {
+        echo "✓ Migración completada exitosamente\n";
     } else {
-        echo "✗ Error: " . $conn->error . "\n";
-        $errores++;
+        echo "⚠ Migración completada con errores\n";
     }
+} else {
+    echo "✗ Error al ejecutar migración: " . $conn->error . "\n";
+    exit(1);
 }
-
-echo "\n=== Resultado ===\n";
-echo "Exitosas: $exitosas\n";
-echo "Errores: $errores\n\n";
-
-if ($errores === 0) {
-    echo "✓ Migración completada exitosamente\n";
 } else {
     echo "⚠ Migración completada con errores\n";
 }
