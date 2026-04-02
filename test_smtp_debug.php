@@ -5,7 +5,9 @@
  */
 
 require_once 'config/config.php';
+require_once 'config/Database.php';
 
+$db = new Database();
 $conn = $db->getConnection();
 
 echo "<h2>Diagnóstico SMTP Detallado</h2>";
