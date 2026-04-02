@@ -53,11 +53,17 @@ class EmailSender {
         }
         
         try {
-            // Usar PHPMailer si está disponible
-            if (class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+            // Intentar cargar PHPMailer
+            $phpmailer_path = __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
+            
+            if (file_exists($phpmailer_path)) {
+                require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/Exception.php';
+                require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
+                require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
+                
                 return $this->enviarConPHPMailer($destino, $asunto, $cuerpo, $destinoNombre);
             } else {
-                // Fallback: usar función mail() de PHP con SMTP configurado
+                // Fallback: usar función mail() de PHP
                 return $this->enviarConMail($destino, $asunto, $cuerpo, $destinoNombre);
             }
         } catch (Exception $e) {
@@ -70,10 +76,6 @@ class EmailSender {
      * Enviar correo usando PHPMailer
      */
     private function enviarConPHPMailer($destino, $asunto, $cuerpo, $destinoNombre) {
-        require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/Exception.php';
-        require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/PHPMailer.php';
-        require_once __DIR__ . '/../vendor/phpmailer/phpmailer/src/SMTP.php';
-        
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         
         try {
