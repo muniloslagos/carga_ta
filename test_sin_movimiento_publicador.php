@@ -34,6 +34,20 @@ try {
 
 echo "<hr>";
 
+// Listar todas las tablas disponibles
+echo "<strong>Tablas en la base de datos:</strong><br>";
+$tables = $conn->query("SHOW TABLES");
+if ($tables) {
+    echo "<ul>";
+    while ($row = $tables->fetch_array()) {
+        echo "<li>" . $row[0] . "</li>";
+    }
+    echo "</ul>";
+} else {
+    echo "Error al listar tablas<br>";
+}
+echo "<hr>";
+
 // Buscar el ítem "Nómina Beneficiarios - Subsidio agua potable y alcantarillado - Urbano"
 $itemNombre = 'Nómina Beneficiarios - Subsidio agua potable y alcantarillado - Urbano';
 $mes = 3; // Marzo
