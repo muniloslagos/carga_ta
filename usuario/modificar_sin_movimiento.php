@@ -171,8 +171,8 @@ if ($accion === 'actualizar_observacion') {
         // 3. Crear entrada en documento_seguimiento (si la tabla existe)
         $checkTableSeguimiento = $conn->query("SHOW TABLES LIKE 'documento_seguimiento'");
         if ($checkTableSeguimiento->num_rows > 0) {
-            $insertSeg = $conn->prepare("INSERT INTO documento_seguimiento (documento_id, mes, ano, fecha_envio) VALUES (?, ?, ?, NOW())");
-            $insertSeg->bind_param('iii', $documento_id, $mes, $ano);
+            $insertSeg = $conn->prepare("INSERT INTO documento_seguimiento (documento_id, item_id, usuario_id, mes, ano, fecha_envio) VALUES (?, ?, ?, ?, ?, NOW())");
+            $insertSeg->bind_param('iiiii', $documento_id, $item_id, $user_id, $mes, $ano);
             $insertSeg->execute();
         }
         
