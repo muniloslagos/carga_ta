@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $user_id = $_SESSION['user_id'] ?? null;
-$user_perfil = $_SESSION['user_perfil'] ?? null;
+$user_perfil = $_SESSION['profile'] ?? null;
 
 if (!$user_id) {
     http_response_code(401);
