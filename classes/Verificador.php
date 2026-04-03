@@ -53,6 +53,44 @@ class Verificador {
 
     // Crear verificador y cambiar estado del documento a "Publicado"
     public function create($data) {
+        // Primero verificar si ya existe un verificador para este documento
+        $checkSql = "SELECT id FROM {$this->table} WHERE documento_id = ?";
+        $checkStmt = $this->db->prepare($checkSql);
+        $checkStmt->bind_param("i", $data['documento_id']);
+        $checkStmt->execute();
+        $result = $checkStmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            // Ya existe, actualizar en lugar de insertar
+            $existing = $result->fetch_assoc();
+            $updateSql = "UPDATE {$this->table} SET 
+                          archivo_verificador = ?, 
+                          fecha_carga_portal = ?, 
+                          comentarios = ?,
+                          publicador_id = ?
+                          WHERE id = ?";
+            $updateStmt = $this->db->prepare($updateSql);
+            $updateStmt->bind_param("sssii",
+                $data['archivo_verificador'],
+                $data['fecha_carga_portal'],
+                $data['comentarios'],
+                $data['publicador_id'],
+                $existing['id']
+            );
+            
+            if ($updateStmt->execute()) {
+                // Cambiar estado del documento a "Publicado"
+                $updateDocSql = "UPDATE documentos SET estado = 'Publicado' WHERE id = ?";
+                $updateDocStmt = $this->db->prepare($updateDocSql);
+                $updateDocStmt->bind_param("i", $data['documento_id']);
+                $updateDocStmt->execute();
+                
+                return $existing['id'];
+            }
+            return false;
+        }
+        
+        // No existe, insertar nuevo
         $sql = "INSERT INTO {$this->table} 
                 (documento_id, item_id, usuario_id, publicador_id, archivo_verificador, fecha_carga_portal, comentarios)
                 VALUES (?, ?, ?, ?, ?, ?, ?)";
