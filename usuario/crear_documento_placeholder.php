@@ -107,13 +107,13 @@ try {
     $archivo = "sin_movimiento_placeholder_" . uniqid() . ".txt"; // Archivo ficticio
     
     // Debug: verificar valores antes del INSERT
-    error_log("crear_documento_placeholder - INSERT values: item_id=$item_id, cargador_id=$cargador_id, titulo=$titulo");
+    error_log("crear_documento_placeholder - INSERT values: item_id=$item_id, cargador_id=$cargador_id, titulo=$titulo, mes=$mes, ano=$ano");
     
-    $insertDoc = $conn->prepare("INSERT INTO documentos (item_id, usuario_id, titulo, descripcion, archivo, estado, fecha_subida) VALUES (?, ?, ?, ?, ?, 'pendiente', NOW())");
+    $insertDoc = $conn->prepare("INSERT INTO documentos (item_id, usuario_id, titulo, descripcion, archivo, mes_carga, ano_carga, estado, fecha_subida) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())");
     if (!$insertDoc) {
         throw new Exception("Error al preparar INSERT: " . $conn->error);
     }
-    $insertDoc->bind_param('iisss', $item_id, $cargador_id, $titulo, $descripcion, $archivo);
+    $insertDoc->bind_param('iisssii', $item_id, $cargador_id, $titulo, $descripcion, $archivo, $mes, $ano);
     if (!$insertDoc->execute()) {
         throw new Exception("Error al ejecutar INSERT: " . $insertDoc->error);
     }
