@@ -557,10 +557,18 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
+                                                    <?php 
+                                                    // Verificar si es documento placeholder de Sin Movimiento
+                                                    $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
+                                                    ?>
+                                                    <?php if (!$esPlaceholder): ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
-                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <?php else: ?>
+                                                    <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php endif; ?>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $ultimoDoc['id']; ?>)"
@@ -774,10 +782,18 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
+                                                    <?php 
+                                                    // Verificar si es documento placeholder de Sin Movimiento
+                                                    $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
+                                                    ?>
+                                                    <?php if (!$esPlaceholder): ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
-                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <?php else: ?>
+                                                    <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php endif; ?>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $ultimoDoc['id']; ?>)"
@@ -1223,10 +1239,18 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($tieneDocDelUsuario): ?>
+                                                    <?php 
+                                                    // Verificar si es documento placeholder de Sin Movimiento
+                                                    $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
+                                                    ?>
+                                                    <?php if (!$esPlaceholder): ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
-                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <?php else: ?>
+                                                    <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php endif; ?>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $ultimoDoc['id']; ?>)"
