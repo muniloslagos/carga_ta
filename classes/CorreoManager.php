@@ -620,6 +620,7 @@ class CorreoManager {
     
     /**
      * Enviar correo de fin de proceso general a todos los directores
+     * Cada director recibe solo los ítems de sus direcciones asignadas
      */
     public function enviarFinProcesoGeneral($mes, $ano) {
         $plantilla = $this->obtenerPlantilla('fin_proceso_general');
@@ -641,9 +642,6 @@ class CorreoManager {
         }
         $fecha_cierre = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, 10);
         
-        // Obtener resumen general
-        $resumen_general = $this->obtenerResumenGeneralMunicipio($mes, $ano);
-        
         // Obtener directores con correo
         $directores = $this->obtenerDirectoresConCorreo();
         
@@ -653,11 +651,14 @@ class CorreoManager {
         
         foreach ($directores as $director) {
             try {
+                // Resumen solo con los ítems de las direcciones del director
+                $resumen_director = $this->obtenerResumenDireccionesDirector($director['id'], $mes, $ano);
+                
                 $variables = [
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
                     '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
-                    '{resumen_general}' => $resumen_general,
+                    '{resumen_general}' => $resumen_director,
                     '{enlace_resumen}' => $enlace_resumen
                 ];
                 
@@ -848,6 +849,165 @@ class CorreoManager {
         $html .= '<li><strong style="color:green;">Publicados:</strong> ' . $pub_general . '</li>';
         $html .= '<li><strong style="color:orange;">Cargados (pendientes de publicar):</strong> ' . $car_general . '</li>';
         $html .= '<li><strong style="color:red;">Pendientes de carga:</strong> ' . $pen_general . '</li>';
+        $html .= '</ul>';
+        $html .= '</div>';
+        
+        return $html;
+    }
+    
+    /**
+     * Generar resumen solo de las direcciones asignadas a un director
+     */
+    private function obtenerResumenDireccionesDirector($director_id, $mes, $ano) {
+        // Obtener direcciones asignadas al director
+        $stmt = $this->conn->prepare("SELECT id, nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
+        $stmt->bind_param('i', $director_id);
+        $stmt->execute();
+        $direcciones = $stmt->get_result();
+        $stmt->close();
+        
+        $dir_ids = [];
+        $dir_nombres = [];
+        while ($d = $direcciones->fetch_assoc()) {
+            $dir_ids[] = $d['id'];
+            $dir_nombres[$d['id']] = $d['nombre'];
+        }
+        
+        if (empty($dir_ids)) {
+            return '<p><em>No tiene direcciones asignadas.</em></p>';
+        }
+        
+        // Obtener ítems de esas direcciones
+        $placeholders = implode(',', array_fill(0, count($dir_ids), '?'));
+        $types = str_repeat('i', count($dir_ids));
+        
+        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.periodicidad, i.direccion_id
+            FROM items_transparencia i
+            WHERE i.activo = 1 AND i.direccion_id IN ($placeholders)
+            ORDER BY i.direccion_id, i.nombre");
+        $stmt->bind_param($types, ...$dir_ids);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        
+        $items_por_direccion = [];
+        while ($item = $result->fetch_assoc()) {
+            $did = $item['direccion_id'];
+            if (!isset($items_por_direccion[$did])) {
+                $items_por_direccion[$did] = [];
+            }
+            $items_por_direccion[$did][] = $item;
+        }
+        
+        $html = '';
+        $total = 0;
+        $pub = 0;
+        $car = 0;
+        $pen = 0;
+        
+        foreach ($items_por_direccion as $did => $items) {
+            $html .= '<h4 style="margin-top:15px; color:#1a3a5c;">' . htmlspecialchars($dir_nombres[$did]) . '</h4>';
+            $html .= '<table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:15px;" border="1" cellpadding="6">';
+            $html .= '<thead><tr style="background-color:#e9ecef;">';
+            $html .= '<th>Ítem</th><th>Estado</th><th>Fecha Carga</th><th>Fecha Publicación</th>';
+            $html .= '</tr></thead><tbody>';
+            
+            foreach ($items as $item) {
+                $mes_busqueda = $mes;
+                if ($item['periodicidad'] === 'anual') {
+                    $mes_busqueda = 1;
+                }
+                
+                // Verificar Sin Movimiento
+                $sinMovimiento = false;
+                $sinMovFecha = null;
+                $checkSinMov = $this->conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
+                if ($checkSinMov && $checkSinMov->num_rows > 0) {
+                    $stmtSM = $this->conn->prepare("SELECT id, fecha_creacion FROM observaciones_sin_movimiento 
+                        WHERE item_id = ? AND mes = ? AND ano = ? LIMIT 1");
+                    $stmtSM->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+                    $stmtSM->execute();
+                    $smResult = $stmtSM->get_result();
+                    if ($smRow = $smResult->fetch_assoc()) {
+                        $sinMovimiento = true;
+                        $sinMovFecha = $smRow['fecha_creacion'];
+                    }
+                    $stmtSM->close();
+                }
+                
+                // Buscar documento
+                $documento = null;
+                if ($sinMovimiento) {
+                    $stmtD = $this->conn->prepare("SELECT id, fecha_subida FROM documentos 
+                        WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? AND titulo LIKE 'Sin Movimiento%'
+                        ORDER BY fecha_subida DESC LIMIT 1");
+                    $stmtD->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+                    $stmtD->execute();
+                    $documento = $stmtD->get_result()->fetch_assoc();
+                    $stmtD->close();
+                } else {
+                    $stmtD = $this->conn->prepare("SELECT id, fecha_subida FROM documentos 
+                        WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+                        AND (titulo NOT LIKE 'Sin Movimiento%' OR titulo IS NULL)
+                        ORDER BY fecha_subida DESC LIMIT 1");
+                    $stmtD->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+                    $stmtD->execute();
+                    $documento = $stmtD->get_result()->fetch_assoc();
+                    $stmtD->close();
+                }
+                
+                // Buscar verificador
+                $verificador = null;
+                if ($documento) {
+                    $stmtV = $this->conn->prepare("SELECT fecha_carga_portal FROM verificadores_publicador 
+                        WHERE documento_id = ? ORDER BY fecha_carga_portal DESC LIMIT 1");
+                    $stmtV->bind_param('i', $documento['id']);
+                    $stmtV->execute();
+                    $verificador = $stmtV->get_result()->fetch_assoc();
+                    $stmtV->close();
+                }
+                
+                $total++;
+                $html .= '<tr>';
+                $html .= '<td>' . htmlspecialchars($item['nombre']) . '</td>';
+                
+                if ($verificador) {
+                    $pub++;
+                    $label = $sinMovimiento ? '✓ Sin Movimiento (Publicado)' : '✓ Publicado';
+                    $html .= '<td style="color:green;"><strong>' . $label . '</strong></td>';
+                    $html .= '<td>' . date('d/m/Y', strtotime($documento['fecha_subida'])) . '</td>';
+                    $html .= '<td>' . date('d/m/Y', strtotime($verificador['fecha_carga_portal'])) . '</td>';
+                } elseif ($documento) {
+                    $car++;
+                    $label = $sinMovimiento ? '⚠ Sin Movimiento (Sin Publicar)' : '⚠ Cargado (Sin Publicar)';
+                    $html .= '<td style="color:orange;"><strong>' . $label . '</strong></td>';
+                    $html .= '<td>' . date('d/m/Y', strtotime($documento['fecha_subida'])) . '</td>';
+                    $html .= '<td><em>Pendiente</em></td>';
+                } elseif ($sinMovimiento) {
+                    $car++;
+                    $html .= '<td style="color:orange;"><strong>⚠ Sin Movimiento (Sin Publicar)</strong></td>';
+                    $html .= '<td>' . ($sinMovFecha ? date('d/m/Y', strtotime($sinMovFecha)) : '-') . '</td>';
+                    $html .= '<td><em>Pendiente</em></td>';
+                } else {
+                    $pen++;
+                    $html .= '<td style="color:red;"><strong>✗ Pendiente</strong></td>';
+                    $html .= '<td colspan="2"><em>Sin carga</em></td>';
+                }
+                
+                $html .= '</tr>';
+            }
+            
+            $html .= '</tbody></table>';
+        }
+        
+        // Resumen
+        $html .= '<div style="margin-top:20px; padding:15px; background-color:#f8f9fa; border-radius:5px;">';
+        $html .= '<h4 style="margin-top:0;">Resumen de sus Direcciones:</h4>';
+        $html .= '<ul>';
+        $html .= '<li><strong>Total de ítems:</strong> ' . $total . '</li>';
+        $html .= '<li><strong style="color:green;">Publicados:</strong> ' . $pub . '</li>';
+        $html .= '<li><strong style="color:orange;">Cargados (pendientes de publicar):</strong> ' . $car . '</li>';
+        $html .= '<li><strong style="color:red;">Pendientes de carga:</strong> ' . $pen . '</li>';
         $html .= '</ul>';
         $html .= '</div>';
         
