@@ -134,6 +134,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'danger';
         }
     }
+    
+    // Enviar correo masivo fin de proceso general (a directores)
+    elseif (isset($_POST['enviar_masivo_fin_general'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarFinProcesoGeneral($mes, $ano);
+            
+            $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados a directores, {$resultado['fallidos']} fallidos";
+            if (!empty($resultado['enlace_resumen'])) {
+                $mensaje .= " | Enlace público generado";
+            }
+            $tipo_mensaje = $resultado['fallidos'] > 0 ? 'warning' : 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error en envío: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
 }
 
 // Obtener plantillas
@@ -147,6 +170,16 @@ while ($row = $result->fetch_assoc()) {
 $cargadores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'cargador_informacion' AND activo = 1 ORDER BY nombre";
 $cargadores = $conn->query($cargadores_query);
 $cargadores2 = $conn->query($cargadores_query); // Segunda copia para el segundo form
+
+// Obtener directores para tab fin proceso general
+$directores_query = "SELECT id, nombres, apellidos, correo FROM directores WHERE activo = 1 AND correo IS NOT NULL AND correo != '' ORDER BY apellidos, nombres";
+$directores_list = $conn->query($directores_query);
+
+// Obtener enlaces públicos existentes
+$enlaces_publicos = $conn->query("SELECT t.*, u.nombre as creado_por_nombre 
+    FROM resumen_publico_tokens t 
+    JOIN usuarios u ON t.creado_por = u.id 
+    ORDER BY t.fecha_creacion DESC LIMIT 10");
 
 // Obtener historial reciente de envíos
 $historial_query = "SELECT h.*, p.tipo, u.nombre as enviado_por_nombre 
@@ -490,15 +523,161 @@ $meses = [
         <div class="tab-pane fade" id="fin-general" role="tabpanel">
             <div class="card mt-3">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Resumen General del Proceso</h5>
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Cierre del Proceso - Directores</h5>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
-                        <strong>Descripción:</strong> Correo de resumen con estadísticas para Director/Administrador cuando finaliza todo el proceso.
+                        <strong>Descripción:</strong> Este correo se envía a todos los Directores registrados en el sistema al cierre del proceso (10° día hábil). 
+                        Incluye un resumen general de todos los ítems del municipio y un enlace público para consultar el estado completo sin necesidad de iniciar sesión.
                     </div>
+
+                    <!-- Editor de Plantilla -->
+                    <form method="POST" class="mb-4">
+                        <input type="hidden" name="tipo_plantilla" value="fin_proceso_general">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-10">
+                                <label class="form-label">Asunto del correo:</label>
+                                <input type="text" name="asunto" class="form-control" 
+                                       value="<?= htmlspecialchars($plantillas['fin_proceso_general']['asunto'] ?? '') ?>" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Envío automático:</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="envio_automatico" 
+                                           <?= !empty($plantillas['fin_proceso_general']['envio_automatico']) ? 'checked' : '' ?>>
+                                    <label class="form-check-label">Activar</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Cuerpo del mensaje (HTML):</label>
+                            <textarea name="cuerpo" class="form-control" rows="12" required><?= htmlspecialchars($plantillas['fin_proceso_general']['cuerpo'] ?? '') ?></textarea>
+                            <small class="text-muted">
+                                <strong>Variables disponibles:</strong> 
+                                {mes_carga}, {ano_carga}, {fecha_cierre}, {resumen_general}, {enlace_resumen}
+                            </small>
+                        </div>
+
+                        <button type="submit" name="guardar_plantilla" class="btn btn-success">
+                            <i class="bi bi-save"></i> Guardar Plantilla
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <!-- Destinatarios: Directores -->
+                    <h5><i class="bi bi-person-badge"></i> Destinatarios (Directores)</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Director</th>
+                                    <th>Correo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $hay_directores = false;
+                                if ($directores_list && $directores_list->num_rows > 0):
+                                    while ($dir = $directores_list->fetch_assoc()): 
+                                        $hay_directores = true;
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($dir['nombres'] . ' ' . $dir['apellidos']) ?></td>
+                                        <td><?= htmlspecialchars($dir['correo']) ?></td>
+                                    </tr>
+                                <?php 
+                                    endwhile;
+                                endif;
+                                if (!$hay_directores): ?>
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted">
+                                            No hay directores con correo registrado. 
+                                            <a href="<?= SITE_URL ?>admin/directores/">Agregar directores</a>.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
+                    <!-- Formulario de Envío -->
+                    <h5><i class="bi bi-send"></i> Enviar Cierre del Proceso</h5>
                     
-                    <p class="text-muted"><em>Funcionalidad en desarrollo...</em></p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">Envío a Todos los Directores</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST" onsubmit="return confirm('¿Enviar correo de cierre del proceso a todos los directores?');">
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-warning py-2">
+                                            <small><i class="bi bi-exclamation-triangle"></i> Se generará un enlace público con el resumen municipal completo.</small>
+                                        </div>
+                                        <button type="submit" name="enviar_masivo_fin_general" class="btn btn-info text-white w-100" <?= !$hay_directores ? 'disabled' : '' ?>>
+                                            <i class="bi bi-send-fill"></i> Enviar Cierre a Directores
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enlaces públicos generados -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-secondary text-white">
+                                    <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Enlaces Públicos Generados</h6>
+                                </div>
+                                <div class="card-body" style="max-height:300px; overflow-y:auto;">
+                                    <?php if ($enlaces_publicos && $enlaces_publicos->num_rows > 0): ?>
+                                        <div class="list-group list-group-flush">
+                                            <?php while ($enlace = $enlaces_publicos->fetch_assoc()): ?>
+                                                <div class="list-group-item px-0">
+                                                    <div class="d-flex justify-content-between">
+                                                        <strong><?= $meses[$enlace['mes']] ?> <?= $enlace['ano'] ?></strong>
+                                                        <small class="text-muted"><?= date('d/m/Y H:i', strtotime($enlace['fecha_creacion'])) ?></small>
+                                                    </div>
+                                                    <div class="input-group input-group-sm mt-1">
+                                                        <input type="text" class="form-control form-control-sm" 
+                                                               value="<?= htmlspecialchars(SITE_URL . 'resumen_publico.php?token=' . $enlace['token']) ?>" 
+                                                               readonly id="link-<?= $enlace['id'] ?>">
+                                                        <button class="btn btn-outline-secondary btn-sm" type="button" 
+                                                                onclick="navigator.clipboard.writeText(document.getElementById('link-<?= $enlace['id'] ?>').value); this.innerHTML='<i class=\'bi bi-check\'></i> Copiado';">
+                                                            <i class="bi bi-clipboard"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            <?php endwhile; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <p class="text-muted text-center mb-0">No hay enlaces generados aún.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -533,7 +712,7 @@ $meses = [
                                                 $tipos = [
                                                     'inicio_proceso' => '<span class="badge bg-primary">Inicio</span>',
                                                     'fin_proceso_cargadores' => '<span class="badge bg-warning">Fin Cargadores</span>',
-                                                    'fin_proceso_general' => '<span class="badge bg-info">Fin General</span>'
+                                                    'fin_proceso_general' => '<span class="badge bg-info">Cierre General</span>'
                                                 ];
                                                 echo $tipos[$h['tipo']] ?? $h['tipo'];
                                                 ?>
