@@ -2039,6 +2039,8 @@ function guardarSinMovimiento() {
 
 // --- Modificar Sin Movimiento ---
 function prepararModificarSinMovimiento(itemId, itemNombre, mes, ano, observacion) {
+    console.log('prepararModificarSinMovimiento llamado con:', {itemId, itemNombre, mes, ano, observacion});
+    
     document.getElementById('modifSinMovItemId').value = itemId;
     document.getElementById('modifSinMovMes').value = mes;
     document.getElementById('modifSinMovAno').value = ano;
@@ -2056,6 +2058,13 @@ function prepararModificarSinMovimiento(itemId, itemNombre, mes, ano, observacio
     // Activar primer tab
     const tabObservacion = new bootstrap.Tab(document.getElementById('tab-observacion'));
     tabObservacion.show();
+    
+    // Verificar que se asignaron correctamente
+    console.log('Valores asignados a inputs hidden:', {
+        itemId: document.getElementById('modifSinMovItemId').value,
+        mes: document.getElementById('modifSinMovMes').value,
+        ano: document.getElementById('modifSinMovAno').value
+    });
 }
 
 function actualizarObservacion() {
@@ -2063,6 +2072,13 @@ function actualizarObservacion() {
     const mes = document.getElementById('modifSinMovMes').value;
     const ano = document.getElementById('modifSinMovAno').value;
     const nuevaObservacion = document.getElementById('modifSinMovNuevaObservacion').value.trim();
+    
+    // Validar que los datos del modal estén completos
+    if (!itemId || !mes || !ano) {
+        alert('Error: Faltan datos del período. Por favor cierre y vuelva a abrir el modal.');
+        console.error('Datos incompletos:', {itemId, mes, ano});
+        return;
+    }
     
     if (!nuevaObservacion) {
         alert('Debe ingresar una observación');
@@ -2104,6 +2120,13 @@ function subirDocumentoReemplazar() {
     const titulo = document.getElementById('modifSinMovTitulo').value.trim();
     const descripcion = document.getElementById('modifSinMovDescripcion').value.trim();
     const archivoInput = document.getElementById('modifSinMovArchivo');
+    
+    // Validar que los datos del modal estén completos
+    if (!itemId || !mes || !ano) {
+        alert('Error: Faltan datos del período. Por favor cierre y vuelva a abrir el modal.');
+        console.error('Datos incompletos:', {itemId, mes, ano});
+        return;
+    }
     
     if (!titulo) {
         alert('Debe ingresar un título');
