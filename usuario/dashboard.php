@@ -547,7 +547,18 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
+                                                <?php elseif ($tieneSinMovimiento): ?>
+                                                    <!-- Tiene Sin Movimiento declarado -->
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php else: ?>
+                                                    <!-- No tiene documento ni Sin Movimiento -->
                                                     <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
@@ -555,16 +566,14 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <button class="btn btn-sm btn-outline-dark" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalSinMovimiento"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                            style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
+                                                        <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                    </button>
                                                     <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if (!$ultimoDoc && ($user_perfil !== 'publicador')): ?>
-                                                <button class="btn btn-sm btn-outline-dark" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalSinMovimiento"
-                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
-                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
-                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
-                                                </button>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -574,14 +583,23 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
-                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
-                                                    <button type="button" class="btn btn-sm btn-warning"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalSubirVerificador"
-                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-upload"></i> Subir Verificador
-                                                    </button>
+                                                <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
+                                                    <?php if ($ultimoDoc): ?>
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalSubirVerificador"
+                                                                onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif ($ultimoDoc): ?>
                                                     <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
                                                 <?php endif; ?>
@@ -711,26 +729,44 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
-                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
-                                                <?php else: ?>
-                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
-                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
-                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $ultimoDoc['id']; ?>)"
+                                                            style="white-space: nowrap;" title="Reemplazar documento existente">
+                                                        <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if (!$ultimoDoc && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
-                                                <button class="btn btn-sm btn-outline-dark" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalSinMovimiento"
-                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
-                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
-                                                </button>
+                                                <?php elseif ($tieneSinMovimiento): ?>
+                                                    <!-- Tiene Sin Movimiento declarado -->
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <!-- No tiene documento ni Sin Movimiento -->
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
+                                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-dark" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalSinMovimiento"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                            style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
+                                                        <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -740,18 +776,25 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
-                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
-                                                    <button type="button" class="btn btn-sm btn-warning"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalSubirVerificador"
-                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-upload"></i> Subir Verificador
-                                                    </button>
+                                                <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
+                                                    <?php if ($ultimoDoc): ?>
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalSubirVerificador"
+                                                                onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif ($ultimoDoc): ?>
                                                     <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
-                                                <?php else: ?>
-                                                    <span class="text-muted small">Sin documento</span>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -878,8 +921,8 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
-                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
@@ -889,23 +932,32 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
+                                                <?php elseif ($tieneSinMovimiento): ?>
+                                                    <!-- Tiene Sin Movimiento declarado -->
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
+                                                        <i class="bi bi-pencil"></i> Modificar
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php else: ?>
+                                                    <!-- No tiene documento ni Sin Movimiento -->
                                                     <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
-                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
+                                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
+                                                    <button class="btn btn-sm btn-outline-dark" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalSinMovimiento"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                            style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
+                                                        <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                    </button>
                                                     <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if (!$ultimoDoc && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
-                                                <button class="btn btn-sm btn-outline-dark" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalSinMovimiento"
-                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
-                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
-                                                </button>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -915,14 +967,23 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
-                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
-                                                    <button type="button" class="btn btn-sm btn-warning"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalSubirVerificador"
-                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-upload"></i> Subir Verificador
-                                                    </button>
+                                                <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
+                                                    <?php if ($ultimoDoc): ?>
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalSubirVerificador"
+                                                                onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif ($ultimoDoc): ?>
                                                     <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
                                                 <?php endif; ?>
@@ -1063,8 +1124,8 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($tieneDocDelUsuario): ?>
-                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
@@ -1074,23 +1135,33 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
-                                                <?php else: ?>
-                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
-                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
-                                                            data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1);">
-                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                <?php elseif ($tieneSinMovimiento): ?>
+                                                    <!-- Tiene Sin Movimiento declarado -->
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
+                                                        <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if (!$tieneDocDelUsuario && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
-                                                <button class="btn btn-sm btn-outline-dark" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalSinMovimiento"
-                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
-                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
-                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
-                                                </button>
+                                                <?php else: ?>
+                                                    <!-- No tiene documento ni Sin Movimiento -->
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
+                                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1);"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-dark" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalSinMovimiento"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                            style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
+                                                        <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success" 
@@ -1100,14 +1171,23 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
-                                                <?php elseif ($tieneDocDelUsuario && $user_perfil === 'publicador'): ?>
-                                                    <button type="button" class="btn btn-sm btn-warning"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalSubirVerificador"
-                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-upload"></i> Subir Verificador
-                                                    </button>
+                                                <?php elseif (($tieneDocDelUsuario || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
+                                                    <?php if ($tieneDocDelUsuario): ?>
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalSubirVerificador"
+                                                                onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif ($tieneDocDelUsuario): ?>
                                                     <span class="badge bg-danger" title="Pendiente de publicar en portal TA." data-bs-toggle="tooltip">No cargado a TA</span>
                                                 <?php endif; ?>
@@ -1231,10 +1311,10 @@ if (isset($_SESSION['success'])) {
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
                                         <td>
-                                            <div class="d-flex gap-1">
+                                            <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
-                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Ver documento">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Documento
+                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
+                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
@@ -1244,23 +1324,33 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
-                                                <?php else: ?>
-                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
-                                                    <button class="btn btn-sm btn-primary" style="white-space: nowrap;" data-bs-toggle="modal" 
-                                                            data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>');">
-                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                <?php elseif ($tieneSinMovimiento): ?>
+                                                    <!-- Tiene Sin Movimiento declarado -->
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
+                                                        <i class="bi bi-pencil"></i> Modificar
                                                     </button>
                                                     <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if (!$ultimoDoc && !$tieneSinMovimiento && ($user_perfil !== 'publicador')): ?>
-                                                <button class="btn btn-sm btn-outline-dark" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalSinMovimiento"
-                                                        onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                        style="white-space: nowrap;" title="Registrar que no hay movimiento">
-                                                    <i class="bi bi-dash-circle"></i> Sin Movimiento
-                                                </button>
+                                                <?php else: ?>
+                                                    <!-- No tiene documento ni Sin Movimiento -->
+                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
+                                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
+                                                            data-bs-target="#modalCargar"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>);"
+                                                            style="white-space: nowrap;">
+                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-dark" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalSinMovimiento"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                            style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
+                                                        <i class="bi bi-dash-circle"></i> Sin Movimiento
+                                                    </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
                                                     <button type="button" class="btn btn-sm btn-success"
@@ -1270,14 +1360,23 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
-                                                <?php elseif ($ultimoDoc && $user_perfil === 'publicador'): ?>
-                                                    <button type="button" class="btn btn-sm btn-warning"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalSubirVerificador"
-                                                            onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-upload"></i> Subir Verificador
-                                                    </button>
+                                                <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
+                                                    <?php if ($ultimoDoc): ?>
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#modalSubirVerificador"
+                                                                onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <button type="button" class="btn btn-sm btn-warning"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif ($ultimoDoc): ?>
                                                     <span class="badge bg-danger" title="Pendiente de publicar." data-bs-toggle="tooltip">No cargado a TA</span>
                                                 <?php endif; ?>
@@ -1440,6 +1539,46 @@ function prepararVerificador(itemId, docId, itemNombre) {
     // Limpiar zona de pegado al abrir el modal
     resetPasteZone();
 }
+
+// Preparar verificador para item "Sin Movimiento" (crea documento placeholder primero)
+function prepararVerificadorSinMovimiento(itemId, itemNombre, mes, ano) {
+    // Mostrar indicador de carga
+    const btnElement = event.target.closest('button');
+    const originalHTML = btnElement.innerHTML;
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Preparando...';
+    
+    const formData = new FormData();
+    formData.append('item_id', itemId);
+    formData.append('mes', mes);
+    formData.append('ano', ano);
+    
+    fetch('crear_documento_placeholder.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalHTML;
+        
+        if (data.success) {
+            // Abrir modal de verificador con el documento_id creado
+            prepararVerificador(itemId, data.documento_id, itemNombre);
+            const modal = new bootstrap.Modal(document.getElementById('modalSubirVerificador'));
+            modal.show();
+        } else {
+            alert('Error: ' + (data.error || 'Error al preparar el verificador'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalHTML;
+        alert('Error al preparar el verificador');
+    });
+}
+
 
 function resetPasteZone() {
     document.getElementById('pastePreview').style.display = 'none';
@@ -1766,6 +1905,88 @@ function verEnPantallaCompleta(imageSrc) {
     </div>
 </div>
 
+<!-- MODAL: Modificar Sin Movimiento -->
+<div class="modal fade" id="modalModificarSinMovimiento" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <div>
+                    <h5 class="modal-title mb-1"><i class="bi bi-pencil-square"></i> Modificar Sin Movimiento</h5>
+                    <small>Item: <strong id="modifSinMovItemNombre">-</strong> — <span id="modifSinMovPeriodo">-</span></small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modifSinMovItemId">
+                <input type="hidden" id="modifSinMovMes">
+                <input type="hidden" id="modifSinMovAno">
+                <input type="hidden" id="modifSinMovObservacionActual">
+                
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> <strong>Observación actual:</strong>
+                    <p class="mb-0 mt-2" id="modifSinMovTextoActual" style="font-style: italic; background: #fff; padding: 10px; border-left: 3px solid #0dcaf0;"></p>
+                </div>
+                
+                <ul class="nav nav-tabs mb-3" id="modifSinMovTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-observacion" data-bs-toggle="tab" data-bs-target="#tab-observacion-content" type="button" role="tab">
+                            <i class="bi bi-pencil"></i> Actualizar Observación
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-documento" data-bs-toggle="tab" data-bs-target="#tab-documento-content" type="button" role="tab">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Subir Documento
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="modifSinMovTabContent">
+                    <!-- Tab 1: Actualizar Observación -->
+                    <div class="tab-pane fade show active" id="tab-observacion-content" role="tabpanel">
+                        <div class="mb-3">
+                            <label for="modifSinMovNuevaObservacion" class="form-label">Nueva Observación <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="modifSinMovNuevaObservacion" rows="4" placeholder="Indique la nueva observación..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-warning w-100" onclick="actualizarObservacion()">
+                            <i class="bi bi-check-circle"></i> Actualizar Observación
+                        </button>
+                    </div>
+                    
+                    <!-- Tab 2: Subir Documento -->
+                    <div class="tab-pane fade" id="tab-documento-content" role="tabpanel">
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> <strong>Importante:</strong> Al subir un documento, la declaración de "Sin Movimiento" será reemplazada completamente.
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="modifSinMovTitulo" class="form-label">Título <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modifSinMovTitulo" placeholder="Título del documento">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="modifSinMovDescripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="modifSinMovDescripcion" rows="3" placeholder="Descripción del documento (opcional)"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="modifSinMovArchivo" class="form-label">Archivo <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="modifSinMovArchivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip">
+                            <div class="form-text">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP (máx. 10MB)</div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary w-100" onclick="subirDocumentoReemplazar()">
+                            <i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // --- Sin Movimiento ---
 function prepararSinMovimiento(itemId, itemNombre, mes, ano) {
@@ -1813,6 +2034,127 @@ function guardarSinMovimiento() {
     .catch(error => {
         console.error('Error:', error);
         alert('Error al guardar la observación');
+    });
+}
+
+// --- Modificar Sin Movimiento ---
+function prepararModificarSinMovimiento(itemId, itemNombre, mes, ano, observacion) {
+    document.getElementById('modifSinMovItemId').value = itemId;
+    document.getElementById('modifSinMovMes').value = mes;
+    document.getElementById('modifSinMovAno').value = ano;
+    document.getElementById('modifSinMovItemNombre').textContent = itemNombre;
+    document.getElementById('modifSinMovPeriodo').textContent = meses[mes] + ' ' + ano;
+    document.getElementById('modifSinMovObservacionActual').value = observacion;
+    document.getElementById('modifSinMovTextoActual').textContent = observacion;
+    document.getElementById('modifSinMovNuevaObservacion').value = observacion;
+    
+    // Limpiar campos de documento
+    document.getElementById('modifSinMovTitulo').value = '';
+    document.getElementById('modifSinMovDescripcion').value = '';
+    document.getElementById('modifSinMovArchivo').value = '';
+    
+    // Activar primer tab
+    const tabObservacion = new bootstrap.Tab(document.getElementById('tab-observacion'));
+    tabObservacion.show();
+}
+
+function actualizarObservacion() {
+    const itemId = document.getElementById('modifSinMovItemId').value;
+    const mes = document.getElementById('modifSinMovMes').value;
+    const ano = document.getElementById('modifSinMovAno').value;
+    const nuevaObservacion = document.getElementById('modifSinMovNuevaObservacion').value.trim();
+    
+    if (!nuevaObservacion) {
+        alert('Debe ingresar una observación');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('item_id', itemId);
+    formData.append('mes', mes);
+    formData.append('ano', ano);
+    formData.append('accion', 'actualizar_observacion');
+    formData.append('observacion', nuevaObservacion);
+    
+    fetch('modificar_sin_movimiento.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalModificarSinMovimiento'));
+            modal.hide();
+            alert(data.message || 'Observación actualizada exitosamente');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Error desconocido'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al actualizar la observación');
+    });
+}
+
+function subirDocumentoReemplazar() {
+    const itemId = document.getElementById('modifSinMovItemId').value;
+    const mes = document.getElementById('modifSinMovMes').value;
+    const ano = document.getElementById('modifSinMovAno').value;
+    const titulo = document.getElementById('modifSinMovTitulo').value.trim();
+    const descripcion = document.getElementById('modifSinMovDescripcion').value.trim();
+    const archivoInput = document.getElementById('modifSinMovArchivo');
+    
+    if (!titulo) {
+        alert('Debe ingresar un título');
+        return;
+    }
+    
+    if (!archivoInput.files || archivoInput.files.length === 0) {
+        alert('Debe seleccionar un archivo');
+        return;
+    }
+    
+    if (!confirm('¿Está seguro? Al subir este documento, la declaración de "Sin Movimiento" será reemplazada completamente.')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('item_id', itemId);
+    formData.append('mes', mes);
+    formData.append('ano', ano);
+    formData.append('accion', 'subir_documento');
+    formData.append('titulo', titulo);
+    formData.append('descripcion', descripcion);
+    formData.append('archivo', archivoInput.files[0]);
+    
+    // Deshabilitar botón para evitar múltiples envíos
+    const btnSubir = event.target;
+    btnSubir.disabled = true;
+    btnSubir.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Subiendo...';
+    
+    fetch('modificar_sin_movimiento.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalModificarSinMovimiento'));
+            modal.hide();
+            alert(data.message || 'Documento cargado exitosamente');
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Error desconocido'));
+            btnSubir.disabled = false;
+            btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al subir el documento');
+        btnSubir.disabled = false;
+        btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
     });
 }
 
