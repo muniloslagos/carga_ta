@@ -474,6 +474,12 @@ if (isset($_SESSION['success'])) {
                                         $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                     }
                                     
+                                    // Calcular plazos de envío y publicación (mensual)
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
+                                    
+                                    // Fecha Envío con icono de cumplimiento
                                     if ($ultimoDoc) {
                                         if ($plazoFinal) {
                                             $icoE = date('Y-m-d', strtotime($ultimoDoc['fecha_envio'])) <= $plazoFinal ? '🟢 ' : '🔴 ';
