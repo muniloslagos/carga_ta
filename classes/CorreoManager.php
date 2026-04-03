@@ -496,6 +496,34 @@ class CorreoManager {
             $documento = $doc_result->fetch_assoc();
             $stmt->close();
             
+            // Verificar Sin Movimiento
+            $sinMovimiento = false;
+            $checkSinMov = $this->conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
+            if ($checkSinMov && $checkSinMov->num_rows > 0) {
+                $stmt = $this->conn->prepare("SELECT id FROM observaciones_sin_movimiento 
+                    WHERE item_id = ? AND mes = ? AND ano = ? LIMIT 1");
+                $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+                $stmt->execute();
+                $sinMovResult = $stmt->get_result();
+                $sinMovimiento = ($sinMovResult->num_rows > 0);
+                $stmt->close();
+            }
+            
+            // Si hay Sin Movimiento pero no documento normal, buscar documento placeholder
+            if ($sinMovimiento && !$documento) {
+                $stmt = $this->conn->prepare("SELECT id, fecha_subida 
+                    FROM documentos 
+                    WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? 
+                    AND titulo LIKE 'Sin Movimiento%'
+                    ORDER BY fecha_subida DESC
+                    LIMIT 1");
+                $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+                $stmt->execute();
+                $placeholder_result = $stmt->get_result();
+                $documento = $placeholder_result->fetch_assoc();
+                $stmt->close();
+            }
+            
             // Buscar verificador (publicación)
             $verificador = null;
             if ($documento) {
@@ -511,39 +539,38 @@ class CorreoManager {
                 $stmt->close();
             }
             
-            // Verificar Si Movimiento
-            $sinMovimiento = false;
-            $checkSinMov = $this->conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
-            if ($checkSinMov && $checkSinMov->num_rows > 0) {
-                $stmt = $this->conn->prepare("SELECT id FROM observaciones_sin_movimiento 
-                    WHERE item_id = ? AND mes = ? AND ano = ? LIMIT 1");
-                $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
-                $stmt->execute();
-                $sinMovResult = $stmt->get_result();
-                $sinMovimiento = ($sinMovResult->num_rows > 0);
-                $stmt->close();
-            }
-            
             // Construir fila
             $total_items++;
             $html .= '<tr>';
             $html .= '<td>' . htmlspecialchars($item['nombre']) . '</td>';
             
             if ($verificador) {
+                // Tiene verificador = publicado (puede ser Sin Movimiento o documento normal)
                 $items_publicados++;
-                $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
+                if ($sinMovimiento) {
+                    $html .= '<td style="color:green;"><strong>✓ Sin Movimiento (Publicado)</strong></td>';
+                } else {
+                    $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
+                }
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) . '</td>';
             } elseif ($documento) {
+                // Tiene documento pero no verificador
                 $items_cargados++;
-                $html .= '<td style="color:orange;"><strong>⚠ Cargado (sin publicar)</strong></td>';
+                if ($sinMovimiento) {
+                    $html .= '<td style="color:orange;"><strong>⚠ Sin Movimiento (sin publicar)</strong></td>';
+                } else {
+                    $html .= '<td style="color:orange;"><strong>⚠ Cargado (sin publicar)</strong></td>';
+                }
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
                 $html .= '<td><em>Pendiente</em></td>';
             } elseif ($sinMovimiento) {
+                // Sin Movimiento declarado pero sin documento placeholder (caso raro)
                 $items_cargados++;
                 $html .= '<td style="color:green;"><strong>✓ Sin Movimiento</strong></td>';
                 $html .= '<td colspan="2"><em>Sin movimiento registrado</em></td>';
             } else {
+                // Sin documento, sin Sin Movimiento = pendiente
                 $items_pendientes++;
                 $html .= '<td style="color:red;"><strong>✗ Pendiente</strong></td>';
                 $html .= '<td colspan="2"><em>Sin carga</em></td>';
