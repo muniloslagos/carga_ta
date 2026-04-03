@@ -2,7 +2,8 @@
 
     <!-- Footer -->
     <footer class="bg-dark text-white text-center py-4 mt-5">
-        <p>&copy; 2025 <?php echo SITE_NAME; ?>. Todos los derechos reservados.</p>
+        <p>&copy; <?php echo date('Y'); ?> <?php echo SITE_NAME; ?>. Todos los derechos reservados.</p>
+        <p class="mb-0 small text-muted">Hora del servidor: <?php echo date('d/m/Y H:i:s'); ?></p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
