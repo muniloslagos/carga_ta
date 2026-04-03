@@ -48,6 +48,26 @@ while ($item = $itemsResult->fetch_assoc()) {
     $items[] = $item;
 }
 
+// Pre-fetch observaciones "Sin Movimiento" para todos los items
+$sinMovimientoCache = [];
+$tableCheck = $conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
+if ($tableCheck && $tableCheck->num_rows > 0) {
+    $stmtSinMov = $conn->prepare("SELECT item_id, mes, ano, observacion, fecha_creacion FROM observaciones_sin_movimiento ORDER BY fecha_creacion DESC");
+    $stmtSinMov->execute();
+    $resSinMov = $stmtSinMov->get_result();
+    while ($rowSinMov = $resSinMov->fetch_assoc()) {
+        $key = $rowSinMov['item_id'] . '_' . $rowSinMov['mes'] . '_' . $rowSinMov['ano'];
+        // Guardar solo el más reciente por key
+        if (!isset($sinMovimientoCache[$key])) {
+            $sinMovimientoCache[$key] = [
+                'observacion' => $rowSinMov['observacion'],
+                'fecha_creacion' => $rowSinMov['fecha_creacion']
+            ];
+        }
+    }
+    $stmtSinMov->close();
+}
+
 $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 $mesBusqueda = $mesSeleccionado;
@@ -214,14 +234,21 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
         // Verificar si tiene documento
         if ($item['periodicidad'] === 'anual') {
             $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], 1, $anoSeleccionado);
+            $mesParaKey = 1;
         } else {
             $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesSeleccionado, $anoSeleccionado);
+            $mesParaKey = $mesSeleccionado;
         }
         
         $documento = null;
         if ($docsResult && $docsResult->num_rows > 0) {
             $documento = $docsResult->fetch_assoc();
         }
+        
+        // Verificar si tiene "Sin Movimiento" registrado
+        $sinMovKey = $item['id'] . '_' . $mesParaKey . '_' . $anoSeleccionado;
+        $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+        $sinMovData = $tieneSinMovimiento ? $sinMovimientoCache[$sinMovKey] : null;
         
         $estadoBadge = '';
         $usuario = '';
@@ -258,6 +285,17 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
                             <i class="bi bi-plus-circle"></i> Agregar Verificador
                         </a>';
             }
+        } elseif ($tieneSinMovimiento) {
+            // Tiene "Sin Movimiento" pero no documento
+            $estadoBadge = '<span class="badge bg-success"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>';
+            $usuario = '-';
+            $fecha = date('d/m/Y H:i', strtotime($sinMovData['fecha_creacion']));
+            $observacionEscapada = htmlspecialchars($sinMovData['observacion'], ENT_QUOTES);
+            $botones = '<button class="btn btn-sm btn-secondary" data-bs-toggle="modal" 
+                       data-bs-target="#modalVerSinMovimiento"
+                       onclick="verSinMovimiento(\'' . htmlspecialchars($item['nombre'], ENT_QUOTES) . '\', \'' . $observacionEscapada . '\', \'' . $fecha . '\');">
+                        <i class="bi bi-chat-left-text"></i> Ver Observación
+                    </button>';
         } else {
             $estadoBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Sin Cargar</span>';
             $usuario = '-';
@@ -385,6 +423,33 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
     </div>
 </div>
 
+<!-- MODAL: Ver Sin Movimiento -->
+<div class="modal fade" id="modalVerSinMovimiento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-dash-circle"></i> Sin Movimiento - <span id="sinMovItemNombre"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Fecha de declaración:</strong> <span id="sinMovFecha"></span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><strong>Observación registrada:</strong></label>
+                    <div class="p-3 bg-light border rounded">
+                        <p id="sinMovObservacion" class="mb-0"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function verDocumento(docId, itemNombre, titulo) {
     fetch(`get_documento.php?doc_id=${docId}`)
@@ -406,6 +471,12 @@ function verVerificador(verifId, archivo) {
         .catch(error => {
             document.getElementById('modalVerVerificadorBody').innerHTML = '<p class="text-danger">Error al cargar el verificador</p>';
         });
+}
+
+function verSinMovimiento(itemNombre, observacion, fecha) {
+    document.getElementById('sinMovItemNombre').textContent = itemNombre;
+    document.getElementById('sinMovFecha').textContent = fecha;
+    document.getElementById('sinMovObservacion').textContent = observacion;
 }
 
 function seleccionarDocumento(docId, itemId, usuarioId, itemNombre) {
