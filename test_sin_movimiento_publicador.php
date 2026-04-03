@@ -6,6 +6,14 @@ ini_set('display_errors', 1);
 echo "<h3>Diagnóstico: Sin Movimiento - Publicador</h3>";
 echo "<hr>";
 
+// Cargar config.php primero (tiene las credenciales de BD)
+echo "Cargando config/config.php...<br>";
+if (!file_exists('config/config.php')) {
+    die("ERROR: No existe el archivo config/config.php<br>");
+}
+require_once 'config/config.php';
+echo "✓ config.php cargado<br>";
+
 // Intentar cargar Database.php
 echo "Cargando config/Database.php...<br>";
 if (!file_exists('config/Database.php')) {
