@@ -484,19 +484,7 @@ class CorreoManager {
                 $mes_busqueda = 1; // Enero para anuales
             }
             
-            // Buscar documento
-            $stmt = $this->conn->prepare("SELECT d.id, d.fecha_subida 
-                FROM documentos d
-                WHERE d.item_id = ? AND d.mes_carga = ? AND d.ano_carga = ?
-                ORDER BY d.fecha_subida DESC
-                LIMIT 1");
-            $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
-            $stmt->execute();
-            $doc_result = $stmt->get_result();
-            $documento = $doc_result->fetch_assoc();
-            $stmt->close();
-            
-            // Verificar Sin Movimiento
+            // Verificar Sin Movimiento primero
             $sinMovimiento = false;
             $checkSinMov = $this->conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
             if ($checkSinMov && $checkSinMov->num_rows > 0) {
@@ -509,8 +497,10 @@ class CorreoManager {
                 $stmt->close();
             }
             
-            // Si hay Sin Movimiento pero no documento normal, buscar documento placeholder
-            if ($sinMovimiento && !$documento) {
+            // Buscar documento según el caso
+            $documento = null;
+            if ($sinMovimiento) {
+                // Si es Sin Movimiento, buscar SOLO el documento placeholder
                 $stmt = $this->conn->prepare("SELECT id, fecha_subida 
                     FROM documentos 
                     WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? 
@@ -521,6 +511,19 @@ class CorreoManager {
                 $stmt->execute();
                 $placeholder_result = $stmt->get_result();
                 $documento = $placeholder_result->fetch_assoc();
+                $stmt->close();
+            } else {
+                // Si NO es Sin Movimiento, buscar documento normal (excluyendo placeholders)
+                $stmt = $this->conn->prepare("SELECT d.id, d.fecha_subida 
+                    FROM documentos d
+                    WHERE d.item_id = ? AND d.mes_carga = ? AND d.ano_carga = ?
+                    AND (d.titulo NOT LIKE 'Sin Movimiento%' OR d.titulo IS NULL)
+                    ORDER BY d.fecha_subida DESC
+                    LIMIT 1");
+                $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+                $stmt->execute();
+                $doc_result = $stmt->get_result();
+                $documento = $doc_result->fetch_assoc();
                 $stmt->close();
             }
             
