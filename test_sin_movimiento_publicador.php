@@ -1,13 +1,35 @@
 <?php
+// Mostrar todos los errores
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+echo "<h3>Diagnóstico: Sin Movimiento - Publicador</h3>";
+echo "<hr>";
+
+// Intentar cargar Database.php
+echo "Cargando config/Database.php...<br>";
+if (!file_exists('config/Database.php')) {
+    die("ERROR: No existe el archivo config/Database.php<br>");
+}
+
 require_once 'config/Database.php';
+echo "✓ Database.php cargado<br>";
+
+// Crear instancia de Database
+try {
+    $database = new Database();
+    $conn = $database->getConnection();
+    echo "✓ Conexión a BD establecida<br>";
+} catch (Exception $e) {
+    die("ERROR al conectar BD: " . $e->getMessage() . "<br>");
+}
+
+echo "<hr>";
 
 // Buscar el ítem "Nómina Beneficiarios - Subsidio agua potable y alcantarillado - Urbano"
 $itemNombre = 'Nómina Beneficiarios - Subsidio agua potable y alcantarillado - Urbano';
 $mes = 3; // Marzo
 $ano = 2026;
-
-echo "<h3>Diagnóstico: Sin Movimiento - Publicador</h3>";
-echo "<hr>";
 
 // 1. Buscar el item
 $stmtItem = $conn->prepare("SELECT id, nombre, periodicidad FROM items WHERE nombre LIKE ?");
