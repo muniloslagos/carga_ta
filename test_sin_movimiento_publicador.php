@@ -109,12 +109,26 @@ if ($resultItem->num_rows > 0) {
     
     // 3. Verificar si tiene documento cargado
     echo "<hr>";
+    
+    // Primero ver estructura de tabla documentos
+    echo "<strong>Estructura de tabla 'documentos':</strong><br>";
+    $columnas = $conn->query("DESCRIBE documentos");
+    if ($columnas) {
+        echo "<pre>";
+        while ($col = $columnas->fetch_assoc()) {
+            echo $col['Field'] . " (" . $col['Type'] . ")\n";
+        }
+        echo "</pre>";
+    }
+    echo "<hr>";
+    
+    // Intentar consulta adaptada (sin mes/ano si no existen)
     $stmtDoc = $conn->prepare("SELECT d.*, u.nombre as usuario_nombre 
                                FROM documentos d 
                                LEFT JOIN usuarios u ON d.usuario_id = u.id 
-                               WHERE d.item_id = ? AND d.mes = ? AND d.ano = ? 
+                               WHERE d.item_id = ? 
                                ORDER BY d.fecha_subida DESC LIMIT 1");
-    $stmtDoc->bind_param("iii", $itemId, $mesParaConsulta, $ano);
+    $stmtDoc->bind_param("i", $itemId);
     $stmtDoc->execute();
     $resultDoc = $stmtDoc->get_result();
     
