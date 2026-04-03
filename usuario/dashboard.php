@@ -552,7 +552,11 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
                                                             data-bs-target="#modalModificarSinMovimiento"
-                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
+                                                            data-mes="<?php echo $mesSeleccionado; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -745,7 +749,11 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
                                                             data-bs-target="#modalModificarSinMovimiento"
-                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
+                                                            data-mes="<?php echo $mesActual; ?>"
+                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -937,7 +945,11 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
                                                             data-bs-target="#modalModificarSinMovimiento"
-                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
+                                                            data-mes="<?php echo $mesActual; ?>"
+                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1140,7 +1152,11 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
                                                             data-bs-target="#modalModificarSinMovimiento"
-                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
+                                                            data-mes="1"
+                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1329,7 +1345,11 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
                                                             data-bs-target="#modalModificarSinMovimiento"
-                                                            onclick="prepararModificarSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>, '<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>')"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
+                                                            data-mes="<?php echo $mesActual; ?>"
+                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -2197,6 +2217,53 @@ function subirDocumentoReemplazar() {
         }
     });
 }
+
+// --- Event handler para Modal Modificar Sin Movimiento ---
+// Cargar datos cuando el modal se muestre
+document.addEventListener('DOMContentLoaded', function() {
+    const modalModificarSinMovimiento = document.getElementById('modalModificarSinMovimiento');
+    if (modalModificarSinMovimiento) {
+        modalModificarSinMovimiento.addEventListener('show.bs.modal', function (event) {
+            // Botón que abrió el modal
+            const button = event.relatedTarget;
+            
+            // Extraer datos de los atributos data-*
+            const itemId = button.getAttribute('data-item-id');
+            const itemNombre = button.getAttribute('data-item-nombre');
+            const mes = button.getAttribute('data-mes');
+            const ano = button.getAttribute('data-ano');
+            const observacion = button.getAttribute('data-observacion');
+            
+            console.log('Modal abierto con datos:', {itemId, itemNombre, mes, ano, observacion});
+            
+            // Asignar valores a los campos hidden
+            document.getElementById('modifSinMovItemId').value = itemId || '';
+            document.getElementById('modifSinMovMes').value = mes || '';
+            document.getElementById('modifSinMovAno').value = ano || '';
+            document.getElementById('modifSinMovItemNombre').textContent = itemNombre || '-';
+            document.getElementById('modifSinMovPeriodo').textContent = (mes && ano) ? meses[mes] + ' ' + ano : '-';
+            document.getElementById('modifSinMovObservacionActual').value = observacion || '';
+            document.getElementById('modifSinMovTextoActual').textContent = observacion || '';
+            document.getElementById('modifSinMovNuevaObservacion').value = observacion || '';
+            
+            // Limpiar campos de documento
+            document.getElementById('modifSinMovTitulo').value = '';
+            document.getElementById('modifSinMovDescripcion').value = '';
+            document.getElementById('modifSinMovArchivo').value = '';
+            
+            // Activar primer tab
+            const tabObservacion = new bootstrap.Tab(document.getElementById('tab-observacion'));
+            tabObservacion.show();
+            
+            // Debug final
+            console.log('Valores finales asignados:', {
+                itemId: document.getElementById('modifSinMovItemId').value,
+                mes: document.getElementById('modifSinMovMes').value,
+                ano: document.getElementById('modifSinMovAno').value
+            });
+        });
+    }
+});
 
 // --- Ver Observaciones ---
 function verObservaciones(itemId, itemNombre, mes, ano) {
