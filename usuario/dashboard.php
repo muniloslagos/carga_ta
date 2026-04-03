@@ -496,8 +496,6 @@ if (isset($_SESSION['success'])) {
                                             $icoP = date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal ? '🟢 ' : '🔴 ';
                                         } else { $icoP = ''; }
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
-                                    } elseif ($tieneSinMovimiento) {
-                                        $cargaPortal = '<span class="badge bg-success"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>';
                                     } else {
                                         $cargaPortal = '<span class="text-muted">Pendiente</span>';
                                     }
@@ -627,6 +625,7 @@ if (isset($_SESSION['success'])) {
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
                                                                 onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                                 style="white-space: nowrap;">
@@ -852,6 +851,7 @@ if (isset($_SESSION['success'])) {
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
                                                                 onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
                                                                 style="white-space: nowrap;">
@@ -1070,6 +1070,7 @@ if (isset($_SESSION['success'])) {
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
                                                                 onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
                                                                 style="white-space: nowrap;">
@@ -1309,6 +1310,7 @@ if (isset($_SESSION['success'])) {
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
                                                                 onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
                                                                 style="white-space: nowrap;">
@@ -1525,6 +1527,7 @@ if (isset($_SESSION['success'])) {
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
+                                                        <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
                                                                 onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
                                                                 style="white-space: nowrap;">
