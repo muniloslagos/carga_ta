@@ -4,14 +4,24 @@
  */
 
 require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/config/database.php';
 
-$conn = getDBConnection();
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+if ($conn->connect_error) {
+    die("Error de conexión: " . $conn->connect_error);
+}
 
 // Parámetros de prueba
-$item_id = 42; // Cambiar por un item con Sin Movimiento
-$mes = 3; // Marzo
-$ano = 2026;
+$item_id = isset($_GET['item_id']) ? (int)$_GET['item_id'] : 42; // Cambiar default o usar ?item_id=X
+$mes = isset($_GET['mes']) ? (int)$_GET['mes'] : 3; // Marzo
+$ano = isset($_GET['ano']) ? (int)$_GET['ano'] : 2026;
+
+// Detectar si es web o CLI
+$isWeb = php_sapi_name() !== 'cli';
+if ($isWeb) {
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<pre style="background:#f4f4f4; padding:20px; font-family:monospace;">';
+}
 
 echo "=== DIAGNÓSTICO SIN MOVIMIENTO PARA CORREOS ===\n\n";
 echo "Item ID: $item_id\n";
@@ -109,3 +119,7 @@ if ($result->num_rows > 0) {
 $stmt->close();
 
 echo "\n=== FIN DIAGNÓSTICO ===\n";
+
+if ($isWeb) {
+    echo '</pre>';
+}
