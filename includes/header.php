@@ -58,6 +58,7 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/items/"><i class="bi bi-file-text"></i> Items</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/usuarios/"><i class="bi bi-people"></i> Usuarios</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/direcciones/"><i class="bi bi-building"></i> Direcciones</a></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/directores/"><i class="bi bi-person-badge"></i> Directores</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/documentos/"><i class="bi bi-file-earmark"></i> Documentos</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/correos/"><i class="bi bi-envelope"></i> Correos</a></li>
                                 <li><hr class="dropdown-divider"></li>

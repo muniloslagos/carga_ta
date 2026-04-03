@@ -4,8 +4,10 @@ require_once '../../includes/check_auth.php';
 require_role('administrativo');
 
 require_once '../../classes/Direccion.php';
+require_once '../../classes/Director.php';
 
 $direccionClass = new Direccion($db->getConnection());
+$directorClass = new Director($db->getConnection());
 
 $error = '';
 $success = '';
@@ -18,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create') {
         $data = [
             'nombre' => trim($_POST['nombre'] ?? ''),
-            'descripcion' => trim($_POST['descripcion'] ?? '')
+            'descripcion' => trim($_POST['descripcion'] ?? ''),
+            'director_id' => $_POST['director_id'] ?? null
         ];
 
         if (!empty($data['nombre'])) {
@@ -34,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'update') {
         $data = [
             'nombre' => trim($_POST['nombre'] ?? ''),
-            'descripcion' => trim($_POST['descripcion'] ?? '')
+            'descripcion' => trim($_POST['descripcion'] ?? ''),
+            'director_id' => $_POST['director_id'] ?? null
         ];
 
         if ($direccionClass->update(intval($_POST['direccion_id']), $data)) {
@@ -107,6 +111,10 @@ require_once '../../includes/header.php';
                         <i class="bi bi-building"></i> <?php echo htmlspecialchars($dir['nombre']); ?>
                     </h5>
                     <p class="card-text text-muted"><?php echo htmlspecialchars($dir['descripcion'] ?? 'Sin descripción'); ?></p>
+                    <p class="mb-1">
+                        <i class="bi bi-person-badge"></i> <strong>Director:</strong>
+                        <?php echo !empty($dir['director_nombre']) ? htmlspecialchars($dir['director_nombre']) : '<span class="text-muted">Sin asignar</span>'; ?>
+                    </p>
                     <?php
                     $usuarios = $direccionClass->getUsuarios($dir['id']);
                     $count = $usuarios->num_rows;
@@ -155,6 +163,21 @@ require_once '../../includes/header.php';
                         <label for="descripcion" class="form-label">Descripción</label>
                         <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
                     </div>
+
+                    <div class="mb-3">
+                        <label for="director_id" class="form-label">Director Asignado</label>
+                        <select class="form-select" id="director_id" name="director_id">
+                            <option value="">-- Sin director asignado --</option>
+                            <?php 
+                            $listaDirectores = $directorClass->getAll();
+                            while ($d = $listaDirectores->fetch_assoc()): 
+                            ?>
+                                <option value="<?php echo $d['id']; ?>">
+                                    <?php echo htmlspecialchars($d['nombres'] . ' ' . $d['apellidos']); ?>
+                                </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -175,6 +198,7 @@ function editDireccion(id) {
             document.getElementById('direccionId').value = data.id;
             document.getElementById('nombre').value = data.nombre;
             document.getElementById('descripcion').value = data.descripcion || '';
+            document.getElementById('director_id').value = data.director_id || '';
         });
 }
 
@@ -183,6 +207,7 @@ document.getElementById('direccionModal').addEventListener('hide.bs.modal', func
     document.getElementById('direccionModalLabel').textContent = 'Nueva Dirección';
     document.getElementById('formAction').value = 'create';
     document.getElementById('direccionId').value = '';
+    document.getElementById('director_id').value = '';
 });
 </script>
 
