@@ -54,7 +54,7 @@ $mes = 3; // Marzo
 $ano = 2026;
 
 // 1. Buscar el item
-$stmtItem = $conn->prepare("SELECT id, nombre, periodicidad FROM items WHERE nombre LIKE ?");
+$stmtItem = $conn->prepare("SELECT id, nombre, periodicidad FROM items_transparencia WHERE nombre LIKE ?");
 $busqueda = "%$itemNombre%";
 $stmtItem->bind_param("s", $busqueda);
 $stmtItem->execute();
