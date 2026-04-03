@@ -63,10 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo'])) {
         $plazo_fecha = $_POST['plazo_fecha'] ?? '';
         
         if ($item_id && $ano && $plazo_fecha) {
+            // Obtener mes_carga_anual del item
+            $itemData = $itemClass->getById($item_id);
+            $mesCargaAnual = intval($itemData['mes_carga_anual'] ?? 1);
+            
             $resultado = $itemPlazoClass->create([
                 'item_id' => $item_id,
                 'ano' => $ano,
-                'mes' => 1, // Usar mes 1 como referencia para items anuales
+                'mes' => $mesCargaAnual,
                 'plazo_interno' => $plazo_fecha,
                 'fecha_carga_portal' => null
             ]);

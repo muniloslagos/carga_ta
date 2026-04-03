@@ -82,7 +82,14 @@ class PlazoCalculator {
         }
 
         if ($p === 'anual') {
-            return [$ano, 2]; // Siempre febrero del aÃ±o en curso
+            // Mes siguiente al mes de carga configurado
+            $deadlineMonth = $mes + 1;
+            $deadlineYear  = $ano;
+            if ($deadlineMonth > 12) {
+                $deadlineMonth -= 12;
+                $deadlineYear++;
+            }
+            return [$deadlineYear, $deadlineMonth];
         }
 
         if ($p === 'trimestral') {

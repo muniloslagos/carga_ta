@@ -139,7 +139,8 @@ $mesBusqueda = $mesSeleccionado;
     foreach ($items as $item) {
         // Para mensuales, buscar por mes; para anuales, por año
         if ($item['periodicidad'] === 'anual') {
-            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], 1, $anoSeleccionado);
+            $mesAnualItem = intval($item['mes_carga_anual'] ?? 1);
+            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesAnualItem, $anoSeleccionado);
         } else {
             $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesSeleccionado, $anoSeleccionado);
         }
@@ -233,8 +234,8 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
     foreach ($itemsGrupo as $item) {
         // Verificar si tiene documento
         if ($item['periodicidad'] === 'anual') {
-            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], 1, $anoSeleccionado);
-            $mesParaKey = 1;
+            $mesParaKey = intval($item['mes_carga_anual'] ?? 1);
+            $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesParaKey, $anoSeleccionado);
         } else {
             $docsResult = $documentoClass->getByItemFollowUpCargados($item['id'], $mesSeleccionado, $anoSeleccionado);
             $mesParaKey = $mesSeleccionado;

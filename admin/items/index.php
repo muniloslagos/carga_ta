@@ -24,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'numeracion' => trim($_POST['numeracion'] ?? ''),
             'nombre' => trim($_POST['nombre'] ?? ''),
             'direccion_id' => intval($_POST['direccion_id'] ?? 0),
-            'periodicidad' => $_POST['periodicidad'] ?? ''
+            'periodicidad' => $_POST['periodicidad'] ?? '',
+            'mes_carga_anual' => $_POST['mes_carga_anual'] ?? null
         ];
 
         if (!empty($data['numeracion']) && !empty($data['nombre']) && !empty($data['periodicidad'])) {
@@ -42,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'numeracion' => trim($_POST['numeracion'] ?? ''),
             'nombre' => trim($_POST['nombre'] ?? ''),
             'direccion_id' => intval($_POST['direccion_id'] ?? 0),
-            'periodicidad' => $_POST['periodicidad'] ?? ''
+            'periodicidad' => $_POST['periodicidad'] ?? '',
+            'mes_carga_anual' => $_POST['mes_carga_anual'] ?? null
         ];
 
         if ($itemClass->update(intval($_POST['item_id']), $data)) {
@@ -314,6 +316,11 @@ if (!isset($PERIODICIDADES)) {
                         <td><?php echo htmlspecialchars($item['direccion_nombre'] ?? 'N/A'); ?></td>
                         <td>
                             <span class="badge bg-info"><?php echo $PERIODICIDADES[$item['periodicidad']] ?? $item['periodicidad']; ?></span>
+                            <?php if ($item['periodicidad'] === 'anual' && !empty($item['mes_carga_anual'])): 
+                                $mesesNombre = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                            ?>
+                                <br><small class="text-muted">Mes: <?php echo $mesesNombre[$item['mes_carga_anual']]; ?></small>
+                            <?php endif; ?>
                         </td>
                         <td>
                             <?php
@@ -388,12 +395,31 @@ if (!isset($PERIODICIDADES)) {
 
                     <div class="mb-3">
                         <label for="periodicidad" class="form-label">Periodicidad</label>
-                        <select class="form-select" id="periodicidad" name="periodicidad" required>
+                        <select class="form-select" id="periodicidad" name="periodicidad" required onchange="toggleMesCargaAnual()">
                             <option value="">Seleccionar periodicidad</option>
                             <?php foreach ($PERIODICIDADES as $key => $value): ?>
                                 <option value="<?php echo $key; ?>"><?php echo $value; ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+
+                    <div class="mb-3" id="mesCargaAnualContainer" style="display:none;">
+                        <label for="mes_carga_anual" class="form-label">Mes de Carga (Anual)</label>
+                        <select class="form-select" id="mes_carga_anual" name="mes_carga_anual">
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                        <small class="text-muted">Mes en que se debe cargar este item anual</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -572,7 +598,17 @@ function editItem(id) {
             document.getElementById('nombre').value = data.nombre;
             document.getElementById('direccion_id').value = data.direccion_id || 0;
             document.getElementById('periodicidad').value = data.periodicidad;
+            toggleMesCargaAnual();
+            if (data.periodicidad === 'anual' && data.mes_carga_anual) {
+                document.getElementById('mes_carga_anual').value = data.mes_carga_anual;
+            }
         });
+}
+
+function toggleMesCargaAnual() {
+    var periodicidad = document.getElementById('periodicidad').value;
+    var container = document.getElementById('mesCargaAnualContainer');
+    container.style.display = (periodicidad === 'anual') ? 'block' : 'none';
 }
 
 function loadItemUsers(itemId) {
@@ -643,6 +679,7 @@ document.getElementById('itemModal').addEventListener('hide.bs.modal', function(
     document.getElementById('itemModalLabel').textContent = 'Nuevo Item';
     document.getElementById('formAction').value = 'create';
     document.getElementById('itemId').value = '';
+    document.getElementById('mesCargaAnualContainer').style.display = 'none';
 });
 
 // Actualizar items seleccionados cuando se abre el modal de asignación masiva

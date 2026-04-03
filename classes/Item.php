@@ -40,15 +40,19 @@ class Item {
     // Crear item
     public function create($data) {
         $sql = "INSERT INTO {$this->table} 
-                (numeracion, nombre, direccion_id, periodicidad, activo, fecha_creacion)
-                VALUES (?, ?, ?, ?, 1, NOW())";
+                (numeracion, nombre, direccion_id, periodicidad, mes_carga_anual, activo, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 1, NOW())";
+
+        $mes_carga_anual = ($data['periodicidad'] === 'anual' && !empty($data['mes_carga_anual'])) 
+            ? intval($data['mes_carga_anual']) : null;
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("ssis", 
+        $stmt->bind_param("ssisi", 
             $data['numeracion'],
             $data['nombre'],
             $data['direccion_id'],
-            $data['periodicidad']
+            $data['periodicidad'],
+            $mes_carga_anual
         );
 
         return $stmt->execute();
@@ -60,15 +64,20 @@ class Item {
                 numeracion = ?,
                 nombre = ?,
                 direccion_id = ?,
-                periodicidad = ?
+                periodicidad = ?,
+                mes_carga_anual = ?
                 WHERE id = ?";
 
+        $mes_carga_anual = ($data['periodicidad'] === 'anual' && !empty($data['mes_carga_anual'])) 
+            ? intval($data['mes_carga_anual']) : null;
+
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("ssisi",
+        $stmt->bind_param("ssisii",
             $data['numeracion'],
             $data['nombre'],
             $data['direccion_id'],
             $data['periodicidad'],
+            $mes_carga_anual,
             $id
         );
 

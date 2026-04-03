@@ -59,9 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ano_actual = (int)date('Y');
     $mes_carga_calc = $mes_carga;
     
-    // Para ANUAL, usar mes=1 (enero)
+    // Para ANUAL, usar mes configurado del item
     if ($periodicidad === 'anual') {
-        $mes_carga_calc = 1;
+        $mes_carga_calc = intval($item['mes_carga_anual'] ?? 1);
     } else if ($mes_carga == 0) {
         // Para otros, usar mes anterior
         $mes_carga_calc = (int)date('m') - 1;

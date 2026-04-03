@@ -88,6 +88,7 @@ $query = "
         i.nombre as item_nombre,
         i.periodicidad,
         i.descripcion as item_descripcion,
+        i.mes_carga_anual,
         d.id as doc_id,
         d.titulo as doc_titulo,
         d.archivo as doc_archivo,
@@ -157,7 +158,8 @@ while ($row = $resultado->fetch_assoc()) {
             'numeracion' => $row['numeracion'],
             'nombre' => $row['item_nombre'],
             'periodicidad' => $row['periodicidad'],
-            'descripcion' => $row['item_descripcion']
+            'descripcion' => $row['item_descripcion'],
+            'mes_carga_anual' => $row['mes_carga_anual'] ?? null
         ];
         $itemsPorPeriodicidad[$periodicidad][] = $itemsCache[$itemId];
     }
@@ -214,7 +216,8 @@ foreach (['trimestral', 'semestral', 'anual', 'ocurrencia'] as $periodicidad) {
         // Para ANUAL, buscar sin mes (por año completo)
         if ($periodicidad === 'anual') {
             $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
-            $sinMovKeyP = $item['id'] . '_1_' . $anoActual;
+            $mesAnualItem = intval($item['mes_carga_anual'] ?? 1);
+            $sinMovKeyP = $item['id'] . '_' . $mesAnualItem . '_' . $anoActual;
         } else {
             $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesActual, $anoActual);
             $sinMovKeyP = $item['id'] . '_' . $mesActual . '_' . $anoActual;
@@ -1135,8 +1138,8 @@ if (isset($_SESSION['success'])) {
                             <?php
                             if (!empty($itemsPorPeriodicidad['anual'])) {
                                 foreach ($itemsPorPeriodicidad['anual'] as $item) {
-                                    // Para ANUAL, usar mes=1 (enero)
-                                    $mesAnual = 1;
+                                    // Para ANUAL, usar mes configurado del item
+                                    $mesAnual = intval($item['mes_carga_anual'] ?? 1);
                                     $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesAnual);
                                     
                                     // Obtener último documento (SIN mes, por año completo)
@@ -1163,7 +1166,7 @@ if (isset($_SESSION['success'])) {
                                     }
                                     
                                     // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_1_' . $anoActual;
+                                    $sinMovKey = $item['id'] . '_' . $mesAnual . '_' . $anoActual;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
@@ -1173,11 +1176,11 @@ if (isset($_SESSION['success'])) {
                                             FROM documentos d
                                             INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
                                             LEFT JOIN usuarios u ON d.usuario_id = u.id
-                                            WHERE d.item_id = ? AND ds.mes = 1 AND ds.ano = ?
+                                            WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
                                         ");
-                                        $checkPlaceholder->bind_param('ii', $item['id'], $anoActual);
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesAnual, $anoActual);
                                         $checkPlaceholder->execute();
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {

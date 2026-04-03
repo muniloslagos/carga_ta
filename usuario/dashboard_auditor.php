@@ -40,7 +40,7 @@ $meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
 // Obtener TODOS los items activos con los responsables asignados
 $query = "
     SELECT
-        i.id, i.numeracion, i.nombre, i.periodicidad,
+        i.id, i.numeracion, i.nombre, i.periodicidad, i.mes_carga_anual,
         GROUP_CONCAT(DISTINCT u_asig.nombre ORDER BY u_asig.nombre SEPARATOR ', ') as responsables
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id

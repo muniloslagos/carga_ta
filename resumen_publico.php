@@ -59,7 +59,7 @@ $direcciones = $conn->query("
 // Obtener todos los items activos agrupados por dirección
 $items_query = $conn->prepare("
     SELECT i.id, i.nombre, i.numeracion, i.periodicidad, i.direccion_id,
-           d.nombre as direccion_nombre
+           i.mes_carga_anual, d.nombre as direccion_nombre
     FROM items_transparencia i
     LEFT JOIN direcciones d ON i.direccion_id = d.id
     WHERE i.activo = 1
@@ -87,7 +87,7 @@ while ($item = $all_items->fetch_assoc()) {
     // Determinar mes de búsqueda según periodicidad
     $mes_busqueda = $mes;
     if ($item['periodicidad'] === 'anual') {
-        $mes_busqueda = 1;
+        $mes_busqueda = intval($item['mes_carga_anual'] ?? 1);
     }
     
     // Verificar Sin Movimiento

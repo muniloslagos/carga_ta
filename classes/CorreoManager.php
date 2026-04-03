@@ -224,7 +224,7 @@ class CorreoManager {
      * Obtener ítems asignados a un usuario
      */
     private function obtenerItemsUsuario($usuario_id) {
-        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.numeracion, i.periodicidad
+        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.numeracion, i.periodicidad, i.mes_carga_anual
             FROM items_transparencia i
             INNER JOIN item_usuarios ui ON i.id = ui.item_id
             WHERE ui.usuario_id = ? AND i.activo = 1
@@ -481,7 +481,7 @@ class CorreoManager {
             // Determinar mes a usar según periodicidad
             $mes_busqueda = $mes;
             if ($item['periodicidad'] === 'anual') {
-                $mes_busqueda = 1; // Enero para anuales
+                $mes_busqueda = intval($item['mes_carga_anual'] ?? 1);
             }
             
             // Verificar Sin Movimiento primero
@@ -739,7 +739,7 @@ class CorreoManager {
     private function obtenerResumenGeneralMunicipio($mes, $ano) {
         // Obtener todos los items activos agrupados por dirección
         $result = $this->conn->query("SELECT i.id, i.nombre, i.periodicidad, i.direccion_id,
-                                             d.nombre as direccion_nombre
+                                             i.mes_carga_anual, d.nombre as direccion_nombre
                                       FROM items_transparencia i
                                       LEFT JOIN direcciones d ON i.direccion_id = d.id
                                       WHERE i.activo = 1
@@ -770,7 +770,7 @@ class CorreoManager {
             foreach ($items as $item) {
                 $mes_busqueda = $mes;
                 if ($item['periodicidad'] === 'anual') {
-                    $mes_busqueda = 1;
+                    $mes_busqueda = intval($item['mes_carga_anual'] ?? 1);
                 }
                 
                 // Verificar Sin Movimiento
@@ -895,7 +895,7 @@ class CorreoManager {
         $placeholders = implode(',', array_fill(0, count($dir_ids), '?'));
         $types = str_repeat('i', count($dir_ids));
         
-        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.periodicidad, i.direccion_id
+        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.periodicidad, i.direccion_id, i.mes_carga_anual
             FROM items_transparencia i
             WHERE i.activo = 1 AND i.direccion_id IN ($placeholders)
             ORDER BY i.direccion_id, i.nombre");
@@ -929,7 +929,7 @@ class CorreoManager {
             foreach ($items as $item) {
                 $mes_busqueda = $mes;
                 if ($item['periodicidad'] === 'anual') {
-                    $mes_busqueda = 1;
+                    $mes_busqueda = intval($item['mes_carga_anual'] ?? 1);
                 }
                 
                 // Verificar Sin Movimiento
