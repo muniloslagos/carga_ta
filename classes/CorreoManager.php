@@ -486,14 +486,18 @@ class CorreoManager {
             
             // Verificar Sin Movimiento primero
             $sinMovimiento = false;
+            $sinMovFecha = null;
             $checkSinMov = $this->conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
             if ($checkSinMov && $checkSinMov->num_rows > 0) {
-                $stmt = $this->conn->prepare("SELECT id FROM observaciones_sin_movimiento 
+                $stmt = $this->conn->prepare("SELECT id, fecha_creacion FROM observaciones_sin_movimiento 
                     WHERE item_id = ? AND mes = ? AND ano = ? LIMIT 1");
                 $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
                 $stmt->execute();
                 $sinMovResult = $stmt->get_result();
-                $sinMovimiento = ($sinMovResult->num_rows > 0);
+                if ($sinMovRow = $sinMovResult->fetch_assoc()) {
+                    $sinMovimiento = true;
+                    $sinMovFecha = $sinMovRow['fecha_creacion'];
+                }
                 $stmt->close();
             }
             
@@ -568,10 +572,11 @@ class CorreoManager {
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
                 $html .= '<td><em>Pendiente</em></td>';
             } elseif ($sinMovimiento) {
-                // Sin Movimiento declarado pero sin documento placeholder (caso raro)
+                // Sin Movimiento declarado pero sin documento placeholder
                 $items_cargados++;
-                $html .= '<td style="color:green;"><strong>✓ Sin Movimiento</strong></td>';
-                $html .= '<td colspan="2"><em>Sin movimiento registrado</em></td>';
+                $html .= '<td style="color:orange;"><strong>⚠ Sin Movimiento (Sin Publicar)</strong></td>';
+                $html .= '<td>' . ($sinMovFecha ? date('d/m/Y H:i', strtotime($sinMovFecha)) : '<em>-</em>') . '</td>';
+                $html .= '<td><em>Pendiente</em></td>';
             } else {
                 // Sin documento, sin Sin Movimiento = pendiente
                 $items_pendientes++;
