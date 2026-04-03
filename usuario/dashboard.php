@@ -443,21 +443,36 @@ if (isset($_SESSION['success'])) {
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $userIdFiltro, $anoSeleccionado, $mesSeleccionado);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    $sinMovData = $tieneSinMovimiento ? $sinMovimientoCache[$sinMovKey] : null;
+                                    
+                                    // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
+                                    if ($tieneSinMovimiento && !$ultimoDoc) {
+                                        // Buscar documento placeholder creado para Sin Movimiento
+                                        $checkPlaceholder = $conn->prepare("
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            FROM documentos d
+                                            INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                                            LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
+                                            AND d.titulo LIKE 'Sin Movimiento%'
+                                            LIMIT 1
+                                        ");
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesSeleccionado, $anoSeleccionado);
+                                        $checkPlaceholder->execute();
+                                        $placeholderResult = $checkPlaceholder->get_result();
+                                        if ($placeholderResult->num_rows > 0) {
+                                            $ultimoDoc = $placeholderResult->fetch_assoc();
+                                        }
+                                    }
+                                    
                                     // Obtener verificador si existe
                                     $verificador = null;
                                     if ($ultimoDoc) {
                                         $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
                                     }
-                                    
-                                    // Calcular plazos de envío y publicación (mensual)
-                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
-                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
-                                    $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
-                                    // Fecha Envío con icono de cumplimiento
-                                    // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
-                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
-                                    $sinMovData = $tieneSinMovimiento ? $sinMovimientoCache[$sinMovKey] : null;
                                     
                                     if ($ultimoDoc) {
                                         if ($plazoFinal) {
@@ -672,6 +687,29 @@ if (isset($_SESSION['success'])) {
                                     $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoActual, $mesesTrimestre);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    
+                                    // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
+                                    if ($tieneSinMovimiento && !$ultimoDoc) {
+                                        $checkPlaceholder = $conn->prepare("
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            FROM documentos d
+                                            INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                                            LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
+                                            AND d.titulo LIKE 'Sin Movimiento%'
+                                            LIMIT 1
+                                        ");
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesActual, $anoActual);
+                                        $checkPlaceholder->execute();
+                                        $placeholderResult = $checkPlaceholder->get_result();
+                                        if ($placeholderResult->num_rows > 0) {
+                                            $ultimoDoc = $placeholderResult->fetch_assoc();
+                                        }
+                                    }
+                                    
                                     // Obtener verificador si existe
                                     $verificador = null;
                                     if ($ultimoDoc) {
@@ -692,9 +730,6 @@ if (isset($_SESSION['success'])) {
                                         $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
-                                    // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
-                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
@@ -867,6 +902,29 @@ if (isset($_SESSION['success'])) {
                                     // Obtener documento del semestre completo
                                     $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoActual, $mesesSemestre);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
+                                    
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    
+                                    // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
+                                    if ($tieneSinMovimiento && !$ultimoDoc) {
+                                        $checkPlaceholder = $conn->prepare("
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            FROM documentos d
+                                            INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                                            LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
+                                            AND d.titulo LIKE 'Sin Movimiento%'
+                                            LIMIT 1
+                                        ");
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesActual, $anoActual);
+                                        $checkPlaceholder->execute();
+                                        $placeholderResult = $checkPlaceholder->get_result();
+                                        if ($placeholderResult->num_rows > 0) {
+                                            $ultimoDoc = $placeholderResult->fetch_assoc();
+                                        }
+                                    }
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
@@ -1081,6 +1139,32 @@ if (isset($_SESSION['success'])) {
                                         }
                                     }
                                     
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_1_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    
+                                    // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
+                                    if ($tieneSinMovimiento && !$ultimoDoc) {
+                                        $checkPlaceholder = $conn->prepare("
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, d.usuario_id, u.nombre as usuario_nombre
+                                            FROM documentos d
+                                            INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                                            LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            WHERE d.item_id = ? AND ds.mes = 1 AND ds.ano = ?
+                                            AND d.titulo LIKE 'Sin Movimiento%'
+                                            LIMIT 1
+                                        ");
+                                        $checkPlaceholder->bind_param('ii', $item['id'], $anoActual);
+                                        $checkPlaceholder->execute();
+                                        $placeholderResult = $checkPlaceholder->get_result();
+                                        if ($placeholderResult->num_rows > 0) {
+                                            $ultimoDoc = $placeholderResult->fetch_assoc();
+                                            $tieneDocDelUsuario = true;
+                                            // Obtener verificador si existe
+                                            $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
+                                        }
+                                    }
+                                    
                                     // Calcular plazos de envío y publicación (anual)
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
@@ -1095,9 +1179,6 @@ if (isset($_SESSION['success'])) {
                                         $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
-                                    // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_1_' . $anoActual;
-                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs (anual)
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
@@ -1267,6 +1348,29 @@ if (isset($_SESSION['success'])) {
                                     // Obtener último documento (ocurrencia)
                                     $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $user_id, $anoActual, $mesActual);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
+                                    
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    
+                                    // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
+                                    if ($tieneSinMovimiento && !$ultimoDoc) {
+                                        $checkPlaceholder = $conn->prepare("
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            FROM documentos d
+                                            INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                                            LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
+                                            AND d.titulo LIKE 'Sin Movimiento%'
+                                            LIMIT 1
+                                        ");
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesActual, $anoActual);
+                                        $checkPlaceholder->execute();
+                                        $placeholderResult = $checkPlaceholder->get_result();
+                                        if ($placeholderResult->num_rows > 0) {
+                                            $ultimoDoc = $placeholderResult->fetch_assoc();
+                                        }
+                                    }
                                     
                                     // Obtener verificador si existe
                                     $verificador = null;
