@@ -251,8 +251,7 @@ class CorreoManager {
         
         $html = '<ul>';
         foreach ($items as $item) {
-            $html .= '<li><strong>' . htmlspecialchars($item['numeracion']) . '</strong>: ' . 
-                     htmlspecialchars($item['nombre']) . ' (' . htmlspecialchars($item['periodicidad']) . ')</li>';
+            $html .= '<li>' . htmlspecialchars($item['nombre']) . ' (' . htmlspecialchars($item['periodicidad']) . ')</li>';
         }
         $html .= '</ul>';
         
@@ -528,8 +527,7 @@ class CorreoManager {
             // Construir fila
             $total_items++;
             $html .= '<tr>';
-            $html .= '<td><strong>' . htmlspecialchars($item['numeracion']) . '</strong><br>' . 
-                     htmlspecialchars($item['nombre']) . '</td>';
+            $html .= '<td>' . htmlspecialchars($item['nombre']) . '</td>';
             
             if ($verificador) {
                 $items_publicados++;
