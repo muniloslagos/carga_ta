@@ -88,6 +88,10 @@ while ($item = $all_items->fetch_assoc()) {
     $mes_busqueda = $mes;
     if ($item['periodicidad'] === 'anual') {
         $mes_busqueda = intval($item['mes_carga_anual'] ?? 1);
+    } elseif ($item['periodicidad'] === 'trimestral') {
+        $mes_busqueda = (int)(ceil($mes / 3) * 3);
+    } elseif ($item['periodicidad'] === 'semestral') {
+        $mes_busqueda = $mes <= 6 ? 1 : 7;
     }
     
     // Verificar Sin Movimiento
