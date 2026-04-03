@@ -2128,10 +2128,23 @@ function subirDocumentoReemplazar() {
     formData.append('descripcion', descripcion);
     formData.append('archivo', archivoInput.files[0]);
     
+    // Debug: mostrar datos enviados
+    console.log('Datos enviados:', {
+        item_id: itemId,
+        mes: mes,
+        ano: ano,
+        accion: 'subir_documento',
+        titulo: titulo,
+        descripcion: descripcion,
+        archivo: archivoInput.files[0].name
+    });
+    
     // Deshabilitar botón para evitar múltiples envíos
-    const btnSubir = event.target;
-    btnSubir.disabled = true;
-    btnSubir.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Subiendo...';
+    const btnSubir = document.querySelector('#tab-documento-content .btn-primary');
+    if (btnSubir) {
+        btnSubir.disabled = true;
+        btnSubir.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Subiendo...';
+    }
     
     fetch('modificar_sin_movimiento.php', {
         method: 'POST',
@@ -2146,15 +2159,19 @@ function subirDocumentoReemplazar() {
             location.reload();
         } else {
             alert('Error: ' + (data.error || 'Error desconocido'));
-            btnSubir.disabled = false;
-            btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+            if (btnSubir) {
+                btnSubir.disabled = false;
+                btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
         alert('Error al subir el documento');
-        btnSubir.disabled = false;
-        btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+        if (btnSubir) {
+            btnSubir.disabled = false;
+            btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+        }
     });
 }
 

@@ -26,8 +26,24 @@ $mes = isset($_POST['mes']) ? (int)$_POST['mes'] : 0;
 $ano = isset($_POST['ano']) ? (int)$_POST['ano'] : 0;
 $accion = $_POST['accion'] ?? ''; // 'actualizar_observacion' o 'subir_documento'
 
-if (!$item_id || !$mes || !$ano || !$accion) {
-    echo json_encode(['success' => false, 'error' => 'Faltan datos requeridos']);
+// Validación detallada para debugging
+$errores = [];
+if (!$item_id) $errores[] = 'item_id';
+if (!$mes) $errores[] = 'mes';
+if (!$ano) $errores[] = 'ano';
+if (!$accion) $errores[] = 'accion';
+
+if (!empty($errores)) {
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Faltan datos requeridos: ' . implode(', ', $errores),
+        'recibido' => [
+            'item_id' => $item_id,
+            'mes' => $mes,
+            'ano' => $ano,
+            'accion' => $accion
+        ]
+    ]);
     exit;
 }
 
