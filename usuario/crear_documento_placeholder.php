@@ -110,7 +110,7 @@ try {
     // Crear entrada en documento_seguimiento
     $checkTableSeguimiento = $conn->query("SHOW TABLES LIKE 'documento_seguimiento'");
     if ($checkTableSeguimiento->num_rows > 0) {
-        $insertSeg = $conn->prepare("INSERT INTO documento_seguimiento (documento_id, mes, ano, fecha_subida) VALUES (?, ?, ?, NOW())");
+        $insertSeg = $conn->prepare("INSERT INTO documento_seguimiento (documento_id, mes, ano, fecha_envio) VALUES (?, ?, ?, NOW())");
         $insertSeg->bind_param('iii', $documento_id, $mes, $ano);
         $insertSeg->execute();
     }

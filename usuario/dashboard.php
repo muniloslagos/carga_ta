@@ -556,7 +556,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesSeleccionado; ?>"
                                                             data-ano="<?php echo $anoSeleccionado; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -753,7 +753,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesActual; ?>"
                                                             data-ano="<?php echo $anoActual; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -949,7 +949,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesActual; ?>"
                                                             data-ano="<?php echo $anoActual; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1156,7 +1156,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="1"
                                                             data-ano="<?php echo $anoActual; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1349,7 +1349,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesActual; ?>"
                                                             data-ano="<?php echo $anoActual; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0], ENT_QUOTES); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
