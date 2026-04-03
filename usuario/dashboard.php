@@ -167,12 +167,18 @@ while ($row = $resultado->fetch_assoc()) {
 $sinMovimientoCache = [];
 $tableCheck = $conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
 if ($tableCheck && $tableCheck->num_rows > 0) {
-    $stmtSinMov = $conn->prepare("SELECT item_id, mes, ano FROM observaciones_sin_movimiento GROUP BY item_id, mes, ano");
+    $stmtSinMov = $conn->prepare("SELECT item_id, mes, ano, observacion, fecha_creacion FROM observaciones_sin_movimiento ORDER BY fecha_creacion DESC");
     $stmtSinMov->execute();
     $resSinMov = $stmtSinMov->get_result();
     while ($rowSinMov = $resSinMov->fetch_assoc()) {
         $key = $rowSinMov['item_id'] . '_' . $rowSinMov['mes'] . '_' . $rowSinMov['ano'];
-        $sinMovimientoCache[$key] = true;
+        // Guardar solo el más reciente por key
+        if (!isset($sinMovimientoCache[$key])) {
+            $sinMovimientoCache[$key] = [
+                'observacion' => $rowSinMov['observacion'],
+                'fecha_creacion' => $rowSinMov['fecha_creacion']
+            ];
+        }
     }
     $stmtSinMov->close();
 }
@@ -448,11 +454,18 @@ if (isset($_SESSION['success'])) {
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     // Fecha Envío con icono de cumplimiento
+                                    // Verificar si tiene "Sin Movimiento" registrado
+                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
+                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    $sinMovData = $tieneSinMovimiento ? $sinMovimientoCache[$sinMovKey] : null;
+                                    
                                     if ($ultimoDoc) {
                                         if ($plazoFinal) {
                                             $icoE = date('Y-m-d', strtotime($ultimoDoc['fecha_envio'])) <= $plazoFinal ? '🟢 ' : '🔴 ';
                                         } else { $icoE = ''; }
                                         $fechaEnvio = $icoE . date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio']));
+                                    } elseif ($tieneSinMovimiento) {
+                                        $fechaEnvio = '🟢 ' . date('d/m/Y H:i', strtotime($sinMovData['fecha_creacion']));
                                     } else {
                                         $fechaEnvio = '<span class="text-muted">Sin envío</span>';
                                     }
@@ -462,12 +475,12 @@ if (isset($_SESSION['success'])) {
                                             $icoP = date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal ? '🟢 ' : '🔴 ';
                                         } else { $icoP = ''; }
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
+                                    } elseif ($tieneSinMovimiento) {
+                                        $cargaPortal = '<span class="badge bg-success"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>';
                                     } else {
                                         $cargaPortal = '<span class="text-muted">Pendiente</span>';
                                     }
-                                    // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
-                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
@@ -489,6 +502,8 @@ if (isset($_SESSION['success'])) {
                                         } else {
                                             $estadoBadge = '<span class="badge bg-warning">Pendiente</span>';
                                         }
+                                    } elseif ($tieneSinMovimiento) {
+                                        $estadoBadge = '<span class="badge bg-success"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>';
                                     } else {
                                         $estadoBadge = '<span class="badge bg-secondary">Sin envío</span>';
                                     }
