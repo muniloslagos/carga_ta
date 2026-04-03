@@ -1,5 +1,5 @@
 <?php
-require_once 'config/database.php';
+require_once 'config/Database.php';
 
 // Buscar el ítem "Nómina Beneficiarios - Subsidio agua potable y alcantarillado - Urbano"
 $itemNombre = 'Nómina Beneficiarios - Subsidio agua potable y alcantarillado - Urbano';
