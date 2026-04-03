@@ -43,7 +43,7 @@ if ($mesCarga < 1) {
     $anoCarga = $anoActual - 1;
 }
 
-// Permitir seleccionar mes (solo para periodicidad mensual)
+// Permitir seleccionar mes/año global
 $mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : $mesCarga;
 $anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : $anoCarga;
 
@@ -132,16 +132,14 @@ $itemsPorPeriodicidad = [
     'mensual' => [],
     'trimestral' => [],
     'semestral' => [],
-    'anual' => [],
-    'ocurrencia' => []
+    'anual' => []
 ];
 
 $contadores = [
     'mensual' => 0,
     'trimestral' => 0,
     'semestral' => 0,
-    'anual' => 0,
-    'ocurrencia' => 0
+    'anual' => 0
 ];
 
 $itemsCache = [];
@@ -152,7 +150,7 @@ while ($row = $resultado->fetch_assoc()) {
     $periodicidad = $row['periodicidad'];
     
     // Agregar item al cache si no existe (evitar duplicados por múltiples documentos)
-    if (!isset($itemsCache[$itemId])) {
+    if (!isset($itemsCache[$itemId]) && isset($itemsPorPeriodicidad[$periodicidad])) {
         $itemsCache[$itemId] = [
             'id' => $row['item_id'],
             'numeracion' => $row['numeracion'],
@@ -164,6 +162,21 @@ while ($row = $resultado->fetch_assoc()) {
         $itemsPorPeriodicidad[$periodicidad][] = $itemsCache[$itemId];
     }
 }
+
+// Filtrar items según reglas del mes seleccionado
+$mesesTrimestral = [3, 6, 9, 12];
+$mesesSemestral = [1, 7];
+
+if (!in_array($mesSeleccionado, $mesesTrimestral)) {
+    $itemsPorPeriodicidad['trimestral'] = [];
+}
+if (!in_array($mesSeleccionado, $mesesSemestral)) {
+    $itemsPorPeriodicidad['semestral'] = [];
+}
+// Anual: solo items cuyo mes_carga_anual coincida
+$itemsPorPeriodicidad['anual'] = array_values(array_filter($itemsPorPeriodicidad['anual'], function($item) use ($mesSeleccionado) {
+    return intval($item['mes_carga_anual'] ?? 1) === $mesSeleccionado;
+}));
 
 // Pre-fetch observaciones "Sin Movimiento" para todos los items del usuario
 $sinMovimientoCache = [];
@@ -208,19 +221,19 @@ foreach ($itemsPorPeriodicidad['mensual'] as $item) {
 }
 $documentosPendientes['mensual'] = $contador;
 
-// Para TRIMESTRAL/SEMESTRAL/ANUAL/OCURRENCIA: usar mes actual
-foreach (['trimestral', 'semestral', 'anual', 'ocurrencia'] as $periodicidad) {
+// Para TRIMESTRAL/SEMESTRAL/ANUAL: usar mes seleccionado
+foreach (['trimestral', 'semestral', 'anual'] as $periodicidad) {
     $contador = 0;
     
     foreach ($itemsPorPeriodicidad[$periodicidad] as $item) {
         // Para ANUAL, buscar sin mes (por año completo)
         if ($periodicidad === 'anual') {
-            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
+            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoSeleccionado);
             $mesAnualItem = intval($item['mes_carga_anual'] ?? 1);
-            $sinMovKeyP = $item['id'] . '_' . $mesAnualItem . '_' . $anoActual;
+            $sinMovKeyP = $item['id'] . '_' . $mesAnualItem . '_' . $anoSeleccionado;
         } else {
-            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesActual, $anoActual);
-            $sinMovKeyP = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesSeleccionado, $anoSeleccionado);
+            $sinMovKeyP = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
         }
         
         $tieneDocumento = false;
@@ -276,10 +289,36 @@ if (isset($_SESSION['success'])) {
 <!-- TAB: ITEMS MENSUAL -->
 <div class="row mb-4">
     <div class="col-12">
+
+        <!-- SELECTOR DE MES GLOBAL -->
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <form method="GET" class="d-flex align-items-center gap-3 flex-wrap">
+                    <span class="fw-bold text-muted"><i class="bi bi-calendar3"></i> Período:</span>
+                    <select name="mes" class="form-select form-select-sm" style="max-width: 200px;" onchange="this.form.submit();">
+                        <?php
+                        for ($m = 1; $m <= 12; $m++) {
+                            $selected = ($mesSeleccionado == $m) ? 'selected' : '';
+                            echo "<option value='$m' $selected>{$meses[$m]}</option>";
+                        }
+                        ?>
+                    </select>
+                    <select name="ano" class="form-select form-select-sm" style="max-width: 100px;" onchange="this.form.submit();">
+                        <?php
+                        for ($a = $anoActual - 2; $a <= $anoActual; $a++) {
+                            $selected = ($anoSeleccionado == $a) ? 'selected' : '';
+                            echo "<option value='$a' $selected>$a</option>";
+                        }
+                        ?>
+                    </select>
+                </form>
+            </div>
+        </div>
+
         <?php
         // Determinar qué pestaña debe estar activa (la primera disponible)
         $primeraActiva = '';
-        foreach (['mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'] as $per) {
+        foreach (['mensual', 'trimestral', 'semestral', 'anual'] as $per) {
             if (count($itemsPorPeriodicidad[$per]) > 0) {
                 $primeraActiva = $per;
                 break;
@@ -326,17 +365,6 @@ if (isset($_SESSION['success'])) {
                     <i class="bi bi-calendar-year"></i> Anual
                     <?php if ($documentosPendientes['anual'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['anual']; ?></span>
-                    <?php endif; ?>
-                </button>
-            </li>
-            <?php endif; ?>
-            
-            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?php echo ($primeraActiva === 'ocurrencia') ? 'active' : ''; ?>" id="tab-ocurrencia" data-bs-toggle="tab" data-bs-target="#ocurrencia" type="button" role="tab">
-                    <i class="bi bi-exclamation-square"></i> Ocurrencia
-                    <?php if ($documentosPendientes['ocurrencia'] > 0): ?>
-                        <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['ocurrencia']; ?></span>
                     <?php endif; ?>
                 </button>
             </li>
@@ -393,29 +421,6 @@ if (isset($_SESSION['success'])) {
                             <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloE)); ?>
                         </span>
                         <?php endif; ?>
-                    </div>
-                    <div class="col-auto">
-                        <form method="GET" class="d-flex gap-2">
-                            <select name="mes" class="form-select form-select-sm" style="max-width: 150px;" onchange="this.form.submit();">
-                                <?php
-                                $meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                                         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-                                for ($m = 1; $m <= 12; $m++) {
-                                    $selected = ($mesSeleccionado == $m) ? 'selected' : '';
-                                    echo "<option value='$m' $selected>{$meses[$m]} - Cargar datos de {$meses[$m]}</option>";
-                                }
-                                ?>
-                            </select>
-                            <select name="ano" class="form-select form-select-sm" style="max-width: 100px;" onchange="this.form.submit();">
-                                <?php
-                                $anoActual = (int)date('Y');
-                                for ($a = $anoActual - 2; $a <= $anoActual; $a++) {
-                                    $selected = ($anoSeleccionado == $a) ? 'selected' : '';
-                                    echo "<option value='$a' $selected>$a</option>";
-                                }
-                                ?>
-                            </select>
-                        </form>
                     </div>
                 </div>
 
@@ -658,12 +663,12 @@ if (isset($_SESSION['success'])) {
             <div class="tab-pane fade <?php echo ($primeraActiva === 'trimestral') ? 'show active' : ''; ?>" id="trimestral" role="tabpanel">
                 <?php
                     $primerItemT = !empty($itemsPorPeriodicidad['trimestral']) ? $itemsPorPeriodicidad['trimestral'][0] : null;
-                    $plazoTituloET = $primerItemT ? $itemPlazoClass->getPlazoFinal($primerItemT['id'], $anoActual, $mesActual, $primerItemT['periodicidad']) : null;
-                    $plazoTituloPT = $primerItemT ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemT['id'], $anoActual, $mesActual, $primerItemT['periodicidad']) : null;
+                    $plazoTituloET = $primerItemT ? $itemPlazoClass->getPlazoFinal($primerItemT['id'], $anoSeleccionado, $mesSeleccionado, $primerItemT['periodicidad']) : null;
+                    $plazoTituloPT = $primerItemT ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemT['id'], $anoSeleccionado, $mesSeleccionado, $primerItemT['periodicidad']) : null;
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5 class="d-inline-block mb-0">Items Trimestrales</h5>
+                        <h5 class="d-inline-block mb-0">Items Trimestrales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5>
                         <?php if ($plazoTituloET): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
@@ -692,19 +697,19 @@ if (isset($_SESSION['success'])) {
                         <tbody>
                             <?php
                             if (!empty($itemsPorPeriodicidad['trimestral'])) {
-                                // Meses del trimestre actual (Q1=1-3, Q2=4-6, Q3=7-9, Q4=10-12)
-                                $trimestreActual = (int)ceil($mesActual / 3);
+                                // Meses del trimestre seleccionado
+                                $trimestreActual = (int)ceil($mesSeleccionado / 3);
                                 $mesInicioTrimestre = ($trimestreActual - 1) * 3 + 1;
                                 $mesesTrimestre = [$mesInicioTrimestre, $mesInicioTrimestre + 1, $mesInicioTrimestre + 2];
                                 foreach ($itemsPorPeriodicidad['trimestral'] as $item) {
-                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoSeleccionado, $mesSeleccionado);
                                     
                                     // Obtener documento del trimestre completo
-                                    $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoActual, $mesesTrimestre);
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoSeleccionado, $mesesTrimestre);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
@@ -718,7 +723,7 @@ if (isset($_SESSION['success'])) {
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
                                         ");
-                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesActual, $anoActual);
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesSeleccionado, $anoSeleccionado);
                                         $checkPlaceholder->execute();
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {
@@ -733,8 +738,8 @@ if (isset($_SESSION['success'])) {
                                     }
                                     
                                     // Calcular plazos de envío y publicación (trimestral)
-                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     // Fecha Envío con icono
                                     if ($ultimoDoc) {
@@ -764,14 +769,14 @@ if (isset($_SESSION['success'])) {
                                                 <button class="btn btn-sm btn-outline-secondary" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalHistorial"
-                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                         title="Ver historial de movimientos">
                                                     <i class="bi bi-clock-history"></i>
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-info" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalVerObservaciones"
-                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                         title="Ver observaciones">
                                                     <i class="bi bi-chat-left-text"></i>
                                                 </button>
@@ -798,7 +803,7 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $ultimoDoc['id']; ?>)"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $ultimoDoc['id']; ?>)"
                                                             style="white-space: nowrap;" title="Reemplazar documento existente">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -810,8 +815,8 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalModificarSinMovimiento"
                                                             data-item-id="<?php echo $item['id']; ?>"
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
-                                                            data-mes="<?php echo $mesActual; ?>"
-                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-mes="<?php echo $mesSeleccionado; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
                                                             data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
@@ -829,7 +834,7 @@ if (isset($_SESSION['success'])) {
                                                     <button class="btn btn-sm btn-outline-dark" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#modalSinMovimiento"
-                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                             style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
                                                         <i class="bi bi-dash-circle"></i> Sin Movimiento
                                                     </button>
@@ -856,7 +861,7 @@ if (isset($_SESSION['success'])) {
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
                                                         <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
-                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
                                                         </button>
@@ -884,12 +889,12 @@ if (isset($_SESSION['success'])) {
             <div class="tab-pane fade <?php echo ($primeraActiva === 'semestral') ? 'show active' : ''; ?>" id="semestral" role="tabpanel">
                 <?php
                     $primerItemS = !empty($itemsPorPeriodicidad['semestral']) ? $itemsPorPeriodicidad['semestral'][0] : null;
-                    $plazoTituloES = $primerItemS ? $itemPlazoClass->getPlazoFinal($primerItemS['id'], $anoActual, $mesActual, $primerItemS['periodicidad']) : null;
-                    $plazoTituloPS = $primerItemS ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemS['id'], $anoActual, $mesActual, $primerItemS['periodicidad']) : null;
+                    $plazoTituloES = $primerItemS ? $itemPlazoClass->getPlazoFinal($primerItemS['id'], $anoSeleccionado, $mesSeleccionado, $primerItemS['periodicidad']) : null;
+                    $plazoTituloPS = $primerItemS ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemS['id'], $anoSeleccionado, $mesSeleccionado, $primerItemS['periodicidad']) : null;
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5 class="d-inline-block mb-0">Items Semestrales</h5>
+                        <h5 class="d-inline-block mb-0">Items Semestrales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5>
                         <?php if ($plazoTituloES): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
@@ -919,17 +924,17 @@ if (isset($_SESSION['success'])) {
                             <?php
                             if (!empty($itemsPorPeriodicidad['semestral'])) {
                                 // Meses del semestre actual (H1=1-6, H2=7-12)
-                                $semestreActual = $mesActual <= 6 ? 1 : 2;
+                                $semestreActual = $mesSeleccionado <= 6 ? 1 : 2;
                                 $mesesSemestre = $semestreActual === 1 ? [1,2,3,4,5,6] : [7,8,9,10,11,12];
                                 foreach ($itemsPorPeriodicidad['semestral'] as $item) {
-                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoSeleccionado, $mesSeleccionado);
                                     
                                     // Obtener documento del semestre completo
-                                    $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoActual, $mesesSemestre);
+                                    $docsResult = $itemConPlazoClass->getDocumentosPorPeriodo($item['id'], $userIdFiltro, $anoSeleccionado, $mesesSemestre);
                                     $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
                                     
                                     // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
@@ -943,7 +948,7 @@ if (isset($_SESSION['success'])) {
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
                                         ");
-                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesActual, $anoActual);
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesSeleccionado, $anoSeleccionado);
                                         $checkPlaceholder->execute();
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {
@@ -958,8 +963,8 @@ if (isset($_SESSION['success'])) {
                                     }
                                     
                                     // Calcular plazos de envío y publicación (semestral)
-                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     // Fecha Envío con icono
                                     if ($ultimoDoc) {
@@ -972,7 +977,7 @@ if (isset($_SESSION['success'])) {
                                         $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
                                     } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
                                     // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
+                                    $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     // Clase y estado para filtro de tabs
                                     if ($user_perfil === 'publicador') {
@@ -992,14 +997,14 @@ if (isset($_SESSION['success'])) {
                                                 <button class="btn btn-sm btn-outline-secondary" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalHistorial"
-                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                         title="Ver historial de movimientos">
                                                     <i class="bi bi-clock-history"></i>
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-info" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalVerObservaciones"
-                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                         title="Ver observaciones">
                                                     <i class="bi bi-chat-left-text"></i>
                                                 </button>
@@ -1030,8 +1035,8 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalModificarSinMovimiento"
                                                             data-item-id="<?php echo $item['id']; ?>"
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
-                                                            data-mes="<?php echo $mesActual; ?>"
-                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-mes="<?php echo $mesSeleccionado; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
                                                             data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
@@ -1048,7 +1053,7 @@ if (isset($_SESSION['success'])) {
                                                     <button class="btn btn-sm btn-outline-dark" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#modalSinMovimiento"
-                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                             style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
                                                         <i class="bi bi-dash-circle"></i> Sin Movimiento
                                                     </button>
@@ -1075,7 +1080,7 @@ if (isset($_SESSION['success'])) {
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
                                                         <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
-                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesSeleccionado; ?>, <?php echo $anoSeleccionado; ?>)"
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
                                                         </button>
@@ -1103,12 +1108,13 @@ if (isset($_SESSION['success'])) {
             <div class="tab-pane fade <?php echo ($primeraActiva === 'anual') ? 'show active' : ''; ?>" id="anual" role="tabpanel">
                 <?php
                     $primerItemA = !empty($itemsPorPeriodicidad['anual']) ? $itemsPorPeriodicidad['anual'][0] : null;
-                    $plazoTituloEA = $primerItemA ? $itemPlazoClass->getPlazoFinal($primerItemA['id'], $anoActual, 1, $primerItemA['periodicidad']) : null;
-                    $plazoTituloPA = $primerItemA ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemA['id'], $anoActual, 1, $primerItemA['periodicidad']) : null;
+                    $mesAnualHeader = $primerItemA ? intval($primerItemA['mes_carga_anual'] ?? 1) : $mesSeleccionado;
+                    $plazoTituloEA = $primerItemA ? $itemPlazoClass->getPlazoFinal($primerItemA['id'], $anoSeleccionado, $mesAnualHeader, $primerItemA['periodicidad']) : null;
+                    $plazoTituloPA = $primerItemA ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemA['id'], $anoSeleccionado, $mesAnualHeader, $primerItemA['periodicidad']) : null;
                 ?>
                 <div class="row align-items-center mb-3">
                     <div class="col">
-                        <h5 class="d-inline-block mb-0">Items Anuales &mdash; <?php echo $anoActual; ?></h5>
+                        <h5 class="d-inline-block mb-0">Items Anuales &mdash; <?php echo $anoSeleccionado; ?></h5>
                         <?php if ($plazoTituloEA): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
@@ -1140,10 +1146,10 @@ if (isset($_SESSION['success'])) {
                                 foreach ($itemsPorPeriodicidad['anual'] as $item) {
                                     // Para ANUAL, usar mes configurado del item
                                     $mesAnual = intval($item['mes_carga_anual'] ?? 1);
-                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesAnual);
+                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoSeleccionado, $mesAnual);
                                     
                                     // Obtener último documento (SIN mes, por año completo)
-                                    $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
+                                    $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoSeleccionado);
                                     $ultimoDoc = null;
                                     $tieneDocDelUsuario = false;
                                     $verificador = null;
@@ -1166,7 +1172,7 @@ if (isset($_SESSION['success'])) {
                                     }
                                     
                                     // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesAnual . '_' . $anoActual;
+                                    $sinMovKey = $item['id'] . '_' . $mesAnual . '_' . $anoSeleccionado;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
                                     
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
@@ -1180,7 +1186,7 @@ if (isset($_SESSION['success'])) {
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
                                         ");
-                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesAnual, $anoActual);
+                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesAnual, $anoSeleccionado);
                                         $checkPlaceholder->execute();
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {
@@ -1192,8 +1198,8 @@ if (isset($_SESSION['success'])) {
                                     }
                                     
                                     // Calcular plazos de envío y publicación (anual)
-                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
-                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesAnual, $item['periodicidad']);
+                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesAnual, $item['periodicidad']);
+                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesAnual, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     // Fecha Envío con icono
                                     if ($ultimoDoc) {
@@ -1223,14 +1229,14 @@ if (isset($_SESSION['success'])) {
                                                 <button class="btn btn-sm btn-outline-secondary" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalHistorial"
-                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesAnual; ?>, <?php echo $anoSeleccionado; ?>)"
                                                         title="Ver historial de movimientos">
                                                     <i class="bi bi-clock-history"></i>
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-info" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#modalVerObservaciones"
-                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesAnual; ?>, <?php echo $anoSeleccionado; ?>)"
                                                         title="Ver observaciones">
                                                     <i class="bi bi-chat-left-text"></i>
                                                 </button>
@@ -1257,7 +1263,7 @@ if (isset($_SESSION['success'])) {
                                                     <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $ultimoDoc['id']; ?>)"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesAnual; ?>, <?php echo $ultimoDoc['id']; ?>)"
                                                             style="white-space: nowrap;" title="Reemplazar documento existente">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1269,8 +1275,8 @@ if (isset($_SESSION['success'])) {
                                                             data-bs-target="#modalModificarSinMovimiento"
                                                             data-item-id="<?php echo $item['id']; ?>"
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
-                                                            data-mes="1"
-                                                            data-ano="<?php echo $anoActual; ?>"
+                                                            data-mes="<?php echo $mesAnual; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
                                                             data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
@@ -1281,14 +1287,14 @@ if (isset($_SESSION['success'])) {
                                                     <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
                                                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
                                                             data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1);"
+                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesAnual; ?>);"
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-cloud-upload"></i> Cargar Documento
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-dark" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#modalSinMovimiento"
-                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesAnual; ?>, <?php echo $anoSeleccionado; ?>)"
                                                             style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
                                                         <i class="bi bi-dash-circle"></i> Sin Movimiento
                                                     </button>
@@ -1315,7 +1321,7 @@ if (isset($_SESSION['success'])) {
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
                                                         <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
                                                         <button type="button" class="btn btn-sm btn-warning"
-                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', 1, <?php echo $anoActual; ?>)"
+                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesAnual; ?>, <?php echo $anoSeleccionado; ?>)"
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
                                                         </button>
@@ -1338,222 +1344,6 @@ if (isset($_SESSION['success'])) {
             </div>
             <?php endif; ?>
 
-            <!-- TAB OCURRENCIA -->
-            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
-            <div class="tab-pane fade <?php echo ($primeraActiva === 'ocurrencia') ? 'show active' : ''; ?>" id="ocurrencia" role="tabpanel">
-                <?php
-                    $primerItemO = !empty($itemsPorPeriodicidad['ocurrencia']) ? $itemsPorPeriodicidad['ocurrencia'][0] : null;
-                    $plazoTituloEO = $primerItemO ? $itemPlazoClass->getPlazoFinal($primerItemO['id'], $anoActual, $mesActual, $primerItemO['periodicidad']) : null;
-                    $plazoTituloPO = $primerItemO ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemO['id'], $anoActual, $mesActual, $primerItemO['periodicidad']) : null;
-                ?>
-                <div class="row align-items-center mb-3">
-                    <div class="col">
-                        <h5 class="d-inline-block mb-0">Items de Ocurrencia Libre</h5>
-                        <?php if ($plazoTituloEO): ?>
-                        <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
-                              data-bs-toggle="tooltip" 
-                              data-bs-placement="top" 
-                              data-bs-html="true"
-                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
-                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEO)); ?>
-                        </span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="7%">Numeración</th>
-                                <th width="6%" style="text-align: center;">Bitácora</th>
-                                <th width="20%">Nombre Item</th>
-                                <th width="10%">Enviado por</th>
-                                <th width="14%">Fecha Envío</th>
-                                <th width="14%">Carga Portal</th>
-                                <th width="19%">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            if (!empty($itemsPorPeriodicidad['ocurrencia'])) {
-                                foreach ($itemsPorPeriodicidad['ocurrencia'] as $item) {
-                                    $itemInfo = $itemConPlazoClass->getItemConPlazo($item['id'], $anoActual, $mesActual);
-                                    
-                                    // Obtener último documento (ocurrencia)
-                                    $docsResult = $itemConPlazoClass->getDocumentosPorMes($item['id'], $user_id, $anoActual, $mesActual);
-                                    $ultimoDoc = $docsResult ? $docsResult->fetch_assoc() : null;
-                                    
-                                    // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
-                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
-                                    
-                                    // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
-                                    if ($tieneSinMovimiento && !$ultimoDoc) {
-                                        $checkPlaceholder = $conn->prepare("
-                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
-                                            FROM documentos d
-                                            INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
-                                            LEFT JOIN usuarios u ON d.usuario_id = u.id
-                                            WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
-                                            AND d.titulo LIKE 'Sin Movimiento%'
-                                            LIMIT 1
-                                        ");
-                                        $checkPlaceholder->bind_param('iii', $item['id'], $mesActual, $anoActual);
-                                        $checkPlaceholder->execute();
-                                        $placeholderResult = $checkPlaceholder->get_result();
-                                        if ($placeholderResult->num_rows > 0) {
-                                            $ultimoDoc = $placeholderResult->fetch_assoc();
-                                        }
-                                    }
-                                    
-                                    // Obtener verificador si existe
-                                    $verificador = null;
-                                    if ($ultimoDoc) {
-                                        $verificador = $verificadorClass->getByDocumento($ultimoDoc['id']);
-                                    }
-                                    
-                                    // Calcular plazos de envío y publicación (ocurrencia)
-                                    $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesActual, $item['periodicidad']);
-                                    $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
-                                    // Fecha Envío con icono
-                                    if ($ultimoDoc) {
-                                        $icoE = ($plazoFinal && date('Y-m-d', strtotime($ultimoDoc['fecha_envio'])) <= $plazoFinal) ? '🟢 ' : ($plazoFinal ? '🔴 ' : '');
-                                        $fechaEnvio = $icoE . date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio']));
-                                    } else { $fechaEnvio = '<span class="text-muted">Sin envío</span>'; }
-                                    // Carga Portal con icono
-                                    if ($verificador) {
-                                        $icoP = ($plazoPublicFinal && date('Y-m-d', strtotime($verificador['fecha_carga_portal'])) <= $plazoPublicFinal) ? '🟢 ' : ($plazoPublicFinal ? '🔴 ' : '');
-                                        $cargaPortal = $icoP . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal']));
-                                    } else { $cargaPortal = '<span class="text-muted">Pendiente</span>'; }
-                                    // Verificar si tiene "Sin Movimiento" registrado
-                                    $sinMovKey = $item['id'] . '_' . $mesActual . '_' . $anoActual;
-                                    $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
-                                    // Clase y estado para filtro de tabs
-                                    if ($user_perfil === 'publicador') {
-                                        if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
-                                        elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
-                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
-                                        else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
-                                    } else {
-                                        if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
-                                        else { $rowClass = 'table-danger'; $dataEstado = 'pendiente'; }
-                                    }
-                                    ?>
-                                    <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
-                                        <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-                                        <td style="text-align: center;">
-                                            <div class="d-flex gap-1 justify-content-center">
-                                                <button class="btn btn-sm btn-outline-secondary" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalHistorial"
-                                                        onclick="mostrarHistorial(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                        title="Ver historial de movimientos">
-                                                    <i class="bi bi-clock-history"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-info" 
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#modalVerObservaciones"
-                                                        onclick="verObservaciones(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                        title="Ver observaciones">
-                                                    <i class="bi bi-chat-left-text"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
-                                        <td><small><?php echo $cargador; ?></small></td>
-                                        <td><?php echo $fechaEnvio; ?></td>
-                                        <td><?php echo $cargaPortal; ?></td>
-                                        <td>
-                                            <div class="d-flex gap-1 flex-wrap">
-                                                <?php if ($ultimoDoc): ?>
-                                                    <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
-                                                    </a>
-                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
-                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                                                            data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', null, <?php echo $ultimoDoc['id']; ?>)"
-                                                            style="white-space: nowrap;" title="Reemplazar documento existente">
-                                                        <i class="bi bi-pencil"></i> Modificar
-                                                    </button>
-                                                    <?php endif; ?>
-                                                <?php elseif ($tieneSinMovimiento): ?>
-                                                    <!-- Tiene Sin Movimiento declarado -->
-                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
-                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" 
-                                                            data-bs-target="#modalModificarSinMovimiento"
-                                                            data-item-id="<?php echo $item['id']; ?>"
-                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
-                                                            data-mes="<?php echo $mesActual; ?>"
-                                                            data-ano="<?php echo $anoActual; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
-                                                            style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
-                                                        <i class="bi bi-pencil"></i> Modificar
-                                                    </button>
-                                                    <?php endif; ?>
-                                                <?php else: ?>
-                                                    <!-- No tiene documento ni Sin Movimiento -->
-                                                    <?php if ($user_perfil !== 'publicador' || isset($itemsAsignadosUsuario[$item['id']])): ?>
-                                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" 
-                                                            data-bs-target="#modalCargar"
-                                                            onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>);"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-cloud-upload"></i> Cargar Documento
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-dark" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#modalSinMovimiento"
-                                                            onclick="prepararSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                            style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
-                                                        <i class="bi bi-dash-circle"></i> Sin Movimiento
-                                                    </button>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                                <?php if ($verificador): ?>
-                                                    <button type="button" class="btn btn-sm btn-success"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#modalVerVerificador"
-                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Verificador
-                                                    </button>
-                                                <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
-                                                    <?php if ($ultimoDoc): ?>
-                                                        <button type="button" class="btn btn-sm btn-warning"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#modalSubirVerificador"
-                                                                onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                                style="white-space: nowrap;">
-                                                            <i class="bi bi-upload"></i> Subir Verificador
-                                                        </button>
-                                                    <?php else: ?>
-                                                        <!-- Sin Movimiento: crear documento placeholder primero -->
-                                                        <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
-                                                        <button type="button" class="btn btn-sm btn-warning"
-                                                                onclick="prepararVerificadorSinMovimiento(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', <?php echo $mesActual; ?>, <?php echo $anoActual; ?>)"
-                                                                style="white-space: nowrap;">
-                                                            <i class="bi bi-upload"></i> Subir Verificador
-                                                        </button>
-                                                    <?php endif; ?>
-                                                <?php elseif ($ultimoDoc): ?>
-                                                    <span class="badge bg-danger" title="Pendiente de publicar." data-bs-toggle="tooltip">No cargado a TA</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <?php
-                                }
-                            } else {
-                                echo '<tr><td colspan="7" class="text-center text-muted">No hay items de ocurrencia asignados</td></tr>';
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <?php endif; ?>
         </div>
     </div>
 </div>

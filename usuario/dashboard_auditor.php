@@ -47,27 +47,39 @@ $query = "
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
     WHERE i.activo = 1
     GROUP BY i.id
-    ORDER BY FIELD(i.periodicidad,'mensual','trimestral','semestral','anual','ocurrencia'), i.numeracion";
+    ORDER BY FIELD(i.periodicidad,'mensual','trimestral','semestral','anual'), i.numeracion";
 
 $resultado = $conn->query($query);
-$itemsPorPeriodicidad = ['mensual'=>[],'trimestral'=>[],'semestral'=>[],'anual'=>[],'ocurrencia'=>[]];
+$itemsPorPeriodicidad = ['mensual'=>[],'trimestral'=>[],'semestral'=>[],'anual'=>[]];
 while ($row = $resultado->fetch_assoc()) {
-    $p = $row['periodicidad'] ?? 'ocurrencia';
+    $p = $row['periodicidad'] ?? 'mensual';
     if (isset($itemsPorPeriodicidad[$p])) {
         $itemsPorPeriodicidad[$p][] = $row;
     }
 }
 
+// Filtrar items según reglas de mes seleccionado
+$mesesTrimestral = [3, 6, 9, 12];
+$mesesSemestral = [1, 7];
+if (!in_array($mesSeleccionado, $mesesTrimestral)) {
+    $itemsPorPeriodicidad['trimestral'] = [];
+}
+if (!in_array($mesSeleccionado, $mesesSemestral)) {
+    $itemsPorPeriodicidad['semestral'] = [];
+}
+$itemsPorPeriodicidad['anual'] = array_filter($itemsPorPeriodicidad['anual'], function($item) use ($mesSeleccionado) {
+    return intval($item['mes_carga_anual'] ?? 1) === $mesSeleccionado;
+});
+$itemsPorPeriodicidad['anual'] = array_values($itemsPorPeriodicidad['anual']);
+
 // Contadores de estado para badges de tabs
-function contarEstados($items, $documentoClass, $verificadorClass, $mesS, $anoS, $periodicidad, $anoActual, $mesActual) {
+function contarEstados($items, $documentoClass, $verificadorClass, $mesS, $anoS, $periodicidad) {
     $rojo = $naranja = $verde = 0;
     foreach ($items as $item) {
         if ($periodicidad === 'anual') {
-            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
-        } elseif ($periodicidad === 'mensual') {
-            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesS, $anoS);
+            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoS);
         } else {
-            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesActual, $anoActual);
+            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesS, $anoS);
         }
         $doc = $docsResult ? $docsResult->fetch_assoc() : null;
         if (!$doc) { $rojo++; continue; }
@@ -77,14 +89,13 @@ function contarEstados($items, $documentoClass, $verificadorClass, $mesS, $anoS,
     return ['rojo'=>$rojo,'naranja'=>$naranja,'verde'=>$verde];
 }
 
-$estadosMensual    = contarEstados($itemsPorPeriodicidad['mensual'],   $documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'mensual',     $anoActual, $mesActual);
-$estadosTrimestral = contarEstados($itemsPorPeriodicidad['trimestral'],$documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'trimestral',  $anoActual, $mesActual);
-$estadosSemestral  = contarEstados($itemsPorPeriodicidad['semestral'], $documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'semestral',   $anoActual, $mesActual);
-$estadosAnual      = contarEstados($itemsPorPeriodicidad['anual'],     $documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'anual',       $anoActual, $mesActual);
-$estadosOcurrencia = contarEstados($itemsPorPeriodicidad['ocurrencia'],$documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'ocurrencia',  $anoActual, $mesActual);
+$estadosMensual    = contarEstados($itemsPorPeriodicidad['mensual'],   $documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'mensual');
+$estadosTrimestral = contarEstados($itemsPorPeriodicidad['trimestral'],$documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'trimestral');
+$estadosSemestral  = contarEstados($itemsPorPeriodicidad['semestral'], $documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'semestral');
+$estadosAnual      = contarEstados($itemsPorPeriodicidad['anual'],     $documentoClass, $verificadorClass, $mesSeleccionado, $anoSeleccionado, 'anual');
 
 // Función para renderizar la tabla de items de auditor
-function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPlazoClass, $mesS, $anoS, $periodicidad, $anoActual, $mesActual, $meses) {
+function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPlazoClass, $mesS, $anoS, $periodicidad, $meses) {
     if (empty($items)) {
         echo '<tr><td colspan="8" class="text-center text-muted">No hay items</td></tr>';
         return;
@@ -92,11 +103,9 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
     foreach ($items as $item) {
         // Obtener documento
         if ($periodicidad === 'anual') {
-            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoActual);
-        } elseif ($periodicidad === 'mensual') {
-            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesS, $anoS);
+            $docsResult = $documentoClass->getByItemFollowUpAnual($item['id'], $anoS);
         } else {
-            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesActual, $anoActual);
+            $docsResult = $documentoClass->getByItemFollowUp($item['id'], $mesS, $anoS);
         }
         $doc = $docsResult ? $docsResult->fetch_assoc() : null;
 
@@ -186,10 +195,39 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
     </div>
 </div>
 
+<!-- Selector global de mes -->
+<div class="card mb-3 border-primary">
+    <div class="card-body py-2">
+        <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
+            <label class="fw-bold mb-0"><i class="bi bi-calendar3"></i> Mes a revisar:</label>
+            <select name="mes" class="form-select form-select-sm" style="width:140px;" onchange="this.form.submit()">
+                <?php for ($m=1;$m<=12;$m++): ?>
+                    <option value="<?php echo $m; ?>" <?php echo $m==$mesSeleccionado?'selected':''; ?>><?php echo $meses[$m]; ?></option>
+                <?php endfor; ?>
+            </select>
+            <select name="ano" class="form-select form-select-sm" style="width:90px;" onchange="this.form.submit()">
+                <?php for ($a=$anoActual-2;$a<=$anoActual+1;$a++): ?>
+                    <option value="<?php echo $a; ?>" <?php echo $a==$anoSeleccionado?'selected':''; ?>><?php echo $a; ?></option>
+                <?php endfor; ?>
+            </select>
+            <span class="text-muted ms-2"><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></span>
+        </form>
+    </div>
+</div>
+
+<?php
+// Determinar primera pestaña activa
+$primeraActiva = null;
+foreach (['mensual','trimestral','semestral','anual'] as $p) {
+    if (!empty($itemsPorPeriodicidad[$p])) { $primeraActiva = $p; break; }
+}
+?>
+
 <!-- TABS -->
 <ul class="nav nav-tabs mb-0" role="tablist">
+    <?php if (count($itemsPorPeriodicidad['mensual']) > 0): ?>
     <li class="nav-item">
-        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-mensual-aud" type="button">
+        <button class="nav-link <?php echo ($primeraActiva === 'mensual') ? 'active' : ''; ?>" data-bs-toggle="tab" data-bs-target="#tab-mensual-aud" type="button">
             <i class="bi bi-calendar-month"></i> Mensual
             <?php if ($estadosMensual['rojo'] > 0): ?>
                 <span class="badge bg-danger ms-1"><?php echo $estadosMensual['rojo']; ?></span>
@@ -199,35 +237,38 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             <?php endif; ?>
         </button>
     </li>
+    <?php endif; ?>
+    <?php if (count($itemsPorPeriodicidad['trimestral']) > 0): ?>
     <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trimestral-aud" type="button">
+        <button class="nav-link <?php echo ($primeraActiva === 'trimestral') ? 'active' : ''; ?>" data-bs-toggle="tab" data-bs-target="#tab-trimestral-aud" type="button">
             <i class="bi bi-calendar-week"></i> Trimestral
             <?php if ($estadosTrimestral['rojo']+$estadosTrimestral['naranja'] > 0): ?>
                 <span class="badge bg-warning text-dark ms-1"><?php echo $estadosTrimestral['rojo']+$estadosTrimestral['naranja']; ?></span>
             <?php endif; ?>
         </button>
     </li>
+    <?php endif; ?>
+    <?php if (count($itemsPorPeriodicidad['semestral']) > 0): ?>
     <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-semestral-aud" type="button">
+        <button class="nav-link <?php echo ($primeraActiva === 'semestral') ? 'active' : ''; ?>" data-bs-toggle="tab" data-bs-target="#tab-semestral-aud" type="button">
             <i class="bi bi-calendar2-range"></i> Semestral
         </button>
     </li>
+    <?php endif; ?>
+    <?php if (count($itemsPorPeriodicidad['anual']) > 0): ?>
     <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-anual-aud" type="button">
+        <button class="nav-link <?php echo ($primeraActiva === 'anual') ? 'active' : ''; ?>" data-bs-toggle="tab" data-bs-target="#tab-anual-aud" type="button">
             <i class="bi bi-calendar-check"></i> Anual
         </button>
     </li>
-    <li class="nav-item">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ocurrencia-aud" type="button">
-            <i class="bi bi-lightning"></i> Ocurrencia
-        </button>
-    </li>
+    <?php endif; ?>
 </ul>
 
 <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
 
     <!-- TAB MENSUAL -->
-    <div class="tab-pane fade show active" id="tab-mensual-aud" role="tabpanel">
+    <?php if (count($itemsPorPeriodicidad['mensual']) > 0): ?>
+    <div class="tab-pane fade <?php echo ($primeraActiva === 'mensual') ? 'show active' : ''; ?>" id="tab-mensual-aud" role="tabpanel">
         <?php
             $primerItemAM = !empty($itemsPorPeriodicidad['mensual']) ? $itemsPorPeriodicidad['mensual'][0] : null;
             $plazoTituloEAM = $primerItemAM ? $itemPlazoClass->getPlazoFinal($primerItemAM['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAM['periodicidad']) : null;
@@ -247,16 +288,8 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
             </div>
             <div class="col-auto">
                 <form method="GET" class="d-flex gap-2 align-items-center">
-                    <select name="mes" class="form-select form-select-sm" style="width:130px;" onchange="this.form.submit()">
-                        <?php for ($m=1;$m<=12;$m++): ?>
-                            <option value="<?php echo $m; ?>" <?php echo $m==$mesSeleccionado?'selected':''; ?>><?php echo $meses[$m]; ?></option>
-                        <?php endfor; ?>
-                    </select>
-                    <select name="ano" class="form-select form-select-sm" style="width:90px;" onchange="this.form.submit()">
-                        <?php for ($a=$anoActual-2;$a<=$anoActual+1;$a++): ?>
-                            <option value="<?php echo $a; ?>" <?php echo $a==$anoSeleccionado?'selected':''; ?>><?php echo $a; ?></option>
-                        <?php endfor; ?>
-                    </select>
+                    <input type="hidden" name="mes" value="<?php echo $mesSeleccionado; ?>">
+                    <input type="hidden" name="ano" value="<?php echo $anoSeleccionado; ?>">
                     <!-- Filtros de estado -->
                     <div class="btn-group btn-group-sm ms-2" id="filtroEstado">
                         <button type="button" class="btn btn-outline-secondary active" data-estado="todos" onclick="filtrarAuditor('todos',this)">Todos</button>
@@ -274,14 +307,16 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
-                    <?php renderTablaAuditor($itemsPorPeriodicidad['mensual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'mensual', $anoActual, $mesActual, $meses); ?>
+                    <?php renderTablaAuditor($itemsPorPeriodicidad['mensual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'mensual', $meses); ?>
                 </tbody>
             </table>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- TAB TRIMESTRAL -->
-    <div class="tab-pane fade" id="tab-trimestral-aud" role="tabpanel">
+    <?php if (count($itemsPorPeriodicidad['trimestral']) > 0): ?>
+    <div class="tab-pane fade <?php echo ($primeraActiva === 'trimestral') ? 'show active' : ''; ?>" id="tab-trimestral-aud" role="tabpanel">
         <?php
             $primerItemAT = !empty($itemsPorPeriodicidad['trimestral']) ? $itemsPorPeriodicidad['trimestral'][0] : null;
             $plazoTituloEAT = $primerItemAT ? $itemPlazoClass->getPlazoFinal($primerItemAT['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAT['periodicidad']) : null;
@@ -305,18 +340,20 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
-                    <?php renderTablaAuditor($itemsPorPeriodicidad['trimestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'trimestral', $anoActual, $mesActual, $meses); ?>
+                    <?php renderTablaAuditor($itemsPorPeriodicidad['trimestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'trimestral', $meses); ?>
                 </tbody>
             </table>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- TAB SEMESTRAL -->
-    <div class="tab-pane fade" id="tab-semestral-aud" role="tabpanel">
+    <?php if (count($itemsPorPeriodicidad['semestral']) > 0): ?>
+    <div class="tab-pane fade <?php echo ($primeraActiva === 'semestral') ? 'show active' : ''; ?>" id="tab-semestral-aud" role="tabpanel">
         <?php
             $primerItemAS = !empty($itemsPorPeriodicidad['semestral']) ? $itemsPorPeriodicidad['semestral'][0] : null;
-            $plazoTituloEAS = $primerItemAS ? $itemPlazoClass->getPlazoFinal($primerItemAS['id'], $anoActual, $mesActual, $primerItemAS['periodicidad']) : null;
-            $plazoTituloPAS = $primerItemAS ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAS['id'], $anoActual, $mesActual, $primerItemAS['periodicidad']) : null;
+            $plazoTituloEAS = $primerItemAS ? $itemPlazoClass->getPlazoFinal($primerItemAS['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAS['periodicidad']) : null;
+            $plazoTituloPAS = $primerItemAS ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAS['id'], $anoSeleccionado, $mesSeleccionado, $primerItemAS['periodicidad']) : null;
         ?>
         <div class="mb-3">
             <h5>Items Semestrales
@@ -336,21 +373,24 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
-                    <?php renderTablaAuditor($itemsPorPeriodicidad['semestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'semestral', $anoActual, $mesActual, $meses); ?>
+                    <?php renderTablaAuditor($itemsPorPeriodicidad['semestral'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'semestral', $meses); ?>
                 </tbody>
             </table>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- TAB ANUAL -->
-    <div class="tab-pane fade" id="tab-anual-aud" role="tabpanel">
+    <?php if (count($itemsPorPeriodicidad['anual']) > 0): ?>
+    <div class="tab-pane fade <?php echo ($primeraActiva === 'anual') ? 'show active' : ''; ?>" id="tab-anual-aud" role="tabpanel">
         <?php
             $primerItemAA = !empty($itemsPorPeriodicidad['anual']) ? $itemsPorPeriodicidad['anual'][0] : null;
-            $plazoTituloEAA = $primerItemAA ? $itemPlazoClass->getPlazoFinal($primerItemAA['id'], $anoActual, 1, $primerItemAA['periodicidad']) : null;
-            $plazoTituloPAA = $primerItemAA ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAA['id'], $anoActual, 1, $primerItemAA['periodicidad']) : null;
+            $mesAnualHeader = $primerItemAA ? intval($primerItemAA['mes_carga_anual'] ?? 1) : $mesSeleccionado;
+            $plazoTituloEAA = $primerItemAA ? $itemPlazoClass->getPlazoFinal($primerItemAA['id'], $anoSeleccionado, $mesAnualHeader, $primerItemAA['periodicidad']) : null;
+            $plazoTituloPAA = $primerItemAA ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAA['id'], $anoSeleccionado, $mesAnualHeader, $primerItemAA['periodicidad']) : null;
         ?>
         <div class="mb-3">
-            <h5>Items Anuales &mdash; <?php echo $anoActual; ?>
+            <h5>Items Anuales &mdash; <?php echo $anoSeleccionado; ?>
                 <?php if ($plazoTituloEAA || $plazoTituloPAA): ?>
                 <small class="text-muted fw-normal ms-2">
                     <?php if ($plazoTituloEAA): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAA)); ?><?php endif; ?>
@@ -367,42 +407,12 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
-                    <?php renderTablaAuditor($itemsPorPeriodicidad['anual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'anual', $anoActual, $mesActual, $meses); ?>
+                    <?php renderTablaAuditor($itemsPorPeriodicidad['anual'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'anual', $meses); ?>
                 </tbody>
             </table>
         </div>
     </div>
-
-    <!-- TAB OCURRENCIA -->
-    <div class="tab-pane fade" id="tab-ocurrencia-aud" role="tabpanel">
-        <?php
-            $primerItemAO = !empty($itemsPorPeriodicidad['ocurrencia']) ? $itemsPorPeriodicidad['ocurrencia'][0] : null;
-            $plazoTituloEAO = $primerItemAO ? $itemPlazoClass->getPlazoFinal($primerItemAO['id'], $anoActual, $mesActual, $primerItemAO['periodicidad']) : null;
-            $plazoTituloPAO = $primerItemAO ? $itemPlazoClass->getPlazoPublicacionFinal($primerItemAO['id'], $anoActual, $mesActual, $primerItemAO['periodicidad']) : null;
-        ?>
-        <div class="mb-3">
-            <h5>Items por Ocurrencia
-                <?php if ($plazoTituloEAO || $plazoTituloPAO): ?>
-                <small class="text-muted fw-normal ms-2">
-                    <?php if ($plazoTituloEAO): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAO)); ?><?php endif; ?>
-                    <?php if ($plazoTituloEAO && $plazoTituloPAO): ?> &nbsp;|&nbsp; <?php endif; ?>
-                    <?php if ($plazoTituloPAO): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAO)); ?><?php endif; ?>
-                </small>
-                <?php endif; ?>
-            </h5>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover table-sm">
-                <thead class="table-light"><tr>
-                    <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
-                    <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
-                </tr></thead>
-                <tbody>
-                    <?php renderTablaAuditor($itemsPorPeriodicidad['ocurrencia'], $documentoClass, $verificadorClass, $itemPlazoClass, $mesSeleccionado, $anoSeleccionado, 'ocurrencia', $anoActual, $mesActual, $meses); ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <?php endif; ?>
 
 </div>
 
