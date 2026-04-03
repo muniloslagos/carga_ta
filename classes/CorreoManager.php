@@ -651,10 +651,24 @@ class CorreoManager {
         
         foreach ($directores as $director) {
             try {
+                // Obtener nombres de direcciones asignadas al director
+                $stmtDir = $this->conn->prepare("SELECT nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
+                $stmtDir->bind_param('i', $director['id']);
+                $stmtDir->execute();
+                $dirResult = $stmtDir->get_result();
+                $nombres_direcciones = [];
+                while ($dd = $dirResult->fetch_assoc()) {
+                    $nombres_direcciones[] = $dd['nombre'];
+                }
+                $stmtDir->close();
+                $texto_direcciones = !empty($nombres_direcciones) ? implode(', ', $nombres_direcciones) : 'Sin dirección asignada';
+                
                 // Resumen solo con los ítems de las direcciones del director
                 $resumen_director = $this->obtenerResumenDireccionesDirector($director['id'], $mes, $ano);
                 
                 $variables = [
+                    '{nombre_director}' => $director['nombre_completo'],
+                    '{direcciones_director}' => $texto_direcciones,
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
                     '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),

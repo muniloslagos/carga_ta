@@ -557,7 +557,7 @@ $meses = [
                             <textarea name="cuerpo" class="form-control" rows="12" required><?= htmlspecialchars($plantillas['fin_proceso_general']['cuerpo'] ?? '') ?></textarea>
                             <small class="text-muted">
                                 <strong>Variables disponibles:</strong> 
-                                {mes_carga}, {ano_carga}, {fecha_cierre}, {resumen_general}, {enlace_resumen}
+                                {mes_carga}, {ano_carga}, {fecha_cierre}, {nombre_director}, {direcciones_director}, {resumen_general}, {enlace_resumen}
                             </small>
                         </div>
 
