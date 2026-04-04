@@ -76,14 +76,18 @@ $stmtAsig->close();
 // Pre-fetch item IDs asignados al publicador actual (para filtrado opcional)
 $itemsAsignadosPublicador = [];
 if ($user_perfil === 'publicador') {
-    $stmtPubAsig = $conn->prepare("SELECT item_id FROM item_publicadores WHERE usuario_id = ?");
-    $stmtPubAsig->bind_param('i', $user_id);
-    $stmtPubAsig->execute();
-    $resPubAsig = $stmtPubAsig->get_result();
-    while ($rowPubAsig = $resPubAsig->fetch_assoc()) {
-        $itemsAsignadosPublicador[(int)$rowPubAsig['item_id']] = true;
+    // Verificar si existe la tabla item_publicadores antes de usarla
+    $checkTable = $conn->query("SHOW TABLES LIKE 'item_publicadores'");
+    if ($checkTable && $checkTable->num_rows > 0) {
+        $stmtPubAsig = $conn->prepare("SELECT item_id FROM item_publicadores WHERE usuario_id = ?");
+        $stmtPubAsig->bind_param('i', $user_id);
+        $stmtPubAsig->execute();
+        $resPubAsig = $stmtPubAsig->get_result();
+        while ($rowPubAsig = $resPubAsig->fetch_assoc()) {
+            $itemsAsignadosPublicador[(int)$rowPubAsig['item_id']] = true;
+        }
+        $stmtPubAsig->close();
     }
-    $stmtPubAsig->close();
 }
 
 // Toggle para publicadores: ver solo mis items o ver todos

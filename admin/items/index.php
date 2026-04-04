@@ -117,6 +117,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         header('Content-Type: application/json');
         
+        // Verificar si existe la tabla item_publicadores
+        $checkTable = $conn->query("SHOW TABLES LIKE 'item_publicadores'");
+        if (!$checkTable || $checkTable->num_rows === 0) {
+            echo json_encode(['success' => false, 'message' => 'La tabla item_publicadores no existe. Ejecute la migración SQL primero.']);
+            exit;
+        }
+        
         if (!$item_id || !is_array($publicadores)) {
             echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
             exit;
@@ -378,11 +385,17 @@ if (!isset($PERIODICIDADES)) {
                         </td>
                         <td>
                             <?php
-                            $stmt_pub = $conn->prepare("SELECT COUNT(*) as total FROM item_publicadores WHERE item_id = ?");
-                            $stmt_pub->bind_param('i', $item['id']);
-                            $stmt_pub->execute();
-                            $count_pub = $stmt_pub->get_result()->fetch_assoc()['total'];
-                            echo '<small>' . $count_pub . ' publicador(es)</small>';
+                            // Verificar si existe la tabla antes de usarla
+                            $checkTable = $conn->query("SHOW TABLES LIKE 'item_publicadores'");
+                            if ($checkTable && $checkTable->num_rows > 0) {
+                                $stmt_pub = $conn->prepare("SELECT COUNT(*) as total FROM item_publicadores WHERE item_id = ?");
+                                $stmt_pub->bind_param('i', $item['id']);
+                                $stmt_pub->execute();
+                                $count_pub = $stmt_pub->get_result()->fetch_assoc()['total'];
+                                echo '<small>' . $count_pub . ' publicador(es)</small>';
+                            } else {
+                                echo '<small class="text-muted">N/A</small>';
+                            }
                             ?>
                         </td>
                         <td>

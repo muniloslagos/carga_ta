@@ -27,13 +27,16 @@ while ($u = $result->fetch_assoc()) {
 }
 
 // Obtener publicadores asignados a este item
-$stmt = $conn->prepare("SELECT usuario_id FROM item_publicadores WHERE item_id = ?");
-$stmt->bind_param('i', $item_id);
-$stmt->execute();
-$result = $stmt->get_result();
 $asignados = [];
-while ($a = $result->fetch_assoc()) {
-    $asignados[] = (int)$a['usuario_id'];
+$checkTable = $conn->query("SHOW TABLES LIKE 'item_publicadores'");
+if ($checkTable && $checkTable->num_rows > 0) {
+    $stmt = $conn->prepare("SELECT usuario_id FROM item_publicadores WHERE item_id = ?");
+    $stmt->bind_param('i', $item_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($a = $result->fetch_assoc()) {
+        $asignados[] = (int)$a['usuario_id'];
+    }
 }
 
 header('Content-Type: application/json');
