@@ -115,7 +115,9 @@ while ($item = $all_items->fetch_assoc()) {
     $documento = null;
     if ($sinMovimiento) {
         $stmtDoc = $conn->prepare("SELECT id, fecha_subida FROM documentos 
-            WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? AND titulo LIKE 'Sin Movimiento%'
+            WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? 
+            AND titulo LIKE 'Sin Movimiento%'
+            AND estado != 'reemplazado'
             ORDER BY fecha_subida DESC LIMIT 1");
         $stmtDoc->bind_param('iii', $item['id'], $mes_busqueda, $ano);
         $stmtDoc->execute();
@@ -125,6 +127,7 @@ while ($item = $all_items->fetch_assoc()) {
         $stmtDoc = $conn->prepare("SELECT id, fecha_subida FROM documentos 
             WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
             AND (titulo NOT LIKE 'Sin Movimiento%' OR titulo IS NULL)
+            AND estado != 'reemplazado'
             ORDER BY fecha_subida DESC LIMIT 1");
         $stmtDoc->bind_param('iii', $item['id'], $mes_busqueda, $ano);
         $stmtDoc->execute();
