@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS `documentos` (
   `titulo` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `descripcion` text COLLATE utf8mb4_unicode_ci,
   `archivo` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `estado` enum('pendiente','aprobado','rechazado') COLLATE utf8mb4_unicode_ci DEFAULT 'pendiente',
+  `estado` enum('pendiente','aprobado','rechazado','reemplazado','Publicado') COLLATE utf8mb4_unicode_ci DEFAULT 'pendiente',
   `comentarios_revision` text COLLATE utf8mb4_unicode_ci,
   `revisado_por` int(11) DEFAULT NULL,
   `fecha_subida` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
