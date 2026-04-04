@@ -90,6 +90,32 @@ if ($user_perfil === 'publicador') {
     }
 }
 
+// Para publicadores: obtener o generar token del resumen público
+$tokenResumenPublico = null;
+if ($user_perfil === 'publicador') {
+    // Verificar si existe la tabla resumen_publico_tokens
+    $checkTokenTable = $conn->query("SHOW TABLES LIKE 'resumen_publico_tokens'");
+    if ($checkTokenTable && $checkTokenTable->num_rows > 0) {
+        // Buscar token existente para el mes/año seleccionado
+        $stmtToken = $conn->prepare("SELECT token FROM resumen_publico_tokens WHERE mes = ? AND ano = ? ORDER BY fecha_creacion DESC LIMIT 1");
+        $stmtToken->bind_param('ii', $mesSeleccionado, $anoSeleccionado);
+        $stmtToken->execute();
+        $resultToken = $stmtToken->get_result();
+        
+        if ($rowToken = $resultToken->fetch_assoc()) {
+            $tokenResumenPublico = $rowToken['token'];
+        } else {
+            // Generar nuevo token si no existe
+            $tokenResumenPublico = bin2hex(random_bytes(32));
+            $stmtInsToken = $conn->prepare("INSERT INTO resumen_publico_tokens (token, mes, ano, creado_por) VALUES (?, ?, ?, ?)");
+            $stmtInsToken->bind_param('siii', $tokenResumenPublico, $mesSeleccionado, $anoSeleccionado, $user_id);
+            $stmtInsToken->execute();
+            $stmtInsToken->close();
+        }
+        $stmtToken->close();
+    }
+}
+
 // Toggle para publicadores: ver solo mis items o ver todos
 // GET parameter: ver_todos=1 activa ver todos, cualquier otro valor desactiva
 if ($user_perfil === 'publicador' && isset($_GET['ver_todos'])) {
@@ -351,6 +377,16 @@ if (isset($_SESSION['success'])) {
             <h1><i class="bi bi-inbox" style="color: #3498db;"></i> Mi Panel de Carga</h1>
             <small class="text-muted">Gestiona tus documentos de transparencia</small>
         </div>
+        <?php if ($user_perfil === 'publicador' && $tokenResumenPublico): ?>
+        <div class="col-auto">
+            <a href="../resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" 
+               class="btn btn-success" 
+               target="_blank"
+               title="Ver resumen público municipal">
+                <i class="bi bi-file-earmark-text"></i> Publicación
+            </a>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 

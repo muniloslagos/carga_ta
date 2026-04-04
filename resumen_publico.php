@@ -36,8 +36,17 @@ if ($token_data['fecha_expiracion'] && strtotime($token_data['fecha_expiracion']
     exit;
 }
 
-$mes = (int)$token_data['mes'];
-$ano = (int)$token_data['ano'];
+// Permitir cambiar mes/año mediante parámetros GET (preservando el token)
+$mes = isset($_GET['mes']) && is_numeric($_GET['mes']) ? (int)$_GET['mes'] : (int)$token_data['mes'];
+$ano = isset($_GET['ano']) && is_numeric($_GET['ano']) ? (int)$_GET['ano'] : (int)$token_data['ano'];
+
+// Validar rango de mes y año
+if ($mes < 1 || $mes > 12) {
+    $mes = (int)$token_data['mes'];
+}
+if ($ano < 2020 || $ano > 2050) {
+    $ano = (int)$token_data['ano'];
+}
 
 $meses = [
     1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
@@ -240,6 +249,38 @@ while ($d = $direcciones->fetch_assoc()) {
                     <i class="bi bi-printer"></i> Imprimir
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Selector de Período -->
+<div class="container mt-3 no-print">
+    <div class="card shadow-sm">
+        <div class="card-body py-2">
+            <form method="GET" class="d-flex align-items-center gap-3">
+                <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
+                <span class="fw-bold text-muted"><i class="bi bi-calendar3"></i> Cambiar Período:</span>
+                <select name="mes" class="form-select form-select-sm" style="max-width: 200px;">
+                    <?php
+                    for ($m = 1; $m <= 12; $m++) {
+                        $selected = ($mes == $m) ? 'selected' : '';
+                        echo "<option value='$m' $selected>{$meses[$m]}</option>";
+                    }
+                    ?>
+                </select>
+                <select name="ano" class="form-select form-select-sm" style="max-width: 100px;">
+                    <?php
+                    $currentYear = date('Y');
+                    for ($a = $currentYear - 2; $a <= $currentYear; $a++) {
+                        $selected = ($ano == $a) ? 'selected' : '';
+                        echo "<option value='$a' $selected>$a</option>";
+                    }
+                    ?>
+                </select>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi bi-search"></i> Ver
+                </button>
+            </form>
         </div>
     </div>
 </div>

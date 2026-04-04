@@ -19,7 +19,7 @@ if ($is_logged_in && $current_profile) {
     if ($current_profile === 'administrativo') {
         header('Location: ' . SITE_URL . 'admin/index.php');
     } elseif ($current_profile === 'publicador') {
-        header('Location: ' . SITE_URL . 'admin/publicador/');
+        header('Location: ' . SITE_URL . 'usuario/dashboard.php');
     } else {
         header('Location: ' . SITE_URL . 'usuario/dashboard.php');
     }
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user['perfil'] === 'administrativo') {
                 header('Location: ' . SITE_URL . 'admin/index.php');
             } elseif ($user['perfil'] === 'publicador') {
-                header('Location: ' . SITE_URL . 'admin/publicador/');
+                header('Location: ' . SITE_URL . 'usuario/dashboard.php');
             } else {
                 header('Location: ' . SITE_URL . 'usuario/dashboard.php');
             }
