@@ -166,6 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Asignación masiva de usuarios a múltiples items
         $item_ids = json_decode($_POST['item_ids'] ?? '[]', true);
         $usuario_ids = json_decode($_POST['usuario_ids'] ?? '[]', true);
+        $perfil = $_POST['perfil'] ?? '';
         
         header('Content-Type: application/json');
         
@@ -174,15 +175,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
+        if (!in_array($perfil, ['cargador_informacion', 'publicador'])) {
+            echo json_encode(['success' => false, 'message' => 'Perfil inválido']);
+            exit;
+        }
+        
         $success_count = 0;
         $error_count = 0;
         
-        foreach ($item_ids as $item_id) {
-            foreach ($usuario_ids as $usuario_id) {
-                if ($itemClass->assignUser(intval($item_id), intval($usuario_id))) {
-                    $success_count++;
-                } else {
-                    $error_count++;
+        if ($perfil === 'cargador_informacion') {
+            // Asignar cargadores a items (tabla item_usuarios)
+            foreach ($item_ids as $item_id) {
+                foreach ($usuario_ids as $usuario_id) {
+                    if ($itemClass->assignUser(intval($item_id), intval($usuario_id))) {
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
+                }
+            }
+        } elseif ($perfil === 'publicador') {
+            // Asignar publicadores a items (tabla item_publicadores)
+            $checkTable = $conn->query("SHOW TABLES LIKE 'item_publicadores'");
+            if (!$checkTable || $checkTable->num_rows === 0) {
+                echo json_encode(['success' => false, 'message' => 'La tabla item_publicadores no existe. Ejecute la migración SQL primero.']);
+                exit;
+            }
+            
+            foreach ($item_ids as $item_id) {
+                foreach ($usuario_ids as $usuario_id) {
+                    $stmt = $conn->prepare("INSERT IGNORE INTO item_publicadores (item_id, usuario_id, asignado_por) VALUES (?, ?, ?)");
+                    $stmt->bind_param('iii', $item_id, $usuario_id, $_SESSION['user_id']);
+                    if ($stmt->execute() && $stmt->affected_rows > 0) {
+                        $success_count++;
+                    } elseif ($stmt->affected_rows === 0) {
+                        // Ya existe, contar como éxito
+                        $success_count++;
+                    } else {
+                        $error_count++;
+                    }
                 }
             }
         }
@@ -191,6 +222,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'success' => $error_count === 0,
             'message' => "Asignados: $success_count, Errores: $error_count"
         ]);
+        exit;
+    } elseif ($action === 'get_usuarios_by_perfil') {
+        // Obtener usuarios filtrados por perfil
+        $perfil = $_POST['perfil'] ?? '';
+        
+        header('Content-Type: application/json');
+        
+        if (!in_array($perfil, ['cargador_informacion', 'publicador'])) {
+            echo json_encode(['success' => false, 'message' => 'Perfil inválido']);
+            exit;
+        }
+        
+        $stmt = $conn->prepare("SELECT id, nombre, email FROM usuarios WHERE perfil = ? AND activo = 1 ORDER BY nombre");
+        $stmt->bind_param('s', $perfil);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $usuarios = [];
+        while ($u = $result->fetch_assoc()) {
+            $usuarios[] = $u;
+        }
+        
+        echo json_encode(['success' => true, 'usuarios' => $usuarios]);
         exit;
     }
     
@@ -558,12 +611,12 @@ if (!isset($PERIODICIDADES)) {
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Asignación Masiva de Usuarios</h5>
+                <h5 class="modal-title">Asignación Masiva</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Seleccione los items en la tabla y luego elija los usuarios a asignar.
+                    <i class="bi bi-info-circle"></i> Seleccione el perfil, los items en la tabla y luego elija los usuarios a asignar.
                 </div>
                 
                 <div class="mb-3">
@@ -573,21 +626,30 @@ if (!isset($PERIODICIDADES)) {
                 
                 <hr>
                 
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Seleccionar Perfil a Asignar:</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="bulkPerfil" id="perfilCargador" value="cargador_informacion" checked>
+                        <label class="btn btn-outline-primary" for="perfilCargador">
+                            <i class="bi bi-person"></i> Cargadores de Información
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="bulkPerfil" id="perfilPublicador" value="publicador">
+                        <label class="btn btn-outline-success" for="perfilPublicador">
+                            <i class="bi bi-people"></i> Publicadores
+                        </label>
+                    </div>
+                </div>
+                
+                <hr>
+                
                 <h6>Seleccionar Usuarios:</h6>
-                <?php 
-                $usuarios = $usuarioClass->getAll();
-                ?>
-                <div class="row">
-                    <?php while ($usuario = $usuarios->fetch_assoc()): ?>
-                        <div class="col-md-6 mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input bulk-user-check" type="checkbox" value="<?php echo $usuario['id']; ?>" id="bulkuser<?php echo $usuario['id']; ?>">
-                                <label class="form-check-label" for="bulkuser<?php echo $usuario['id']; ?>">
-                                    <?php echo htmlspecialchars($usuario['nombre']); ?> - <?php echo htmlspecialchars($usuario['email']); ?>
-                                </label>
-                            </div>
+                <div id="usuariosListContainer">
+                    <div class="text-center py-3">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Cargando...</span>
                         </div>
-                    <?php endwhile; ?>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -634,10 +696,65 @@ document.addEventListener('DOMContentLoaded', function() {
         cb.addEventListener('change', updateBulkAssignModal);
     });
     
+    // Cargar usuarios según perfil seleccionado
+    function cargarUsuariosPorPerfil(perfil) {
+        const container = document.getElementById('usuariosListContainer');
+        container.innerHTML = '<div class="text-center py-3"><div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div></div>';
+        
+        const form = new FormData();
+        form.append('action', 'get_usuarios_by_perfil');
+        form.append('perfil', perfil);
+        
+        fetch('', {
+            method: 'POST',
+            body: form
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.usuarios.length > 0) {
+                let html = '<div class="row">';
+                data.usuarios.forEach(usuario => {
+                    html += `
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input bulk-user-check" type="checkbox" value="${usuario.id}" id="bulkuser${usuario.id}">
+                                <label class="form-check-label" for="bulkuser${usuario.id}">
+                                    ${usuario.nombre} - ${usuario.email}
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="alert alert-warning">No hay usuarios con este perfil</div>';
+            }
+        })
+        .catch(error => {
+            container.innerHTML = '<div class="alert alert-danger">Error al cargar usuarios</div>';
+        });
+    }
+    
+    // Evento cuando cambia el perfil seleccionado
+    document.querySelectorAll('input[name="bulkPerfil"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            cargarUsuariosPorPerfil(this.value);
+        });
+    });
+    
+    // Cargar usuarios al abrir el modal (perfil por defecto: cargador)
+    document.getElementById('bulkAssignModal').addEventListener('shown.bs.modal', function() {
+        const perfilSeleccionado = document.querySelector('input[name="bulkPerfil"]:checked').value;
+        cargarUsuariosPorPerfil(perfilSeleccionado);
+    });
+    
     // Asignación masiva
     document.getElementById('btnBulkAssign').addEventListener('click', function() {
         const itemCheckboxes = document.querySelectorAll('.item-checkbox:checked');
         const userCheckboxes = document.querySelectorAll('.bulk-user-check:checked');
+        const perfilSeleccionado = document.querySelector('input[name="bulkPerfil"]:checked').value;
+        const perfilNombre = perfilSeleccionado === 'cargador_informacion' ? 'Cargadores' : 'Publicadores';
         
         if (itemCheckboxes.length === 0) {
             alert('Debe seleccionar al menos un item');
@@ -652,7 +769,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemIds = Array.from(itemCheckboxes).map(cb => parseInt(cb.value));
         const userIds = Array.from(userCheckboxes).map(cb => parseInt(cb.value));
         
-        if (!confirm(`¿Asignar ${userIds.length} usuario(s) a ${itemIds.length} item(s)?`)) {
+        if (!confirm(`¿Asignar ${userIds.length} ${perfilNombre} a ${itemIds.length} item(s)?`)) {
             return;
         }
         
@@ -664,6 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.append('action', 'bulk_assign_users');
         form.append('item_ids', JSON.stringify(itemIds));
         form.append('usuario_ids', JSON.stringify(userIds));
+        form.append('perfil', perfilSeleccionado);
         
         fetch('', {
             method: 'POST',
