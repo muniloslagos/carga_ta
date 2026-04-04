@@ -146,7 +146,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $resolverObs->execute();
                 $observacionResuelta = true;
             }
-        }
             
             // Cambiar estado del documento observado a 'reemplazado' (NO eliminarlo, para mantener historial)
             if ($doc_id_observado) {
@@ -158,8 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $cambiarEstadoObs->bind_param('i', $doc_id_observado);
                 $cambiarEstadoObs->execute();
             }
+            
+            $checkObs->close();
         }
-        $checkObs->close();
         // ────────────────────────────────────────────────────────────────────
 
         // Si es modificación (NO observación), eliminar el documento anterior

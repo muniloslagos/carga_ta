@@ -174,9 +174,6 @@ if ($user_perfil === 'cargador_informacion') {
     $params[] = $user_id;
     $types .= 'i';
 }
-    $params[] = $user_id;
-    $types .= 'i';
-}
 
 $stmt = $conn->prepare($query);
 if (!empty($params)) {
