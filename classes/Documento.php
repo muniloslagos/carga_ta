@@ -228,8 +228,8 @@ class Documento {
 
     // Subir archivo
     public function uploadFile($file) {
-        // Tipos permitidos: PDF, documentos Word, Excel y CSV, e imágenes
-        $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'jpg', 'jpeg', 'png'];
+        // Tipos permitidos: PDF, documentos Word, Excel, imágenes y archivos comprimidos
+        $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
         $maxSize = 10 * 1024 * 1024; // 10MB
 
         $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));

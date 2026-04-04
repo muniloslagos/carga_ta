@@ -1581,8 +1581,8 @@ if (isset($_SESSION['success'])) {
 
                     <div class="mb-3">
                         <label for="archivo" class="form-label">Seleccionar Archivo <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" id="archivo" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png">
-                        <small class="text-muted d-block mt-2">✓ Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG (máximo 10MB)</small>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.jpg,.jpeg,.png,.zip,.rar,.7z">
+                        <small class="text-muted d-block mt-2">✓ Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG, ZIP, RAR, 7Z (máximo 10MB)</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2072,8 +2072,8 @@ function verEnPantallaCompleta(imageSrc) {
                         
                         <div class="mb-3">
                             <label for="modifSinMovArchivo" class="form-label">Archivo <span class="text-danger">*</span></label>
-                            <input type="file" class="form-control" id="modifSinMovArchivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip">
-                            <div class="form-text">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP (máx. 10MB)</div>
+                            <input type="file" class="form-control" id="modifSinMovArchivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.jpg,.jpeg,.png,.zip,.rar,.7z">
+                            <div class="form-text">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, RAR, 7Z (máx. 10MB)</div>
                         </div>
                         
                         <button type="button" class="btn btn-primary w-100" onclick="subirDocumentoReemplazar()">

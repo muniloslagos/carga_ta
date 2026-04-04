@@ -125,7 +125,7 @@ if ($accion === 'actualizar_observacion') {
     
     // Subir archivo
     $file = $_FILES['archivo'];
-    $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip'];
+    $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
     $maxSize = 10 * 1024 * 1024; // 10MB
     
     $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
