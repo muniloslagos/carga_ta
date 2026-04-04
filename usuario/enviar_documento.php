@@ -117,13 +117,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $upd->execute();
         }
         // ────────────────────────────────────────────────────────────────────
+        
+        // ── Resolver observaciones pendientes si las hay ────────────────────
+        $checkObs = $db_conn->prepare("
+            SELECT id FROM observaciones_documentos 
+            WHERE item_id = ? AND mes = ? AND ano = ? AND cargador_id = ? AND resuelta = 0
+        ");
+        $checkObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
+        $checkObs->execute();
+        $obsResult = $checkObs->get_result();
+        $observacionResuelta = false;
+        
+        if ($obsResult->num_rows > 0) {
+            // Hay observaciones pendientes - marcarlas como resueltas
+            $resolverObs = $db_conn->prepare("
+                UPDATE observaciones_documentos 
+                SET resuelta = 1, fecha_resolucion = NOW()
+                WHERE item_id = ? AND mes = ? AND ano = ? AND cargador_id = ? AND resuelta = 0
+            ");
+            $resolverObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
+            $resolverObs->execute();
+            $observacionResuelta = true;
+        }
+        $checkObs->close();
+        // ────────────────────────────────────────────────────────────────────
 
         // Si es modificación, eliminar el documento anterior
         if ($doc_id_reemplazar > 0) {
             $docAnterior = new Documento($db_conn);
             $docAnterior->delete($doc_id_reemplazar);
         }
-        $_SESSION['success'] = $doc_id_reemplazar > 0 ? 'Documento modificado exitosamente' : 'Documento cargado exitosamente';
+        
+        // Mensaje de éxito
+        if ($observacionResuelta) {
+            $_SESSION['success'] = 'Documento corregido y enviado exitosamente. Observación resuelta';
+        } else if ($doc_id_reemplazar > 0) {
+            $_SESSION['success'] = 'Documento modificado exitosamente';
+        } else {
+            $_SESSION['success'] = 'Documento cargado exitosamente';
+        }
+        
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;

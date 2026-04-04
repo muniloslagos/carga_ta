@@ -98,7 +98,11 @@ $query = "
         u.nombre as usuario_nombre,
         vp.id as verificador_id,
         vp.fecha_carga_portal,
-        u_pub.nombre as publicador_nombre
+        u_pub.nombre as publicador_nombre,
+        od.id as observacion_id,
+        od.observacion as observacion_texto,
+        od.fecha_observacion,
+        u_obs.nombre as observador_nombre
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
@@ -106,6 +110,8 @@ $query = "
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id
+    LEFT JOIN observaciones_documentos od ON d.id = od.documento_id AND od.resuelta = 0
+    LEFT JOIN usuarios u_obs ON od.observado_por = u_obs.id
     WHERE i.activo = 1 $whereUsuario
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
@@ -196,6 +202,27 @@ if ($tableCheck && $tableCheck->num_rows > 0) {
         }
     }
     $stmtSinMov->close();
+}
+
+// Función helper para obtener observación del documento
+function obtenerObservacionDocumento($conn, $documento_id) {
+    $checkObs = $conn->prepare("
+        SELECT od.*, u.nombre as observador_nombre
+        FROM observaciones_documentos od
+        LEFT JOIN usuarios u ON od.observado_por = u.id
+        WHERE od.documento_id = ? AND od.resuelta = 0
+        ORDER BY od.fecha_observacion DESC
+        LIMIT 1
+    ");
+    $checkObs->bind_param('i', $documento_id);
+    $checkObs->execute();
+    $obsResult = $checkObs->get_result();
+    $observacion = null;
+    if ($obsResult->num_rows > 0) {
+        $observacion = $obsResult->fetch_assoc();
+    }
+    $checkObs->close();
+    return $observacion;
 }
 
 // Calcular documentos pendientes por periodicidad
@@ -521,11 +548,26 @@ if (isset($_SESSION['success'])) {
                                     
                                     // Badge estado
                                     $estadoBadge = '';
+                                    $observacion = null;
                                     if ($ultimoDoc) {
+                                        // Obtener observación si el documento está rechazado
+                                        if ($ultimoDoc['estado'] == 'rechazado') {
+                                            $observacion = obtenerObservacionDocumento($conn, $ultimoDoc['id']);
+                                        }
+                                        
                                         if ($ultimoDoc['estado'] == 'aprobado') {
                                             $estadoBadge = '<span class="badge bg-success">Aprobado</span>';
                                         } elseif ($ultimoDoc['estado'] == 'rechazado') {
-                                            $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
+                                            if ($observacion) {
+                                                $estadoBadge = '<span class="badge bg-danger">OBSERVADO</span>';
+                                                $estadoBadge .= '<div class="alert alert-danger mt-2 mb-0 py-2 px-3" style="font-size:0.85rem;">';
+                                                $estadoBadge .= '<strong><i class="bi bi-exclamation-triangle"></i> Observación del Publicador:</strong><br>';
+                                                $estadoBadge .= '<small>' . nl2br(htmlspecialchars($observacion['observacion'])) . '</small>';
+                                                $estadoBadge .= '<br><small class="text-muted">Observado por: ' . htmlspecialchars($observacion['observador_nombre']) . ' el ' . date('d/m/Y H:i', strtotime($observacion['fecha_observacion'])) . '</small>';
+                                                $estadoBadge .= '</div>';
+                                            } else {
+                                                $estadoBadge = '<span class="badge bg-danger">Rechazado</span>';
+                                            }
                                         } else {
                                             $estadoBadge = '<span class="badge bg-warning">Pendiente</span>';
                                         }
@@ -555,7 +597,14 @@ if (isset($_SESSION['success'])) {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php if ($observacion): ?>
+                                                <div class="mt-2">
+                                                    <?php echo $estadoBadge; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?php echo $mesCargaNombre . ' ' . $anoSeleccionado; ?></td>
                                         <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
@@ -630,6 +679,12 @@ if (isset($_SESSION['success'])) {
                                                                 onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1"
+                                                                onclick="abrirModalObservar(<?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                title="Observar documento" data-bs-toggle="tooltip"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-x-circle"></i>
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
@@ -857,6 +912,12 @@ if (isset($_SESSION['success'])) {
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
                                                         </button>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1"
+                                                                onclick="abrirModalObservar(<?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                title="Observar documento" data-bs-toggle="tooltip"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-x-circle"></i>
+                                                        </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
                                                         <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
@@ -1075,6 +1136,12 @@ if (isset($_SESSION['success'])) {
                                                                 onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1"
+                                                                onclick="abrirModalObservar(<?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                title="Observar documento" data-bs-toggle="tooltip"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-x-circle"></i>
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
@@ -1316,6 +1383,12 @@ if (isset($_SESSION['success'])) {
                                                                 onclick="prepararVerificador(<?php echo $item['id']; ?>, <?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
                                                                 style="white-space: nowrap;">
                                                             <i class="bi bi-upload"></i> Subir Verificador
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1"
+                                                                onclick="abrirModalObservar(<?php echo $ultimoDoc['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                title="Observar documento" data-bs-toggle="tooltip"
+                                                                style="white-space: nowrap;">
+                                                            <i class="bi bi-x-circle"></i>
                                                         </button>
                                                     <?php else: ?>
                                                         <!-- Sin Movimiento: crear documento placeholder primero -->
@@ -2231,6 +2304,109 @@ function verObservaciones(itemId, itemNombre, mes, ano) {
             console.error('Error:', error);
             document.getElementById('observacionesBody').innerHTML = '<p class="text-danger text-center">Error al cargar las observaciones</p>';
         });
+}
+</script>
+
+<!-- MODAL: Observar Documento (Publicador) -->
+<div class="modal fade" id="modalObservarDocumento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#dc3545; color:white;">
+                <div>
+                    <h5 class="modal-title mb-1"><i class="bi bi-x-circle"></i> Observar Documento</h5>
+                    <small>Item: <strong id="observarItemNombre">-</strong></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="observarDocId">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Importante:</strong> Al observar este documento, el cargador recibirá una notificación por correo y deberá corregirlo y volver a cargarlo.
+                </div>
+                <div class="mb-3">
+                    <label for="observacionTexto" class="form-label">Observación para el Cargador <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="observacionTexto" rows="5" required 
+                              placeholder="Indique claramente qué debe corregir el cargador en el documento...&#10;&#10;Ejemplo:&#10;- El documento no está firmado&#10;- Falta información del período solicitado&#10;- El formato no corresponde al requerido"></textarea>
+                    <small class="text-muted">Mínimo 10 caracteres</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarObservacion()">
+                    <i class="bi bi-send"></i> Enviar Observación
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- OBSERVAR DOCUMENTO (PUBLICADOR) ---
+function abrirModalObservar(docId, itemNombre) {
+    document.getElementById('observarDocId').value = docId;
+    document.getElementById('observarItemNombre').textContent = itemNombre;
+    document.getElementById('observacionTexto').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalObservarDocumento'));
+    modal.show();
+}
+
+function confirmarObservacion() {
+    const docId = document.getElementById('observarDocId').value;
+    const observacion = document.getElementById('observacionTexto').value.trim();
+    
+    // Validar
+    if (!observacion) {
+        alert('Debe ingresar una observación');
+        return;
+    }
+    
+    if (observacion.length < 10) {
+        alert('La observación debe tener al menos 10 caracteres');
+        return;
+    }
+    
+    if (!confirm('¿Está seguro de observar este documento? El cargador recibirá una notificación por correo.')) {
+        return;
+    }
+    
+    // Deshabilitar botón
+    const btn = event.target;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+    
+    // Enviar por AJAX
+    fetch('observar_documento.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            documento_id: parseInt(docId),
+            observacion: observacion
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Documento observado correctamente');
+            // Cerrar modal
+            bootstrap.Modal.getInstance(document.getElementById('modalObservarDocumento')).hide();
+            // Recargar página para ver los cambios
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo observar el documento'));
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al observar el documento. Por favor intente nuevamente.');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    });
 }
 </script>
 

@@ -1041,4 +1041,93 @@ class CorreoManager {
         
         return $html;
     }
+    
+    /**
+     * Enviar correo al cargador cuando el publicador observa su documento
+     */
+    public function enviarDocumentoObservado($observacion_id) {
+        // Obtener datos de la observación
+        $stmt = $this->conn->prepare("
+            SELECT o.*, 
+                   d.id as documento_id, d.titulo as documento_titulo,
+                   i.nombre as item_nombre, i.numeracion as item_numeracion,
+                   u_cargador.nombre as cargador_nombre, u_cargador.email as cargador_email,
+                   u_publicador.nombre as publicador_nombre
+            FROM observaciones_documentos o
+            INNER JOIN documentos d ON o.documento_id = d.id
+            INNER JOIN items_transparencia i ON o.item_id = i.id
+            INNER JOIN usuarios u_cargador ON o.cargador_id = u_cargador.id
+            INNER JOIN usuarios u_publicador ON o.observado_por = u_publicador.id
+            WHERE o.id = ?
+        ");
+        $stmt->bind_param('i', $observacion_id);
+        $stmt->execute();
+        $obs = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!$obs) {
+            throw new Exception('No se encontró la observación');
+        }
+        
+        // Obtener plantilla
+        $plantilla = $this->obtenerPlantilla('documento_observado');
+        if (!$plantilla) {
+            throw new Exception('No se encontró la plantilla de documento observado');
+        }
+        
+        // Construir enlace directo al mes/año del documento
+        $enlace_sistema = SITE_URL . 'usuario/dashboard.php?mes=' . $obs['mes'] . '&ano=' . $obs['ano'];
+        
+        // Variables para reemplazar
+        $variables = [
+            '{nombre_cargador}' => $obs['cargador_nombre'],
+            '{item_nombre}' => $obs['item_nombre'],
+            '{item_numeracion}' => $obs['item_numeracion'],
+            '{mes_carga}' => $this->nombreMes($obs['mes']),
+            '{ano_carga}' => $obs['ano'],
+            '{observacion}' => nl2br(htmlspecialchars($obs['observacion'])),
+            '{enlace_sistema}' => $enlace_sistema,
+            '{observado_por}' => $obs['publicador_nombre']
+        ];
+        
+        $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+        $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+        
+        // Enviar correo
+        $exito = $this->email_sender->enviarCorreo(
+            $obs['cargador_email'],
+            $asunto,
+            $cuerpo,
+            $obs['cargador_nombre']
+        );
+        
+        if (!$exito) {
+            throw new Exception('Error al enviar correo: ' . $this->email_sender->getError());
+        }
+        
+        // Registrar en historial
+        $detalles = [
+            [
+                'observacion_id' => $observacion_id,
+                'documento_id' => $obs['documento_id'],
+                'item_id' => $obs['item_id'],
+                'cargador_id' => $obs['cargador_id'],
+                'email' => $obs['cargador_email'],
+                'estado' => 'exitoso'
+            ]
+        ];
+        $this->registrarHistorial(
+            $plantilla['id'], 
+            'individual', 
+            $obs['cargador_id'], 
+            1, 
+            $obs['mes'], 
+            $obs['ano'], 
+            1, 
+            0, 
+            $detalles
+        );
+        
+        return true;
+    }
 }
