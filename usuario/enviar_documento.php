@@ -120,16 +120,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // ── Resolver observaciones pendientes si las hay ────────────────────
         $checkObs = $db_conn->prepare("
-            SELECT id FROM observaciones_documentos 
+            SELECT id, documento_id FROM observaciones_documentos 
             WHERE item_id = ? AND mes = ? AND ano = ? AND cargador_id = ? AND resuelta = 0
         ");
         $checkObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
         $checkObs->execute();
         $obsResult = $checkObs->get_result();
         $observacionResuelta = false;
+        $doc_id_observado = null;
         
         if ($obsResult->num_rows > 0) {
-            // Hay observaciones pendientes - marcarlas como resueltas
+            $obsData = $obsResult->fetch_assoc();
+            $doc_id_observado = $obsData['documento_id'];
+            
+            // Marcar observaciones como resueltas
             $resolverObs = $db_conn->prepare("
                 UPDATE observaciones_documentos 
                 SET resuelta = 1, fecha_resolucion = NOW()
@@ -138,12 +142,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $resolverObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
             $resolverObs->execute();
             $observacionResuelta = true;
+            
+            // Cambiar estado del documento observado a 'reemplazado' (NO eliminarlo, para mantener historial)
+            if ($doc_id_observado) {
+                $cambiarEstadoObs = $db_conn->prepare("
+                    UPDATE documentos 
+                    SET estado = 'reemplazado'
+                    WHERE id = ?
+                ");
+                $cambiarEstadoObs->bind_param('i', $doc_id_observado);
+                $cambiarEstadoObs->execute();
+            }
         }
         $checkObs->close();
         // ────────────────────────────────────────────────────────────────────
 
-        // Si es modificación, eliminar el documento anterior
-        if ($doc_id_reemplazar > 0) {
+        // Si es modificación (NO observación), eliminar el documento anterior
+        if ($doc_id_reemplazar > 0 && !$observacionResuelta) {
             $docAnterior = new Documento($db_conn);
             $docAnterior->delete($doc_id_reemplazar);
         }

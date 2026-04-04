@@ -106,7 +106,7 @@ $query = "
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
-    LEFT JOIN documentos d ON i.id = d.item_id
+    LEFT JOIN documentos d ON i.id = d.item_id AND d.estado != 'reemplazado'
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id

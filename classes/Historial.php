@@ -24,7 +24,8 @@ class Historial {
                 d.titulo,
                 d.mes_carga as mes,
                 d.ano_carga as ano,
-                d.archivo
+                d.archivo,
+                d.estado
                 FROM documentos d
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 WHERE d.item_id = ?";
@@ -47,15 +48,25 @@ class Historial {
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
+            $descripcion = 'Documento cargado: ' . $row['titulo'];
+            $detalle = 'Archivo: ' . $row['archivo'];
+            
+            // Indicar si el documento fue reemplazado
+            if ($row['estado'] === 'reemplazado') {
+                $descripcion .= ' (REEMPLAZADO)';
+                $detalle .= ' | Este documento fue corregido posteriormente';
+            }
+            
             $movimientos[] = [
                 'tipo' => 'documento_cargado',
                 'usuario' => $row['usuario'] ?? 'Usuario no identificado',
                 'fecha' => $row['fecha'],
-                'descripcion' => 'Documento cargado: ' . $row['titulo'],
+                'descripcion' => $descripcion,
                 'documento_id' => $row['documento_id'],
-                'detalle' => 'Archivo: ' . $row['archivo'],
+                'detalle' => $detalle,
                 'mes' => $row['mes'],
-                'ano' => $row['ano']
+                'ano' => $row['ano'],
+                'estado' => $row['estado']
             ];
         }
 
