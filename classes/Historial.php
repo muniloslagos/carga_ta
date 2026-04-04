@@ -22,6 +22,7 @@ class Historial {
                 u.nombre as usuario,
                 d.fecha_subida as fecha,
                 d.titulo,
+                d.descripcion,
                 d.mes_carga as mes,
                 d.ano_carga as ano,
                 d.archivo,
@@ -51,6 +52,11 @@ class Historial {
             $descripcion = 'Documento cargado: ' . $row['titulo'];
             $detalle = 'Archivo: ' . $row['archivo'];
             
+            // Agregar comentarios/descripción si existen
+            if (!empty($row['descripcion'])) {
+                $detalle .= ' | Comentarios: ' . $row['descripcion'];
+            }
+            
             // Indicar si el documento fue reemplazado
             if ($row['estado'] === 'reemplazado') {
                 $descripcion .= ' (REEMPLAZADO)';
@@ -77,6 +83,7 @@ class Historial {
                 u.nombre as usuario,
                 vp.fecha_carga_portal as fecha,
                 vp.archivo_verificador,
+                vp.comentarios,
                 d.titulo as documento_titulo,
                 d.mes_carga as mes,
                 d.ano_carga as ano
@@ -103,13 +110,20 @@ class Historial {
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
+            $detalle = 'Archivo: ' . $row['archivo_verificador'];
+            
+            // Agregar comentarios del verificador si existen
+            if (!empty($row['comentarios'])) {
+                $detalle .= ' | Comentarios: ' . $row['comentarios'];
+            }
+            
             $movimientos[] = [
                 'tipo' => 'verificador_agregado',
                 'usuario' => $row['usuario'] ?? 'Usuario no identificado',
                 'fecha' => $row['fecha'],
                 'descripcion' => 'Verificador agregado para: ' . $row['documento_titulo'],
                 'verificador_id' => $row['verificador_id'],
-                'detalle' => 'Archivo: ' . $row['archivo_verificador'],
+                'detalle' => $detalle,
                 'mes' => $row['mes'],
                 'ano' => $row['ano']
             ];
