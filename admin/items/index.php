@@ -109,6 +109,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'message' => "Guardado: $success_count usuarios, Errores: $error_count"
         ]);
         exit;
+    } elseif ($action === 'save_item_publicadores') {
+        // Guardar múltiples asignaciones de publicadores a un item
+        $item_id = intval($_POST['item_id']);
+        $publicadores = json_decode($_POST['publicadores'] ?? '[]', true);
+        
+        header('Content-Type: application/json');
+        
+        if (!$item_id || !is_array($publicadores)) {
+            echo json_encode(['success' => false, 'message' => 'Datos inválidos']);
+            exit;
+        }
+        
+        $success_count = 0;
+        $error_count = 0;
+        
+        foreach ($publicadores as $pub) {
+            $usuario_id = intval($pub['usuario_id'] ?? 0);
+            $checked = (bool)($pub['checked'] ?? false);
+            
+            if ($usuario_id > 0) {
+                if ($checked) {
+                    // Insertar si no existe
+                    $stmt = $conn->prepare("INSERT IGNORE INTO item_publicadores (item_id, usuario_id, asignado_por) VALUES (?, ?, ?)");
+                    $stmt->bind_param('iii', $item_id, $usuario_id, $_SESSION['user_id']);
+                    $result = $stmt->execute();
+                } else {
+                    // Eliminar asignación
+                    $stmt = $conn->prepare("DELETE FROM item_publicadores WHERE item_id = ? AND usuario_id = ?");
+                    $stmt->bind_param('ii', $item_id, $usuario_id);
+                    $result = $stmt->execute();
+                }
+                
+                if ($result) {
+                    $success_count++;
+                } else {
+                    $error_count++;
+                }
+            }
+        }
+        
+        echo json_encode([
+            'success' => $error_count === 0,
+            'message' => "Guardado: $success_count publicadores, Errores: $error_count"
+        ]);
+        exit;
     } elseif ($action === 'bulk_assign_users') {
         // Asignación masiva de usuarios a múltiples items
         $item_ids = json_decode($_POST['item_ids'] ?? '[]', true);
@@ -299,7 +344,8 @@ if (!isset($PERIODICIDADES)) {
                     <th>Nombre</th>
                     <th>Dirección</th>
                     <th>Periodicidad</th>
-                    <th>Usuarios</th>
+                    <th>Cargadores</th>
+                    <th>Publicadores</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -326,15 +372,32 @@ if (!isset($PERIODICIDADES)) {
                             <?php
                             $usuarios = $itemClass->getAsignedUsers($item['id']);
                             $count = $usuarios->num_rows;
-                            echo '<small>' . $count . ' usuario(s)</small>';
+                            echo '<small>' . $count . ' cargador(es)</small>';
+                            ?>
+                        </td>
+                        <td>
+                            <?php
+                            $stmt_pub = $conn->prepare("SELECT COUNT(*) as total FROM item_publicadores WHERE item_id = ?");
+                            $stmt_pub->bind_param('i', $item['id']);
+                            $stmt_pub->execute();
+                            $count_pub = $stmt_pub->get_result()->fetch_assoc()['total'];
+                            echo '<small>' . $count_pub . ' publicador(es)</small>';
                             ?>
                         </td>
                         <td>
                             <button class="btn btn-sm btn-info" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#usuariosModal"
-                                    onclick="loadItemUsers(<?php echo $item['id']; ?>)">
+                                    onclick="loadItemUsers(<?php echo $item['id']; ?>)"
+                                    title="Asignar Cargadores">
                                 <i class="bi bi-person-plus"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#publicadoresModal"
+                                    onclick="loadItemPublicadores(<?php echo $item['id']; ?>)"
+                                    title="Asignar Publicadores">
+                                <i class="bi bi-person-check"></i>
                             </button>
                             <button class="btn btn-sm btn-warning" 
                                     data-bs-toggle="modal" 
@@ -436,7 +499,7 @@ if (!isset($PERIODICIDADES)) {
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Asignar Usuarios al Item</h5>
+                <h5 class="modal-title">Asignar Cargadores al Item</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -445,6 +508,30 @@ if (!isset($PERIODICIDADES)) {
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btnGuardarUsuarios">
+                    <i class="bi bi-check-circle"></i> Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para asignar publicadores -->
+<div class="modal fade" id="publicadoresModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Asignar Publicadores al Item</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Los publicadores podrán cargar verificadores para los documentos de este item.
+                </div>
+                <div id="publicadoresContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnGuardarPublicadores">
                     <i class="bi bi-check-circle"></i> Guardar Cambios
                 </button>
             </div>
@@ -647,6 +734,74 @@ function loadItemUsers(itemId) {
                 form.append('action', 'save_item_usuarios');
                 form.append('item_id', itemId);
                 form.append('usuarios', JSON.stringify(usuarios));
+                
+                btnGuardar.disabled = true;
+                btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+                
+                fetch('', {
+                    method: 'POST',
+                    body: form
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.message || 'Error al guardar'));
+                        btnGuardar.disabled = false;
+                        btnGuardar.innerHTML = '<i class="bi bi-check-circle"></i> Guardar Cambios';
+                    }
+                })
+                .catch(error => {
+                    alert('Error de conexión');
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = '<i class="bi bi-check-circle"></i> Guardar Cambios';
+                });
+            };
+        });
+}
+
+// Cargar publicadores de un item
+function loadItemPublicadores(itemId) {
+    fetch('get_publicadores_item.php?item_id=' + itemId)
+        .then(response => response.json())
+        .then(data => {
+            // Convertir asignados a números
+            const asignadosIds = data.asignados.map(id => parseInt(id));
+            
+            let html = '<div class="row">';
+            
+            if (data.publicadores.length === 0) {
+                html += '<div class="col-12"><div class="alert alert-warning">No hay usuarios con perfil "Publicador" en el sistema.</div></div>';
+            } else {
+                data.publicadores.forEach(publicador => {
+                    const publicadorId = parseInt(publicador.id);
+                    const checked = asignadosIds.includes(publicadorId) ? 'checked' : '';
+                    html += '<div class="col-md-6 mb-3"><div class="form-check"><input class="form-check-input publicador-check" type="checkbox" value="' + publicador.id + '" ' + checked + ' data-item="' + itemId + '"><label class="form-check-label">' + publicador.nombre + ' (' + publicador.email + ')</label></div></div>';
+                });
+            }
+            
+            html += '</div>';
+            document.getElementById('publicadoresContainer').innerHTML = html;
+            
+            // Configurar botón Guardar
+            const btnGuardar = document.getElementById('btnGuardarPublicadores');
+            btnGuardar.onclick = function() {
+                const checkboxes = document.querySelectorAll('.publicador-check');
+                const publicadores = [];
+                
+                checkboxes.forEach(cb => {
+                    publicadores.push({
+                        usuario_id: parseInt(cb.value),
+                        checked: cb.checked
+                    });
+                });
+                
+                // Enviar todos los cambios
+                const form = new FormData();
+                form.append('action', 'save_item_publicadores');
+                form.append('item_id', itemId);
+                form.append('publicadores', JSON.stringify(publicadores));
                 
                 btnGuardar.disabled = true;
                 btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
