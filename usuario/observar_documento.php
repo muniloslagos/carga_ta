@@ -9,7 +9,7 @@ require_once '../includes/check_auth.php';
 require_once '../classes/CorreoManager.php';
 
 // Solo publicadores pueden observar documentos
-if ($_SESSION['user_perfil'] !== 'publicador') {
+if ($_SESSION['profile'] !== 'publicador') {
     http_response_code(403);
     echo json_encode([
         'success' => false,
