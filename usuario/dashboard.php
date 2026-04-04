@@ -73,12 +73,38 @@ while ($rowAsig = $resAsig->fetch_assoc()) {
 }
 $stmtAsig->close();
 
+// Pre-fetch item IDs asignados al publicador actual (para filtrado opcional)
+$itemsAsignadosPublicador = [];
+if ($user_perfil === 'publicador') {
+    $stmtPubAsig = $conn->prepare("SELECT item_id FROM item_publicadores WHERE usuario_id = ?");
+    $stmtPubAsig->bind_param('i', $user_id);
+    $stmtPubAsig->execute();
+    $resPubAsig = $stmtPubAsig->get_result();
+    while ($rowPubAsig = $resPubAsig->fetch_assoc()) {
+        $itemsAsignadosPublicador[(int)$rowPubAsig['item_id']] = true;
+    }
+    $stmtPubAsig->close();
+}
+
+// Toggle para publicadores: ver solo mis items o ver todos
+// GET parameter: ver_todos=1 activa ver todos, cualquier otro valor desactiva
+if ($user_perfil === 'publicador' && isset($_GET['ver_todos'])) {
+    $_SESSION['ver_todos_items'] = ($_GET['ver_todos'] == '1');
+}
+$verTodosItems = ($user_perfil === 'publicador' && ($_SESSION['ver_todos_items'] ?? false));
+
 // Query SQL: Filtrar items según perfil del usuario
 // Cargadores solo ven items asignados, otros perfiles ven todos
 $whereUsuario = '';
 if ($user_perfil === 'cargador_informacion') {
     // Cargador solo ve items asignados a él
     $whereUsuario = 'AND EXISTS (SELECT 1 FROM item_usuarios iu2 WHERE iu2.item_id = i.id AND iu2.usuario_id = ?)';
+} elseif ($user_perfil === 'publicador' && !$verTodosItems) {
+    // Publicador ve solo items asignados SI NO está activado "ver todos"
+    // Si no hay items asignados, mostrar todos (fallback para publicadores sin asignación)
+    if (!empty($itemsAsignadosPublicador)) {
+        $whereUsuario = 'AND EXISTS (SELECT 1 FROM item_publicadores ip WHERE ip.item_id = i.id AND ip.usuario_id = ?)';
+    }
 }
 
 $query = "
@@ -122,6 +148,12 @@ $params = [];
 $types = '';
 
 if ($user_perfil === 'cargador_informacion') {
+    $params[] = $user_id;
+    $types .= 'i';
+} elseif ($user_perfil === 'publicador' && !$verTodosItems && !empty($itemsAsignadosPublicador)) {
+    $params[] = $user_id;
+    $types .= 'i';
+}
     $params[] = $user_id;
     $types .= 'i';
 }
@@ -338,6 +370,26 @@ if (isset($_SESSION['success'])) {
                         }
                         ?>
                     </select>
+                    
+                    <?php if ($user_perfil === 'publicador'): ?>
+                        <div class="ms-auto">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="toggleVerTodos" 
+                                       <?php echo $verTodosItems ? 'checked' : ''; ?>
+                                       onchange="location.href='?mes=<?php echo $mesSeleccionado; ?>&ano=<?php echo $anoSeleccionado; ?>&ver_todos=' + (this.checked ? '1' : '0')">
+                                <label class="form-check-label fw-bold text-success" for="toggleVerTodos">
+                                    <i class="bi bi-globe"></i> Ver todos los items
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                <?php if ($verTodosItems): ?>
+                                    Mostrando todos los items (backup para otros publicadores)
+                                <?php else: ?>
+                                    Mostrando solo tus items asignados (<?php echo count($itemsAsignadosPublicador); ?>)
+                                <?php endif; ?>
+                            </small>
+                        </div>
+                    <?php endif; ?>
                 </form>
             </div>
         </div>
