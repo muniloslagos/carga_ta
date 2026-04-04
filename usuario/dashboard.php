@@ -2090,7 +2090,17 @@ function verEnPantallaCompleta(imageSrc) {
                             <div id="infoArchivoSinMov" class="mt-2"></div>
                         </div>
                         
-                        <button type="button" class="btn btn-primary w-100" onclick="subirDocumentoReemplazar()">
+                        <!-- Barra de progreso de carga -->
+                        <div id="progressContainerSinMov" class="mb-3" style="display: none;">
+                            <div class="alert alert-info mb-2">
+                                <i class="bi bi-cloud-upload"></i> Subiendo archivo...
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div id="progressBarSinMov" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary w-100" id="btnSubirSinMov" onclick="subirDocumentoReemplazar()">
                             <i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento
                         </button>
                     </div>
@@ -2276,51 +2286,87 @@ function subirDocumentoReemplazar() {
     formData.append('descripcion', descripcion);
     formData.append('archivo', archivoInput.files[0]);
     
-    // Debug: mostrar datos enviados
-    console.log('Datos enviados:', {
-        item_id: itemId,
-        mes: mes,
-        ano: ano,
-        accion: 'subir_documento',
-        titulo: titulo,
-        descripcion: descripcion,
-        archivo: archivoInput.files[0].name
-    });
+    // Mostrar barra de progreso y deshabilitar botón
+    const btnSubir = document.getElementById('btnSubirSinMov');
+    const progressContainer = document.getElementById('progressContainerSinMov');
+    const progressBar = document.getElementById('progressBarSinMov');
     
-    // Deshabilitar botón para evitar múltiples envíos
-    const btnSubir = document.querySelector('#tab-documento-content .btn-primary');
     if (btnSubir) {
         btnSubir.disabled = true;
-        btnSubir.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Subiendo...';
+        btnSubir.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
     }
     
-    fetch('modificar_sin_movimiento.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalModificarSinMovimiento'));
-            modal.hide();
-            alert(data.message || 'Documento cargado exitosamente');
-            location.reload();
-        } else {
-            alert('Error: ' + (data.error || 'Error desconocido'));
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.textContent = '0%';
+    
+    // Crear XMLHttpRequest para progreso real
+    const xhr = new XMLHttpRequest();
+    
+    // Monitorear progreso de subida (PROGRESO REAL)
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            progressBar.style.width = percentComplete + '%';
+            progressBar.textContent = Math.round(percentComplete) + '%';
+        }
+    });
+    
+    // Cuando la subida termina
+    xhr.addEventListener('load', function() {
+        progressBar.style.width = '100%';
+        progressBar.textContent = '100%';
+        
+        try {
+            const data = JSON.parse(xhr.responseText);
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalModificarSinMovimiento'));
+                modal.hide();
+                setTimeout(() => {
+                    alert(data.message || 'Documento cargado exitosamente');
+                    location.reload();
+                }, 300);
+            } else {
+                alert('Error: ' + (data.error || data.message || 'Error desconocido'));
+                if (btnSubir) {
+                    btnSubir.disabled = false;
+                    btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+                }
+                progressContainer.style.display = 'none';
+            }
+        } catch (e) {
+            alert('Error al procesar la respuesta del servidor');
             if (btnSubir) {
                 btnSubir.disabled = false;
                 btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
             }
+            progressContainer.style.display = 'none';
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al subir el documento');
+    });
+    
+    // Error de conexión
+    xhr.addEventListener('error', function() {
+        alert('Error de conexión al subir el archivo');
         if (btnSubir) {
             btnSubir.disabled = false;
             btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
         }
+        progressContainer.style.display = 'none';
     });
+    
+    // Timeout
+    xhr.addEventListener('timeout', function() {
+        alert('La carga del archivo está tardando demasiado');
+        if (btnSubir) {
+            btnSubir.disabled = false;
+            btnSubir.innerHTML = '<i class="bi bi-upload"></i> Subir Documento y Reemplazar Sin Movimiento';
+        }
+        progressContainer.style.display = 'none';
+    });
+    
+    xhr.timeout = 300000; // 5 minutos
+    xhr.open('POST', 'modificar_sin_movimiento.php');
+    xhr.send(formData);
 }
 
 // --- Event handler para Modal Modificar Sin Movimiento ---
@@ -2585,13 +2631,14 @@ function mostrarInfoArchivoSinMov(input) {
     infoDiv.innerHTML = html;
 }
 
-// Interceptar envío del formulario de carga de documento
+// Interceptar envío del formulario de carga de documento con AJAX para progreso real
 document.querySelector('#modalCargar form').addEventListener('submit', function(e) {
+    e.preventDefault(); // Prevenir envío normal del formulario
+    
     const fileInput = document.getElementById('archivo');
     
     if (!fileInput.files || !fileInput.files[0]) {
         alert('Debe seleccionar un archivo');
-        e.preventDefault();
         return false;
     }
     
@@ -2599,37 +2646,8 @@ document.querySelector('#modalCargar form').addEventListener('submit', function(
     
     if (file.size > MAX_FILE_SIZE) {
         alert('El archivo es demasiado grande. Máximo permitido: 100 MB');
-        e.preventDefault();
         return false;
     }
-    
-    // Mostrar indicador de carga
-    const btnSubmit = document.getElementById('btnEnviarDoc');
-    const progressContainer = document.getElementById('progressContainerCargar');
-    const progressBar = document.getElementById('progressBarCargar');
-    
-    btnSubmit.disabled = true;
-    btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
-    progressContainer.style.display = 'block';
-    
-    // Simular progreso (ya que PHP no puede reportar progreso real en tiempo real)
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress > 90) progress = 90; // Dejar en 90% hasta que termine
-        progressBar.style.width = progress + '%';
-        progressBar.textContent = Math.round(progress) + '%';
-    }, 200);
-    
-    // Guardar el intervalo en el formulario para limpiarlo si es necesario
-    this.dataset.progressInterval = progressInterval;
-});
-
-// Interceptar envío con AJAX para mejor control (opcional)
-// Si prefieres mantener el POST normal, comentar esta sección
-/*
-document.querySelector('#modalCargar form').addEventListener('submit', function(e) {
-    e.preventDefault();
     
     const formData = new FormData(this);
     const btnSubmit = document.getElementById('btnEnviarDoc');
@@ -2639,11 +2657,13 @@ document.querySelector('#modalCargar form').addEventListener('submit', function(
     btnSubmit.disabled = true;
     btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
     progressContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.textContent = '0%';
     
-    // Crear XMLHttpRequest para ver progreso real
+    // Crear XMLHttpRequest para ver progreso real de subida
     const xhr = new XMLHttpRequest();
     
-    // Monitorear progreso de subida
+    // Monitorear progreso de subida (PROGRESO REAL)
     xhr.upload.addEventListener('progress', function(e) {
         if (e.lengthComputable) {
             const percentComplete = (e.loaded / e.total) * 100;
@@ -2652,33 +2672,43 @@ document.querySelector('#modalCargar form').addEventListener('submit', function(
         }
     });
     
-    // Manejar respuesta
+    // Cuando la subida termina (éxito)
     xhr.addEventListener('load', function() {
-        if (xhr.status === 200) {
-            progressBar.style.width = '100%';
-            progressBar.textContent = '100%';
-            setTimeout(() => {
-                window.location.href = 'dashboard.php?mes=' + formData.get('mes_carga');
-            }, 500);
-        } else {
-            alert('Error al subir el archivo');
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = '<i class="bi bi-cloud-upload"></i> Enviar Documento';
-            progressContainer.style.display = 'none';
-        }
+        progressBar.style.width = '100%';
+        progressBar.textContent = '100%';
+        
+        // Dar tiempo para que se vea el 100%
+        setTimeout(() => {
+            // Verificar si hubo redirección en la respuesta
+            // Como PHP hace redirect con header(), vamos a recargar la página
+            const mesCarga = formData.get('mes_carga') || '';
+            const anoCarga = formData.get('ano_carga') || new Date().getFullYear();
+            window.location.href = 'dashboard.php?mes=' + mesCarga + '&ano=' + anoCarga;
+        }, 300);
     });
     
+    // Error de red
     xhr.addEventListener('error', function() {
-        alert('Error de conexión al subir el archivo');
+        alert('Error de conexión al subir el archivo. Por favor intente nuevamente.');
         btnSubmit.disabled = false;
         btnSubmit.innerHTML = '<i class="bi bi-cloud-upload"></i> Enviar Documento';
         progressContainer.style.display = 'none';
     });
     
+    // Timeout
+    xhr.addEventListener('timeout', function() {
+        alert('La carga del archivo está tardando demasiado. Por favor verifique su conexión.');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="bi bi-cloud-upload"></i> Enviar Documento';
+        progressContainer.style.display = 'none';
+    });
+    
+    // Configurar timeout (5 minutos para archivos grandes)
+    xhr.timeout = 300000; // 5 minutos
+    
     xhr.open('POST', 'enviar_documento.php');
     xhr.send(formData);
 });
-*/
 </script>
 
 <script>
