@@ -1743,6 +1743,10 @@ function mostrarHistorial(itemId, itemNombre, mes, ano) {
                             icono = '<i class="bi bi-dash-circle"></i>';
                             iconoClass = 'bg-secondary';
                             tipoTexto = 'Sin Movimiento';
+                        } else if (mov.tipo === 'documento_observado') {
+                            icono = '<i class="bi bi-x-circle"></i>';
+                            iconoClass = 'bg-danger';
+                            tipoTexto = 'Documento Observado';
                         } else {
                             icono = '<i class="bi bi-question-circle"></i>';
                             iconoClass = 'bg-dark';
@@ -2281,16 +2285,33 @@ function verObservaciones(itemId, itemNombre, mes, ano) {
                 let html = '<div class="list-group">';
                 data.observaciones.forEach(obs => {
                     const fecha = new Date(obs.fecha).toLocaleString('es-CL');
+                    
+                    let badge, badgeClass, tipoTexto, detalleExtra = '';
+                    if (obs.tipo === 'sin_movimiento') {
+                        badge = '<i class="bi bi-dash-circle"></i> Sin Movimiento';
+                        badgeClass = 'bg-secondary';
+                    } else if (obs.tipo === 'documento_observado') {
+                        badge = '<i class="bi bi-x-circle"></i> Documento Observado';
+                        badgeClass = obs.resuelta ? 'bg-success' : 'bg-danger';
+                        if (obs.resuelta) {
+                            const fechaRes = new Date(obs.fecha_resolucion).toLocaleString('es-CL');
+                            detalleExtra = `<div class="mt-2"><span class="badge bg-success"><i class="bi bi-check-circle"></i> Resuelta el ${fechaRes}</span></div>`;
+                        } else {
+                            detalleExtra = `<div class="mt-2"><span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Pendiente - Cargador: ${obs.cargador}</span></div>`;
+                        }
+                    }
+                    
                     html += `
                         <div class="list-group-item">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <span class="badge bg-secondary me-2"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                    <span class="badge ${badgeClass} me-2">${badge}</span>
                                     <strong>${obs.usuario}</strong>
                                 </div>
                                 <small class="text-muted">${fecha}</small>
                             </div>
                             <p class="mb-0 mt-2">${obs.observacion}</p>
+                            ${detalleExtra}
                         </div>
                     `;
                 });

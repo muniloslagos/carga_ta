@@ -150,6 +150,60 @@ class Historial {
             }
         }
 
+        // 4. Observaciones de Documentos (rechazos/observaciones del publicador)
+        $tableCheck = $this->db->query("SHOW TABLES LIKE 'observaciones_documentos'");
+        if ($tableCheck && $tableCheck->num_rows > 0) {
+            $sql = "SELECT 
+                    od.id as observacion_id,
+                    'documento_observado' as tipo_movimiento,
+                    u_observador.nombre as usuario_observador,
+                    u_cargador.nombre as usuario_cargador,
+                    od.fecha_observacion as fecha,
+                    od.observacion,
+                    od.resuelta,
+                    od.fecha_resolucion,
+                    od.mes,
+                    od.ano,
+                    d.titulo as documento_titulo
+                    FROM observaciones_documentos od
+                    LEFT JOIN usuarios u_observador ON od.observado_por = u_observador.id
+                    LEFT JOIN usuarios u_cargador ON od.cargador_id = u_cargador.id
+                    LEFT JOIN documentos d ON od.documento_id = d.id
+                    WHERE od.item_id = ?";
+
+            $params = [$item_id];
+            $types = "i";
+
+            if ($mes !== null && $ano !== null) {
+                $sql .= " AND od.mes = ? AND od.ano = ?";
+                $params[] = $mes;
+                $params[] = $ano;
+                $types .= "ii";
+            }
+
+            $sql .= " ORDER BY od.fecha_observacion DESC";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $estado = $row['resuelta'] ? 'Resuelta' : 'Pendiente';
+                $movimientos[] = [
+                    'tipo' => 'documento_observado',
+                    'usuario' => $row['usuario_observador'] ?? 'Publicador no identificado',
+                    'fecha' => $row['fecha'],
+                    'descripcion' => 'Documento Observado: ' . $row['documento_titulo'],
+                    'observacion_id' => $row['observacion_id'],
+                    'detalle' => 'Observación: ' . $row['observacion'] . ' | Estado: ' . $estado . 
+                                 ($row['resuelta'] ? ' (Resuelta el ' . date('d/m/Y', strtotime($row['fecha_resolucion'])) . ')' : ' - Cargador: ' . $row['usuario_cargador']),
+                    'mes' => $row['mes'],
+                    'ano' => $row['ano']
+                ];
+            }
+        }
+
         // Ordenar por fecha descendente
         usort($movimientos, function ($a, $b) {
             return strtotime($b['fecha']) - strtotime($a['fecha']);
