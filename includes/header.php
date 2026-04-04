@@ -19,6 +19,38 @@ if (!isset($db)) {
 $is_logged_in = isset($_SESSION['user_id']);
 $current_user = $is_logged_in && isset($_SESSION['user']) ? $_SESSION['user'] : null;
 $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['profile'] : null;
+
+// Para publicadores: obtener o generar token del resumen público
+$tokenResumenPublico = null;
+if ($is_logged_in && $current_profile === 'publicador') {
+    $conn = $db->getConnection();
+    $checkTokenTable = $conn->query("SHOW TABLES LIKE 'resumen_publico_tokens'");
+    
+    if ($checkTokenTable && $checkTokenTable->num_rows > 0) {
+        // Usar mes y año actual como defecto
+        $mesActual = (int)date('n');
+        $anoActual = (int)date('Y');
+        
+        // Buscar token existente para el mes/año actual
+        $stmtToken = $conn->prepare("SELECT token FROM resumen_publico_tokens WHERE mes = ? AND ano = ? ORDER BY fecha_creacion DESC LIMIT 1");
+        $stmtToken->bind_param('ii', $mesActual, $anoActual);
+        $stmtToken->execute();
+        $resultToken = $stmtToken->get_result();
+        
+        if ($rowToken = $resultToken->fetch_assoc()) {
+            $tokenResumenPublico = $rowToken['token'];
+        } else {
+            // Generar nuevo token si no existe
+            $tokenResumenPublico = bin2hex(random_bytes(32));
+            $userId = $_SESSION['user_id'];
+            $stmtInsToken = $conn->prepare("INSERT INTO resumen_publico_tokens (token, mes, ano, creado_por) VALUES (?, ?, ?, ?)");
+            $stmtInsToken->bind_param('siii', $tokenResumenPublico, $mesActual, $anoActual, $userId);
+            $stmtInsToken->execute();
+            $stmtInsToken->close();
+        }
+        $stmtToken->close();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -77,11 +109,13 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
                                 <i class="bi bi-house"></i> Mi Panel
                             </a>
                         </li>
+                        <?php if ($tokenResumenPublico): ?>
                         <li class="nav-item">
-                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>admin/publicador/">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" target="_blank">
                                 <i class="bi bi-check-circle"></i> Publicación
                             </a>
                         </li>
+                        <?php endif; ?>
                     <?php elseif ($is_logged_in): ?>
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
