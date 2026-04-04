@@ -111,6 +111,26 @@ if ($user_perfil === 'cargador_informacion') {
     }
 }
 
+// Verificar si existe la tabla observaciones_documentos
+$checkTableObs = $conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
+$tablaObsExiste = ($checkTableObs && $checkTableObs->num_rows > 0);
+
+// Construir query según tablas disponibles
+$selectObservaciones = $tablaObsExiste ? 
+    "od.id as observacion_id,
+        od.observacion as observacion_texto,
+        od.fecha_observacion,
+        u_obs.nombre as observador_nombre" : 
+    "NULL as observacion_id,
+        NULL as observacion_texto,
+        NULL as fecha_observacion,
+        NULL as observador_nombre";
+
+$joinObservaciones = $tablaObsExiste ?
+    "LEFT JOIN observaciones_documentos od ON d.id = od.documento_id AND od.resuelta = 0
+    LEFT JOIN usuarios u_obs ON od.observado_por = u_obs.id" :
+    "";
+
 $query = "
     SELECT 
         i.id as item_id,
@@ -129,10 +149,7 @@ $query = "
         vp.id as verificador_id,
         vp.fecha_carga_portal,
         u_pub.nombre as publicador_nombre,
-        od.id as observacion_id,
-        od.observacion as observacion_texto,
-        od.fecha_observacion,
-        u_obs.nombre as observador_nombre
+        $selectObservaciones
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
@@ -140,8 +157,7 @@ $query = "
     LEFT JOIN usuarios u ON d.usuario_id = u.id
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id
-    LEFT JOIN observaciones_documentos od ON d.id = od.documento_id AND od.resuelta = 0
-    LEFT JOIN usuarios u_obs ON od.observado_por = u_obs.id
+    $joinObservaciones
     WHERE i.activo = 1 $whereUsuario
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
@@ -242,6 +258,12 @@ if ($tableCheck && $tableCheck->num_rows > 0) {
 
 // Función helper para obtener observación del documento
 function obtenerObservacionDocumento($conn, $documento_id) {
+    // Verificar si existe la tabla
+    $checkTable = $conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
+    if (!$checkTable || $checkTable->num_rows === 0) {
+        return null;
+    }
+    
     $checkObs = $conn->prepare("
         SELECT od.*, u.nombre as observador_nombre
         FROM observaciones_documentos od

@@ -119,29 +119,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ────────────────────────────────────────────────────────────────────
         
         // ── Resolver observaciones pendientes si las hay ────────────────────
-        $checkObs = $db_conn->prepare("
-            SELECT id, documento_id FROM observaciones_documentos 
-            WHERE item_id = ? AND mes = ? AND ano = ? AND cargador_id = ? AND resuelta = 0
-        ");
-        $checkObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
-        $checkObs->execute();
-        $obsResult = $checkObs->get_result();
         $observacionResuelta = false;
         $doc_id_observado = null;
         
-        if ($obsResult->num_rows > 0) {
-            $obsData = $obsResult->fetch_assoc();
-            $doc_id_observado = $obsData['documento_id'];
-            
-            // Marcar observaciones como resueltas
-            $resolverObs = $db_conn->prepare("
-                UPDATE observaciones_documentos 
-                SET resuelta = 1, fecha_resolucion = NOW()
+        $checkTableObs = $db_conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
+        if ($checkTableObs && $checkTableObs->num_rows > 0) {
+            $checkObs = $db_conn->prepare("
+                SELECT id, documento_id FROM observaciones_documentos 
                 WHERE item_id = ? AND mes = ? AND ano = ? AND cargador_id = ? AND resuelta = 0
             ");
-            $resolverObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
-            $resolverObs->execute();
-            $observacionResuelta = true;
+            $checkObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
+            $checkObs->execute();
+            $obsResult = $checkObs->get_result();
+            
+            if ($obsResult->num_rows > 0) {
+                $obsData = $obsResult->fetch_assoc();
+                $doc_id_observado = $obsData['documento_id'];
+                
+                // Marcar observaciones como resueltas
+                $resolverObs = $db_conn->prepare("
+                    UPDATE observaciones_documentos 
+                    SET resuelta = 1, fecha_resolucion = NOW()
+                    WHERE item_id = ? AND mes = ? AND ano = ? AND cargador_id = ? AND resuelta = 0
+                ");
+                $resolverObs->bind_param('iiii', $item_id, $mes_carga_calc, $ano_actual, $user_id);
+                $resolverObs->execute();
+                $observacionResuelta = true;
+            }
+        }
             
             // Cambiar estado del documento observado a 'reemplazado' (NO eliminarlo, para mantener historial)
             if ($doc_id_observado) {

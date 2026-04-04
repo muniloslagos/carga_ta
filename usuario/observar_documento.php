@@ -29,6 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
+    // Verificar que existe la tabla observaciones_documentos
+    $checkTable = $db->getConnection()->query("SHOW TABLES LIKE 'observaciones_documentos'");
+    if (!$checkTable || $checkTable->num_rows === 0) {
+        throw new Exception('El sistema de observaciones no está configurado. Ejecute las migraciones SQL primero.');
+    }
+    
     // Obtener datos del POST
     $input = json_decode(file_get_contents('php://input'), true);
     
