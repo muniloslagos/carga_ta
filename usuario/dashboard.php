@@ -1581,13 +1581,25 @@ if (isset($_SESSION['success'])) {
 
                     <div class="mb-3">
                         <label for="archivo" class="form-label">Seleccionar Archivo <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" id="archivo" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.jpg,.jpeg,.png,.zip,.rar,.7z">
-                        <small class="text-muted d-block mt-2">✓ Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG, ZIP, RAR, 7Z (máximo 10MB)</small>
+                        <input type="file" class="form-control" id="archivo" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.jpg,.jpeg,.png,.zip,.rar,.7z" onchange="mostrarInfoArchivo(this)">
+                        <small class="text-muted d-block mt-2">✓ Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG, ZIP, RAR, 7Z</small>
+                        <small class="text-muted d-block">✓ Tamaño máximo: <strong>10 MB</strong></small>
+                        <div id="infoArchivo" class="mt-2"></div>
+                    </div>
+                    
+                    <!-- Barra de progreso de carga -->
+                    <div id="progressContainerCargar" class="mb-3" style="display: none;">
+                        <div class="alert alert-info mb-2">
+                            <i class="bi bi-cloud-upload"></i> Subiendo archivo...
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div id="progressBarCargar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="btnEnviarDoc">
                         <i class="bi bi-cloud-upload"></i> Enviar Documento
                     </button>
                 </div>
@@ -2072,8 +2084,10 @@ function verEnPantallaCompleta(imageSrc) {
                         
                         <div class="mb-3">
                             <label for="modifSinMovArchivo" class="form-label">Archivo <span class="text-danger">*</span></label>
-                            <input type="file" class="form-control" id="modifSinMovArchivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.jpg,.jpeg,.png,.zip,.rar,.7z">
-                            <div class="form-text">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, RAR, 7Z (máx. 10MB)</div>
+                            <input type="file" class="form-control" id="modifSinMovArchivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.jpg,.jpeg,.png,.zip,.rar,.7z" onchange="mostrarInfoArchivoSinMov(this)">
+                            <div class="form-text">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, RAR, 7Z</div>
+                            <div class="form-text">Tamaño máximo: <strong>10 MB</strong></div>
+                            <div id="infoArchivoSinMov" class="mt-2"></div>
                         </div>
                         
                         <button type="button" class="btn btn-primary w-100" onclick="subirDocumentoReemplazar()">
@@ -2237,6 +2251,15 @@ function subirDocumentoReemplazar() {
     
     if (!archivoInput.files || archivoInput.files.length === 0) {
         alert('Debe seleccionar un archivo');
+        return;
+    }
+    
+    // Validar tamaño del archivo
+    const file = archivoInput.files[0];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`El archivo es demasiado grande (${sizeMB} MB). Máximo permitido: 10 MB`);
         return;
     }
     
@@ -2504,6 +2527,158 @@ function confirmarObservacion() {
         btn.innerHTML = originalHTML;
     });
 }
+</script>
+
+<script>
+// --- VALIDACIÓN Y PROGRESO DE CARGA DE ARCHIVOS ---
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function mostrarInfoArchivo(input) {
+    const infoDiv = document.getElementById('infoArchivo');
+    
+    if (!input.files || !input.files[0]) {
+        infoDiv.innerHTML = '';
+        return;
+    }
+    
+    const file = input.files[0];
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    
+    let html = `<div class="alert alert-info alert-dismissible fade show mb-0" role="alert">
+        <i class="bi bi-file-earmark"></i> <strong>${file.name}</strong><br>
+        <small>Tamaño: ${sizeMB} MB</small>`;
+    
+    if (file.size > MAX_FILE_SIZE) {
+        html = `<div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> <strong>Archivo demasiado grande</strong><br>
+            <small>${file.name} (${sizeMB} MB) supera el límite de 10 MB</small>`;
+        input.value = ''; // Limpiar selección
+    }
+    
+    html += `<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    infoDiv.innerHTML = html;
+}
+
+function mostrarInfoArchivoSinMov(input) {
+    const infoDiv = document.getElementById('infoArchivoSinMov');
+    
+    if (!input.files || !input.files[0]) {
+        infoDiv.innerHTML = '';
+        return;
+    }
+    
+    const file = input.files[0];
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    
+    let html = `<div class="alert alert-info alert-dismissible fade show mb-0" role="alert">
+        <i class="bi bi-file-earmark"></i> <strong>${file.name}</strong><br>
+        <small>Tamaño: ${sizeMB} MB</small>`;
+    
+    if (file.size > MAX_FILE_SIZE) {
+        html = `<div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> <strong>Archivo demasiado grande</strong><br>
+            <small>${file.name} (${sizeMB} MB) supera el límite de 10 MB</small>`;
+        input.value = ''; // Limpiar selección
+    }
+    
+    html += `<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+    infoDiv.innerHTML = html;
+}
+
+// Interceptar envío del formulario de carga de documento
+document.querySelector('#modalCargar form').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('archivo');
+    
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Debe seleccionar un archivo');
+        e.preventDefault();
+        return false;
+    }
+    
+    const file = fileInput.files[0];
+    
+    if (file.size > MAX_FILE_SIZE) {
+        alert('El archivo es demasiado grande. Máximo permitido: 10 MB');
+        e.preventDefault();
+        return false;
+    }
+    
+    // Mostrar indicador de carga
+    const btnSubmit = document.getElementById('btnEnviarDoc');
+    const progressContainer = document.getElementById('progressContainerCargar');
+    const progressBar = document.getElementById('progressBarCargar');
+    
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+    progressContainer.style.display = 'block';
+    
+    // Simular progreso (ya que PHP no puede reportar progreso real en tiempo real)
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90; // Dejar en 90% hasta que termine
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = Math.round(progress) + '%';
+    }, 200);
+    
+    // Guardar el intervalo en el formulario para limpiarlo si es necesario
+    this.dataset.progressInterval = progressInterval;
+});
+
+// Interceptar envío con AJAX para mejor control (opcional)
+// Si prefieres mantener el POST normal, comentar esta sección
+/*
+document.querySelector('#modalCargar form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const btnSubmit = document.getElementById('btnEnviarDoc');
+    const progressContainer = document.getElementById('progressContainerCargar');
+    const progressBar = document.getElementById('progressBarCargar');
+    
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+    progressContainer.style.display = 'block';
+    
+    // Crear XMLHttpRequest para ver progreso real
+    const xhr = new XMLHttpRequest();
+    
+    // Monitorear progreso de subida
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            progressBar.style.width = percentComplete + '%';
+            progressBar.textContent = Math.round(percentComplete) + '%';
+        }
+    });
+    
+    // Manejar respuesta
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            progressBar.style.width = '100%';
+            progressBar.textContent = '100%';
+            setTimeout(() => {
+                window.location.href = 'dashboard.php?mes=' + formData.get('mes_carga');
+            }, 500);
+        } else {
+            alert('Error al subir el archivo');
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="bi bi-cloud-upload"></i> Enviar Documento';
+            progressContainer.style.display = 'none';
+        }
+    });
+    
+    xhr.addEventListener('error', function() {
+        alert('Error de conexión al subir el archivo');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="bi bi-cloud-upload"></i> Enviar Documento';
+        progressContainer.style.display = 'none';
+    });
+    
+    xhr.open('POST', 'enviar_documento.php');
+    xhr.send(formData);
+});
+*/
 </script>
 
 <script>
