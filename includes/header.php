@@ -27,13 +27,13 @@ if ($is_logged_in && $current_profile === 'publicador') {
     $checkTokenTable = $conn->query("SHOW TABLES LIKE 'resumen_publico_tokens'");
     
     if ($checkTokenTable && $checkTokenTable->num_rows > 0) {
-        // Usar mes y año actual como defecto
-        $mesActual = (int)date('n');
-        $anoActual = (int)date('Y');
+        // Usar mes y año del dashboard si están en GET, si no usar actuales
+        $mesToken = isset($_GET['mes']) && is_numeric($_GET['mes']) ? (int)$_GET['mes'] : (int)date('n');
+        $anoToken = isset($_GET['ano']) && is_numeric($_GET['ano']) ? (int)$_GET['ano'] : (int)date('Y');
         
-        // Buscar token existente para el mes/año actual
+        // Buscar token existente para el mes/año seleccionado
         $stmtToken = $conn->prepare("SELECT token FROM resumen_publico_tokens WHERE mes = ? AND ano = ? ORDER BY fecha_creacion DESC LIMIT 1");
-        $stmtToken->bind_param('ii', $mesActual, $anoActual);
+        $stmtToken->bind_param('ii', $mesToken, $anoToken);
         $stmtToken->execute();
         $resultToken = $stmtToken->get_result();
         
@@ -44,7 +44,7 @@ if ($is_logged_in && $current_profile === 'publicador') {
             $tokenResumenPublico = bin2hex(random_bytes(32));
             $userId = $_SESSION['user_id'];
             $stmtInsToken = $conn->prepare("INSERT INTO resumen_publico_tokens (token, mes, ano, creado_por) VALUES (?, ?, ?, ?)");
-            $stmtInsToken->bind_param('siii', $tokenResumenPublico, $mesActual, $anoActual, $userId);
+            $stmtInsToken->bind_param('siii', $tokenResumenPublico, $mesToken, $anoToken, $userId);
             $stmtInsToken->execute();
             $stmtInsToken->close();
         }
@@ -112,7 +112,7 @@ if ($is_logged_in && $current_profile === 'publicador') {
                         <?php if ($tokenResumenPublico): ?>
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" target="_blank">
-                                <i class="bi bi-check-circle"></i> Publicación
+                                <i class="bi bi-file-earmark-text"></i> Resumen
                             </a>
                         </li>
                         <?php endif; ?>
