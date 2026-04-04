@@ -27,9 +27,19 @@ if ($is_logged_in && $current_profile === 'publicador') {
     $checkTokenTable = $conn->query("SHOW TABLES LIKE 'resumen_publico_tokens'");
     
     if ($checkTokenTable && $checkTokenTable->num_rows > 0) {
-        // Usar mes y año del dashboard si están en GET, si no usar actuales
-        $mesToken = isset($_GET['mes']) && is_numeric($_GET['mes']) ? (int)$_GET['mes'] : (int)date('n');
-        $anoToken = isset($_GET['ano']) && is_numeric($_GET['ano']) ? (int)$_GET['ano'] : (int)date('Y');
+        // Usar mes y año del dashboard si están en GET, si no usar mes anterior al actual
+        if (isset($_GET['mes']) && is_numeric($_GET['mes'])) {
+            $mesToken = (int)$_GET['mes'];
+            $anoToken = isset($_GET['ano']) && is_numeric($_GET['ano']) ? (int)$_GET['ano'] : (int)date('Y');
+        } else {
+            // Mes anterior al actual (igual que el dashboard)
+            $mesToken = (int)date('n') - 1;
+            $anoToken = (int)date('Y');
+            if ($mesToken < 1) {
+                $mesToken = 12;
+                $anoToken--;
+            }
+        }
         
         // Buscar token existente para el mes/año seleccionado
         $stmtToken = $conn->prepare("SELECT token FROM resumen_publico_tokens WHERE mes = ? AND ano = ? ORDER BY fecha_creacion DESC LIMIT 1");
