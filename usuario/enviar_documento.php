@@ -181,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: dashboard.php?mes=' . $mes_carga_calc . '&ano=' . $ano_actual);
         exit;
     } else {
-        $_SESSION['error'] = 'Error al cargar el documento. Verifique que el formato sea correcto (PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG, ZIP, RAR, 7Z)';
+        $_SESSION['error'] = 'Error al cargar el documento. Verifique que el formato sea correcto (PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG, ZIP, RAR, 7Z) y que no supere los 100 MB';
         // Redirigir con mes y año para mantener el contexto
         header('Location: dashboard.php?mes=' . $mes_carga . '&ano=' . $ano_actual);
         exit;

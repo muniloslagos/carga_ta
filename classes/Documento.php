@@ -230,7 +230,7 @@ class Documento {
     public function uploadFile($file) {
         // Tipos permitidos: PDF, documentos Word, Excel, imágenes y archivos comprimidos
         $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
-        $maxSize = 10 * 1024 * 1024; // 10MB
+        $maxSize = 100 * 1024 * 1024; // 100MB
 
         $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         
@@ -239,7 +239,7 @@ class Documento {
         }
 
         if ($file['size'] > $maxSize) {
-            return ['error' => 'El archivo es demasiado grande (máximo 10MB)'];
+            return ['error' => 'El archivo es demasiado grande (máximo 100MB)'];
         }
 
         $filename = uniqid('doc_') . '.' . $fileExt;

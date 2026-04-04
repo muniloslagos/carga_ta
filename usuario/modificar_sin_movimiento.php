@@ -126,7 +126,7 @@ if ($accion === 'actualizar_observacion') {
     // Subir archivo
     $file = $_FILES['archivo'];
     $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
-    $maxSize = 10 * 1024 * 1024; // 10MB
+    $maxSize = 100 * 1024 * 1024; // 100MB
     
     $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     
@@ -136,7 +136,7 @@ if ($accion === 'actualizar_observacion') {
     }
     
     if ($file['size'] > $maxSize) {
-        echo json_encode(['success' => false, 'error' => 'El archivo es demasiado grande (máximo 10MB)']);
+        echo json_encode(['success' => false, 'message' => 'El archivo es demasiado grande (máximo 100MB)']);
         exit;
     }
     

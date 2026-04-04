@@ -68,8 +68,8 @@ if (!in_array($ext, $extensionesPermitidas)) {
     exit;
 }
 
-if ($archivo['size'] > 10 * 1024 * 1024) {
-    $_SESSION['error'] = 'El archivo supera el límite de 10MB.';
+if ($archivo['size'] > 100 * 1024 * 1024) {
+    $_SESSION['error'] = 'El archivo supera el límite de 100MB.';
     header('Location: dashboard.php');
     exit;
 }

@@ -1,7 +1,7 @@
 # Configuración de Límites de Carga de Archivos
 
 ## Límite Actual
-- **Tamaño máximo por archivo:** 10 MB
+- **Tamaño máximo por archivo:** 100 MB
 - Configurado en: `classes/Documento.php` línea 233
 
 ## Para Aumentar el Límite de Carga
@@ -33,25 +33,25 @@ memory_limit = 256M
 #### A. Modificar `classes/Documento.php` (línea 233):
 
 ```php
-$maxSize = 50 * 1024 * 1024; // 50MB (cambiar según necesidad)
+$maxSize = 100 * 1024 * 1024; // 100MB (actualmente configurado)
 ```
 
 #### B. Modificar `usuario/dashboard.php`:
 
 1. Cambiar la constante JavaScript (línea ~2530):
 ```javascript
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (actualmente configurado)
 ```
 
 2. Actualizar los mensajes en los formularios:
 ```html
-<small class="text-muted">✓ Tamaño máximo: <strong>50 MB</strong></small>
+<small class="text-muted">✓ Tamaño máximo: <strong>100 MB</strong></small>
 ```
 
 #### C. Modificar `usuario/modificar_sin_movimiento.php` (línea 129):
 
 ```php
-$maxSize = 50 * 1024 * 1024; // 50MB
+$maxSize = 100 * 1024 * 1024; // 100MB (actualmente configurado)
 ```
 
 ### 3. Configuración Apache (opcional)
@@ -96,6 +96,8 @@ Buscar:
 
 | Tipo de Carga | Límite Actual |
 |---------------|---------------|
-| Documentos (cargadores) | 10 MB |
-| Verificadores (publicadores) | 5 MB |
-| Sin Movimiento (reemplazo) | 10 MB |
+| Documentos (cargadores) | 100 MB |
+| Verificadores (publicadores) | 100 MB |
+| Sin Movimiento (reemplazo) | 100 MB |
+
+**Nota:** Todos los límites han sido configurados a 100 MB para permitir archivos más grandes.

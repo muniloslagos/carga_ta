@@ -1583,7 +1583,7 @@ if (isset($_SESSION['success'])) {
                         <label for="archivo" class="form-label">Seleccionar Archivo <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" id="archivo" name="archivo" required accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.jpg,.jpeg,.png,.zip,.rar,.7z" onchange="mostrarInfoArchivo(this)">
                         <small class="text-muted d-block mt-2">✓ Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, CSV, JPG, PNG, ZIP, RAR, 7Z</small>
-                        <small class="text-muted d-block">✓ Tamaño máximo: <strong>10 MB</strong></small>
+                        <small class="text-muted d-block">✓ Tamaño máximo: <strong>100 MB</strong></small>
                         <div id="infoArchivo" class="mt-2"></div>
                     </div>
                     
@@ -2086,7 +2086,7 @@ function verEnPantallaCompleta(imageSrc) {
                             <label for="modifSinMovArchivo" class="form-label">Archivo <span class="text-danger">*</span></label>
                             <input type="file" class="form-control" id="modifSinMovArchivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.jpg,.jpeg,.png,.zip,.rar,.7z" onchange="mostrarInfoArchivoSinMov(this)">
                             <div class="form-text">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP, RAR, 7Z</div>
-                            <div class="form-text">Tamaño máximo: <strong>10 MB</strong></div>
+                            <div class="form-text">Tamaño máximo: <strong>100 MB</strong></div>
                             <div id="infoArchivoSinMov" class="mt-2"></div>
                         </div>
                         
@@ -2256,10 +2256,10 @@ function subirDocumentoReemplazar() {
     
     // Validar tamaño del archivo
     const file = archivoInput.files[0];
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 100 * 1024 * 1024; // 100MB
     if (file.size > maxSize) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        alert(`El archivo es demasiado grande (${sizeMB} MB). Máximo permitido: 10 MB`);
+        alert(`El archivo es demasiado grande (${sizeMB} MB). Máximo permitido: 100 MB`);
         return;
     }
     
@@ -2531,7 +2531,7 @@ function confirmarObservacion() {
 
 <script>
 // --- VALIDACIÓN Y PROGRESO DE CARGA DE ARCHIVOS ---
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 function mostrarInfoArchivo(input) {
     const infoDiv = document.getElementById('infoArchivo');
@@ -2551,7 +2551,7 @@ function mostrarInfoArchivo(input) {
     if (file.size > MAX_FILE_SIZE) {
         html = `<div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
             <i class="bi bi-exclamation-triangle"></i> <strong>Archivo demasiado grande</strong><br>
-            <small>${file.name} (${sizeMB} MB) supera el límite de 10 MB</small>`;
+            <small>${file.name} (${sizeMB} MB) supera el límite de 100 MB</small>`;
         input.value = ''; // Limpiar selección
     }
     
@@ -2577,7 +2577,7 @@ function mostrarInfoArchivoSinMov(input) {
     if (file.size > MAX_FILE_SIZE) {
         html = `<div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
             <i class="bi bi-exclamation-triangle"></i> <strong>Archivo demasiado grande</strong><br>
-            <small>${file.name} (${sizeMB} MB) supera el límite de 10 MB</small>`;
+            <small>${file.name} (${sizeMB} MB) supera el límite de 100 MB</small>`;
         input.value = ''; // Limpiar selección
     }
     
@@ -2598,7 +2598,7 @@ document.querySelector('#modalCargar form').addEventListener('submit', function(
     const file = fileInput.files[0];
     
     if (file.size > MAX_FILE_SIZE) {
-        alert('El archivo es demasiado grande. Máximo permitido: 10 MB');
+        alert('El archivo es demasiado grande. Máximo permitido: 100 MB');
         e.preventDefault();
         return false;
     }
