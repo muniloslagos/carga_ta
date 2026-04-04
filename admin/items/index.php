@@ -10,6 +10,7 @@ require_once '../../classes/Usuario.php';
 $itemClass = new Item($db->getConnection());
 $direccionClass = new Direccion($db->getConnection());
 $usuarioClass = new Usuario($db->getConnection());
+$conn = $db->getConnection();
 
 $error = '';
 $success = '';
