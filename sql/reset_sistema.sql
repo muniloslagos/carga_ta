@@ -47,7 +47,7 @@ DELETE FROM `documentos`;
 -- ✓ Usuarios (con sus contraseñas actuales)
 -- ✓ Direcciones
 -- ✓ Directores
--- ✓ Items de transparencia
+-- ✓ Items de transparencia (items_transparencia)
 -- ✓ Plantillas de correo
 -- ✓ Años configurados
 -- ✓ Configuración del Alcalde
@@ -74,7 +74,7 @@ SELECT 'Observaciones sin movimiento restantes:' AS verificacion, COUNT(*) AS ca
 
 SELECT 'Usuarios activos:' AS verificacion, COUNT(*) AS cantidad FROM usuarios WHERE activo = 1;
 SELECT 'Direcciones activas:' AS verificacion, COUNT(*) AS cantidad FROM direcciones WHERE activa = 1;
-SELECT 'Items activos:' AS verificacion, COUNT(*) AS cantidad FROM items WHERE activo = 1;
+SELECT 'Items activos:' AS verificacion, COUNT(*) AS cantidad FROM items_transparencia WHERE activo = 1;
 SELECT 'Correos en historial:' AS verificacion, COUNT(*) AS cantidad FROM historial_envios_correo;
 
 -- ============================================================================
