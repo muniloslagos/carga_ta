@@ -35,10 +35,13 @@ DELETE FROM `observaciones_sin_movimiento`;
 -- IMPORTANTE: Después de ejecutar esto, eliminar manualmente la carpeta uploads/
 -- o su contenido para liberar espacio en disco
 
--- Primero eliminar el seguimiento de documentos (tiene FK hacia documentos)
+-- Primero eliminar los verificadores de publicación (tiene FK hacia documentos)
+DELETE FROM `verificadores_publicador`;
+
+-- Luego eliminar el seguimiento de documentos (tiene FK hacia documentos)
 DELETE FROM `documento_seguimiento`;
 
--- Luego eliminar los documentos
+-- Finalmente eliminar los documentos
 DELETE FROM `documentos`;
 
 -- ============================================================================
@@ -59,6 +62,7 @@ DELETE FROM `documentos`;
 -- ============================================================================
 -- ✗ Todos los documentos cargados (tabla documentos)
 -- ✗ Todo el seguimiento de documentos (tabla documento_seguimiento)
+-- ✗ Todos los verificadores de publicación (tabla verificadores_publicador)
 -- ✗ Todas las observaciones de documentos
 -- ✗ Todas las observaciones de items sin movimiento
 
@@ -69,6 +73,7 @@ DELETE FROM `documentos`;
 
 SELECT 'Documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM documentos;
 SELECT 'Seguimiento de documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM documento_seguimiento;
+SELECT 'Verificadores de publicación restantes:' AS verificacion, COUNT(*) AS cantidad FROM verificadores_publicador;
 SELECT 'Observaciones de documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM observaciones_documentos;
 SELECT 'Observaciones sin movimiento restantes:' AS verificacion, COUNT(*) AS cantidad FROM observaciones_sin_movimiento;
 
@@ -96,12 +101,14 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Reiniciar contadores de auto_increment a 1
 ALTER TABLE `documentos` AUTO_INCREMENT = 1;
 ALTER TABLE `documento_seguimiento` AUTO_INCREMENT = 1;
+ALTER TABLE `verificadores_publicador` AUTO_INCREMENT = 1;
 ALTER TABLE `observaciones_documentos` AUTO_INCREMENT = 1;
 ALTER TABLE `observaciones_sin_movimiento` AUTO_INCREMENT = 1;
 
 -- Optimizar tablas para liberar espacio en disco
 OPTIMIZE TABLE `documentos`;
 OPTIMIZE TABLE `documento_seguimiento`;
+OPTIMIZE TABLE `verificadores_publicador`;
 OPTIMIZE TABLE `observaciones_documentos`;
 OPTIMIZE TABLE `observaciones_sin_movimiento`;
 
