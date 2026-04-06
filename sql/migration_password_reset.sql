@@ -15,11 +15,14 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
   CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Agregar nuevo tipo de plantilla al enum
+ALTER TABLE `plantillas_correo` 
+MODIFY COLUMN `tipo` enum('inicio_proceso','fin_proceso_cargadores','fin_proceso_general','recuperar_password') NOT NULL;
+
 -- Insertar plantilla de correo para recuperación de contraseña
-INSERT INTO `plantillas_correo` (`tipo`, `nombre`, `asunto`, `cuerpo`, `variables_disponibles`, `activa`) 
+INSERT INTO `plantillas_correo` (`tipo`, `asunto`, `cuerpo`, `variables_disponibles`, `activo`) 
 VALUES (
   'recuperar_password',
-  'Recuperación de Contraseña',
   'Recuperación de Contraseña - Sistema Transparencia Activa',
   '<h2>Hola {nombre_usuario},</h2>
 
