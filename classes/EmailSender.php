@@ -228,7 +228,7 @@ class EmailSender {
     </div>
     <div class="footer">
         <p style="margin: 5px 0;">Este es un correo automático del Sistema de Transparencia Activa.</p>
-        <p style="margin: 5px 0;">Por favor no responda directamente a este correo.</p>
+        <p style="margin: 5px 0;">Por favor no responda directamente a este correo, si desea comunicarse debe hacerlo al correo <a href="mailto:transparencia@muniloslagos.cl" style="color: #007bff;">transparencia@muniloslagos.cl</a></p>
         <p style="margin: 5px 0;">© ' . date('Y') . ' Municipalidad de Los Lagos - Todos los derechos reservados</p>
     </div>
 </body>
