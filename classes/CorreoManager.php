@@ -114,6 +114,20 @@ class CorreoManager {
                         continue;
                     }
                     
+                    // Obtener nombres de las direcciones del director
+                    $stmtDir = $this->conn->prepare("SELECT nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
+                    $stmtDir->bind_param('i', $director['id']);
+                    $stmtDir->execute();
+                    $dirResult = $stmtDir->get_result();
+                    $nombres_direcciones = [];
+                    while ($dd = $dirResult->fetch_assoc()) {
+                        $nombres_direcciones[] = $dd['nombre'];
+                    }
+                    $stmtDir->close();
+                    
+                    // Determinar texto "de su dirección" o "de sus direcciones"
+                    $texto_direccion = count($nombres_direcciones) > 1 ? ' de sus direcciones' : ' de su dirección';
+                    
                     // Reemplazar variables
                     $variables = [
                         '{nombre_usuario}' => $director['nombre_completo'],
@@ -127,6 +141,13 @@ class CorreoManager {
                     
                     $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
                     $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+                    
+                    // Personalizar cuerpo para directores: agregar "de su dirección" después del período
+                    $cuerpo = str_replace(
+                        'para el período <strong>' . $this->nombreMes($mes) . ' ' . $ano . '</strong>.',
+                        'para el período <strong>' . $this->nombreMes($mes) . ' ' . $ano . '</strong>' . $texto_direccion . '.',
+                        $cuerpo
+                    );
                     
                     // Enviar correo
                     if ($this->email_sender->enviarCorreo($director['correo'], $asunto, $cuerpo, $director['nombre_completo'])) {
@@ -283,6 +304,20 @@ class CorreoManager {
         $plazo_dias = 6;
         $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
         
+        // Obtener nombres de las direcciones del director
+        $stmtDir = $this->conn->prepare("SELECT nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
+        $stmtDir->bind_param('i', $director_id);
+        $stmtDir->execute();
+        $dirResult = $stmtDir->get_result();
+        $nombres_direcciones = [];
+        while ($dd = $dirResult->fetch_assoc()) {
+            $nombres_direcciones[] = $dd['nombre'];
+        }
+        $stmtDir->close();
+        
+        // Determinar texto "de su dirección" o "de sus direcciones"
+        $texto_direccion = count($nombres_direcciones) > 1 ? ' de sus direcciones' : ' de su dirección';
+        
         // Reemplazar variables
         $variables = [
             '{nombre_usuario}' => $director['nombre_completo'],
@@ -296,6 +331,13 @@ class CorreoManager {
         
         $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
         $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+        
+        // Personalizar cuerpo para directores: agregar "de su dirección" después del período
+        $cuerpo = str_replace(
+            'para el período <strong>' . $this->nombreMes($mes) . ' ' . $ano . '</strong>.',
+            'para el período <strong>' . $this->nombreMes($mes) . ' ' . $ano . '</strong>' . $texto_direccion . '.',
+            $cuerpo
+        );
         
         // Enviar correo
         if (!$this->email_sender->enviarCorreo($director['correo'], $asunto, $cuerpo, $director['nombre_completo'])) {
