@@ -1055,13 +1055,14 @@ $meses = [
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped table-sm">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Tipo</th>
                                     <th>Envío</th>
                                     <th>Período</th>
+                                    <th>Destinatarios</th>
                                     <th>Enviados</th>
                                     <th>Fallidos</th>
                                     <th>Enviado por</th>
@@ -1070,6 +1071,17 @@ $meses = [
                             <tbody>
                                 <?php if ($historial->num_rows > 0): ?>
                                     <?php while ($h = $historial->fetch_assoc()): ?>
+                                        <?php
+                                        // Decodificar detalles del envío
+                                        $detalles = json_decode($h['detalles_envio'], true) ?? [];
+                                        $emails = [];
+                                        foreach ($detalles as $detalle) {
+                                            if (isset($detalle['email'])) {
+                                                $emails[] = htmlspecialchars($detalle['email']);
+                                            }
+                                        }
+                                        $emails_unicos = array_unique($emails);
+                                        ?>
                                         <tr>
                                             <td><?= date('d/m/Y H:i', strtotime($h['fecha_envio'])) ?></td>
                                             <td>
@@ -1077,9 +1089,10 @@ $meses = [
                                                 $tipos = [
                                                     'inicio_proceso' => '<span class="badge bg-primary">Inicio</span>',
                                                     'fin_proceso_cargadores' => '<span class="badge bg-warning">Fin Cargadores</span>',
-                                                    'fin_proceso_general' => '<span class="badge bg-info">Cierre General</span>'
+                                                    'fin_proceso_general' => '<span class="badge bg-info">Cierre General</span>',
+                                                    'envio_password' => '<span class="badge bg-dark">Contraseña</span>'
                                                 ];
-                                                echo $tipos[$h['tipo']] ?? $h['tipo'];
+                                                echo $tipos[$h['tipo']] ?? '<span class="badge bg-secondary">' . htmlspecialchars($h['tipo']) . '</span>';
                                                 ?>
                                             </td>
                                             <td>
@@ -1088,6 +1101,41 @@ $meses = [
                                                     '<span class="badge bg-secondary">Individual</span>' ?>
                                             </td>
                                             <td><?= $h['mes_periodo'] ? $meses[$h['mes_periodo']] . ' ' . $h['ano_periodo'] : '-' ?></td>
+                                            <td>
+                                                <?php if (count($emails_unicos) == 0): ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php elseif (count($emails_unicos) <= 3): ?>
+                                                    <small><?= implode('<br>', $emails_unicos) ?></small>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#modalDestinatarios<?= $h['id'] ?>">
+                                                        <i class="bi bi-people"></i> Ver <?= count($emails_unicos) ?> destinatarios
+                                                    </button>
+                                                    
+                                                    <!-- Modal -->
+                                                    <div class="modal fade" id="modalDestinatarios<?= $h['id'] ?>" tabindex="-1">
+                                                        <div class="modal-dialog modal-dialog-scrollable">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title">Destinatarios del Envío</h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <ul class="list-unstyled mb-0">
+                                                                        <?php foreach ($emails_unicos as $email): ?>
+                                                                            <li><i class="bi bi-envelope"></i> <?= $email ?></li>
+                                                                        <?php endforeach; ?>
+                                                                    </ul>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
                                             <td><?= $h['correos_enviados'] ?></td>
                                             <td><?= $h['correos_fallidos'] > 0 ? '<span class="text-danger">' . $h['correos_fallidos'] . '</span>' : '0' ?></td>
                                             <td><?= htmlspecialchars($h['enviado_por_nombre']) ?></td>
@@ -1095,7 +1143,7 @@ $meses = [
                                     <?php endwhile; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted">No hay envíos registrados</td>
+                                        <td colspan="8" class="text-center text-muted">No hay envíos registrados</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
