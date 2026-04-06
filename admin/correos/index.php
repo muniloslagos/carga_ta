@@ -507,8 +507,8 @@ $meses = [
                                                 }
                                                 while ($director = $directores_list->fetch_assoc()): ?>
                                                     <option value="<?= $director['id'] ?>">
-                                                        <?= htmlspecialchars($director['nombre']) ?>
-                                                        (<?= htmlspecialchars($director['email']) ?>)
+                                                        <?= htmlspecialchars($director['nombres'] . ' ' . $director['apellidos']) ?>
+                                                        (<?= htmlspecialchars($director['correo']) ?>)
                                                     </option>
                                                 <?php endwhile; ?>
                                             </select>
