@@ -8,15 +8,16 @@
 -- - Ejecutar SOLO en ambiente de producción cuando se vaya a iniciar operación real
 -- - Los archivos físicos en uploads/ deben eliminarse MANUALMENTE
 -- - El historial de correos y tokens públicos se MANTIENEN
--- - EJECUTAR EL SCRIPT COMPLETO, NO LÍNEA POR LÍNEA (usar SOURCE o importar archivo)
+--
+-- NOTA TÉCNICA:
+-- - Se usa DELETE en lugar de TRUNCATE por compatibilidad con phpMyAdmin
+-- - Se ejecuta OPTIMIZE TABLE al final para liberar espacio en disco
 --
 -- Fecha: 2026-04-06
 -- ============================================================================
 
--- ⚠️ ADVERTENCIA: Este script debe ejecutarse COMPLETO desde el inicio
--- Si ejecutas solo partes de él, obtendrás errores de foreign key constraints
--- Usa: mysql -u usuario -p db_name < reset_sistema.sql
--- O en phpMyAdmin: Importar > Seleccionar archivo > Ejecutar
+-- ⚠️ ADVERTENCIA: Este script elimina permanentemente todos los documentos
+-- Hacer un respaldo antes de ejecutar: mysqldump -u user -p db > backup.sql
 
 -- Desactivar verificación de claves foráneas temporalmente
 SET FOREIGN_KEY_CHECKS = 0;
@@ -24,12 +25,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================================
 -- 1. ELIMINAR OBSERVACIONES DE DOCUMENTOS
 -- ============================================================================
--- ⚠️ IMPORTANTE: Si ves error "Cannot truncate a table referenced in a foreign key"
--- es porque estás ejecutando líneas individuales en lugar del script completo.
--- Debes ejecutar TODO el archivo desde el inicio para que SET FOREIGN_KEY_CHECKS funcione.
-
-TRUNCATE TABLE `observaciones_documentos`;
-TRUNCATE TABLE `observaciones_sin_movimiento`;
+-- Usando DELETE en lugar de TRUNCATE para compatibilidad con phpMyAdmin
+DELETE FROM `observaciones_documentos`;
+DELETE FROM `observaciones_sin_movimiento`;
 
 -- ============================================================================
 -- 2. ELIMINAR TODOS LOS DOCUMENTOS CARGADOS
@@ -38,10 +36,10 @@ TRUNCATE TABLE `observaciones_sin_movimiento`;
 -- o su contenido para liberar espacio en disco
 
 -- Primero eliminar el seguimiento de documentos (tiene FK hacia documentos)
-TRUNCATE TABLE `documento_seguimiento`;
+DELETE FROM `documento_seguimiento`;
 
 -- Luego eliminar los documentos
-TRUNCATE TABLE `documentos`;
+DELETE FROM `documentos`;
 
 -- ============================================================================
 -- RESUMEN DE LO QUE SE MANTIENE:
@@ -94,6 +92,18 @@ SELECT 'Correos en historial:' AS verificacion, COUNT(*) AS cantidad FROM histor
 
 -- Reactivar verificación de claves foráneas
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- Reiniciar contadores de auto_increment a 1
+ALTER TABLE `documentos` AUTO_INCREMENT = 1;
+ALTER TABLE `documento_seguimiento` AUTO_INCREMENT = 1;
+ALTER TABLE `observaciones_documentos` AUTO_INCREMENT = 1;
+ALTER TABLE `observaciones_sin_movimiento` AUTO_INCREMENT = 1;
+
+-- Optimizar tablas para liberar espacio en disco
+OPTIMIZE TABLE `documentos`;
+OPTIMIZE TABLE `documento_seguimiento`;
+OPTIMIZE TABLE `observaciones_documentos`;
+OPTIMIZE TABLE `observaciones_sin_movimiento`;
 
 -- ============================================================================
 -- FIN DEL SCRIPT DE RESET
