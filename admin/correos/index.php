@@ -799,6 +799,8 @@ $meses = [
                                 <?php 
                                 $hay_directores = false;
                                 if ($directores_list && $directores_list->num_rows > 0):
+                                    // Reset pointer para el tercer uso
+                                    $directores_list->data_seek(0);
                                     while ($dir = $directores_list->fetch_assoc()): 
                                         $hay_directores = true;
                                 ?>
