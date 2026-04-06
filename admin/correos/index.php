@@ -90,7 +90,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $correo_manager = new CorreoManager();
             $resultado = $correo_manager->enviarInicioProcesoIndividual($usuario_id, $mes, $ano);
             
-            $mensaje = "Correo enviado exitosamente";
+            $mensaje = "Correo enviado exitosamente al usuario";
+            $tipo_mensaje = 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error al enviar: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+    
+    // Enviar correo individual a director (inicio de proceso)
+    elseif (isset($_POST['enviar_individual_inicio_director'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $director_id = (int)$_POST['director_id'];
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarInicioProcesoDirector($director_id, $mes, $ano);
+            
+            $mensaje = "Correo enviado exitosamente al director";
             $tipo_mensaje = 'success';
             
         } catch (Exception $e) {
@@ -374,7 +395,7 @@ $meses = [
                     
                     <div class="row">
                         <!-- Envío Masivo -->
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="card">
                                 <div class="card-header bg-success text-white">
                                     <h6 class="mb-0">Envío Masivo</h6>
@@ -423,11 +444,11 @@ $meses = [
                             </div>
                         </div>
 
-                        <!-- Envío Individual -->
-                        <div class="col-md-6">
+                        <!-- Envío Individual a Usuario -->
+                        <div class="col-md-4">
                             <div class="card">
                                 <div class="card-header bg-warning">
-                                    <h6 class="mb-0">Envío Individual</h6>
+                                    <h6 class="mb-0">Envío Individual a Usuario</h6>
                                 </div>
                                 <div class="card-body">
                                     <form method="POST">
@@ -461,6 +482,55 @@ $meses = [
                                         </div>
                                         <button type="submit" name="enviar_individual_inicio" class="btn btn-warning w-100">
                                             <i class="bi bi-send"></i> Enviar a Usuario Específico
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Envío Individual a Director -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">Envío Individual a Director</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Director:</label>
+                                            <select name="director_id" class="form-select" required>
+                                                <option value="">Seleccione un director...</option>
+                                                <?php 
+                                                // Reset pointer para el segundo uso de directores_list
+                                                if ($directores_list && $directores_list->num_rows > 0) {
+                                                    $directores_list->data_seek(0);
+                                                }
+                                                while ($director = $directores_list->fetch_assoc()): ?>
+                                                    <option value="<?= $director['id'] ?>">
+                                                        <?= htmlspecialchars($director['nombre']) ?>
+                                                        (<?= htmlspecialchars($director['email']) ?>)
+                                                    </option>
+                                                <?php endwhile; ?>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="enviar_individual_inicio_director" class="btn btn-info w-100">
+                                            <i class="bi bi-send"></i> Enviar a Director Específico
                                         </button>
                                     </form>
                                 </div>

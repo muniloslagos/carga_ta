@@ -240,6 +240,83 @@ class CorreoManager {
     }
     
     /**
+     * Enviar correo de inicio de proceso a un director específico
+     */
+    public function enviarInicioProcesoDirector($director_id, $mes, $ano) {
+        // Obtener plantilla
+        $plantilla = $this->obtenerPlantilla('inicio_proceso');
+        
+        if (!$plantilla) {
+            throw new Exception('No se encontró la plantilla de inicio de proceso');
+        }
+        
+        // Obtener datos del director
+        $stmt = $this->conn->prepare("SELECT id, nombres, apellidos, correo, 
+                                             CONCAT(nombres, ' ', apellidos) as nombre_completo
+                                      FROM directores 
+                                      WHERE id = ? AND activo = 1 AND correo IS NOT NULL AND correo != ''");
+        $stmt->bind_param('i', $director_id);
+        $stmt->execute();
+        $director = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!$director) {
+            throw new Exception('No se encontró el director o no tiene correo registrado');
+        }
+        
+        // Obtener ítems de las direcciones del director
+        $items_director = $this->obtenerItemsDirector($director_id);
+        
+        if (empty($items_director)) {
+            throw new Exception('El director no tiene ítems asignados (sin direcciones con ítems)');
+        }
+        
+        // Calcular fechas
+        $siguiente_mes = $mes + 1;
+        $siguiente_ano = $ano;
+        if ($siguiente_mes > 12) {
+            $siguiente_mes = 1;
+            $siguiente_ano++;
+        }
+        
+        // Calcular plazo: 6° día hábil del mes siguiente
+        $plazo_dias = 6;
+        $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
+        
+        // Reemplazar variables
+        $variables = [
+            '{nombre_usuario}' => $director['nombre_completo'],
+            '{mes_carga}' => $this->nombreMes($mes),
+            '{ano_carga}' => $ano,
+            '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
+            '{items_asignados}' => $this->generarListaItems($items_director),
+            '{plazo_dias}' => $plazo_dias,
+            '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+        ];
+        
+        $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+        $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+        
+        // Enviar correo
+        if (!$this->email_sender->enviarCorreo($director['correo'], $asunto, $cuerpo, $director['nombre_completo'])) {
+            throw new Exception('Error al enviar correo: ' . $this->email_sender->getError());
+        }
+        
+        // Registrar en historial
+        $detalles = [
+            [
+                'tipo' => 'director',
+                'director_id' => $director['id'],
+                'email' => $director['correo'],
+                'estado' => 'exitoso'
+            ]
+        ];
+        $this->registrarHistorial($plantilla['id'], 'individual', $director['id'], 1, $mes, $ano, 1, 0, $detalles);
+        
+        return true;
+    }
+    
+    /**
      * Obtener plantilla por tipo
      */
     private function obtenerPlantilla($tipo) {
