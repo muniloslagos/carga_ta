@@ -7,7 +7,8 @@
 -- IMPORTANTE: 
 -- - Ejecutar SOLO en ambiente de producción cuando se vaya a iniciar operación real
 -- - Los archivos físicos en uploads/ deben eliminarse MANUALMENTE
--- - El historial de correos y tokens públicos se MANTIENEN
+-- - El historial de correos se MANTIENE para referencia
+-- - Los tokens de resumen se ELIMINAN (se generan nuevos automáticamente)
 --
 -- NOTA TÉCNICA:
 -- - Se usa DELETE en lugar de TRUNCATE por compatibilidad con phpMyAdmin
@@ -45,6 +46,13 @@ DELETE FROM `documento_seguimiento`;
 DELETE FROM `documentos`;
 
 -- ============================================================================
+-- 3. ELIMINAR TOKENS DE RESUMEN PÚBLICO
+-- ============================================================================
+-- Los tokens apuntan a periodos con datos que ya no existen
+-- Se generarán automáticamente nuevos tokens al acceder al sistema
+DELETE FROM `resumen_publico_tokens`;
+
+-- ============================================================================
 -- RESUMEN DE LO QUE SE MANTIENE:
 -- ============================================================================
 -- ✓ Usuarios (con sus contraseñas actuales)
@@ -54,8 +62,7 @@ DELETE FROM `documentos`;
 -- ✓ Plantillas de correo
 -- ✓ Años configurados
 -- ✓ Configuración del Alcalde
--- ✓ Historial de envíos de correo (para referencia)
--- ✓ Tokens de resumen público (enlaces de correos siguen funcionando)
+-- ✓ Historial de envíos de correo (para referencia histórica)
 
 -- ============================================================================
 -- RESUMEN DE LO QUE SE ELIMINÓ:
@@ -65,6 +72,7 @@ DELETE FROM `documentos`;
 -- ✗ Todos los verificadores de publicación (tabla verificadores_publicador)
 -- ✗ Todas las observaciones de documentos
 -- ✗ Todas las observaciones de items sin movimiento
+-- ✗ Tokens de resumen público (se generarán nuevos automáticamente)
 
 -- ============================================================================
 -- VERIFICACIÓN POST-RESET
@@ -76,6 +84,7 @@ SELECT 'Seguimiento de documentos restantes:' AS verificacion, COUNT(*) AS canti
 SELECT 'Verificadores de publicación restantes:' AS verificacion, COUNT(*) AS cantidad FROM verificadores_publicador;
 SELECT 'Observaciones de documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM observaciones_documentos;
 SELECT 'Observaciones sin movimiento restantes:' AS verificacion, COUNT(*) AS cantidad FROM observaciones_sin_movimiento;
+SELECT 'Tokens de resumen público restantes:' AS verificacion, COUNT(*) AS cantidad FROM resumen_publico_tokens;
 
 SELECT 'Usuarios activos:' AS verificacion, COUNT(*) AS cantidad FROM usuarios WHERE activo = 1;
 SELECT 'Direcciones activas:' AS verificacion, COUNT(*) AS cantidad FROM direcciones WHERE activa = 1;
@@ -104,6 +113,7 @@ ALTER TABLE `documento_seguimiento` AUTO_INCREMENT = 1;
 ALTER TABLE `verificadores_publicador` AUTO_INCREMENT = 1;
 ALTER TABLE `observaciones_documentos` AUTO_INCREMENT = 1;
 ALTER TABLE `observaciones_sin_movimiento` AUTO_INCREMENT = 1;
+ALTER TABLE `resumen_publico_tokens` AUTO_INCREMENT = 1;
 
 -- Optimizar tablas para liberar espacio en disco
 OPTIMIZE TABLE `documentos`;
@@ -111,6 +121,7 @@ OPTIMIZE TABLE `documento_seguimiento`;
 OPTIMIZE TABLE `verificadores_publicador`;
 OPTIMIZE TABLE `observaciones_documentos`;
 OPTIMIZE TABLE `observaciones_sin_movimiento`;
+OPTIMIZE TABLE `resumen_publico_tokens`;
 
 -- ============================================================================
 -- FIN DEL SCRIPT DE RESET
