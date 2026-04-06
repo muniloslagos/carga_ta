@@ -47,6 +47,22 @@ if ($mesCarga < 1) {
 $mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : $mesCarga;
 $anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : $anoCarga;
 
+// Obtener años configurados activos
+$anosDisponibles = [];
+$checkAnosTable = $conn->query("SHOW TABLES LIKE 'anos_configurados'");
+if ($checkAnosTable && $checkAnosTable->num_rows > 0) {
+    $stmtAnos = $conn->query("SELECT ano FROM anos_configurados WHERE activo = 1 ORDER BY ano DESC");
+    while ($rowAno = $stmtAnos->fetch_assoc()) {
+        $anosDisponibles[] = (int)$rowAno['ano'];
+    }
+}
+// Fallback: si no hay años configurados, usar rango tradicional
+if (empty($anosDisponibles)) {
+    for ($a = $anoActual - 2; $a <= $anoActual; $a++) {
+        $anosDisponibles[] = $a;
+    }
+}
+
 // Validar mes y año
 if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = $mesCarga;
 if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = $anoCarga;
@@ -423,7 +439,7 @@ if (isset($_SESSION['success'])) {
                     </select>
                     <select name="ano" class="form-select form-select-sm" style="max-width: 100px;" onchange="this.form.submit();">
                         <?php
-                        for ($a = $anoActual - 2; $a <= $anoActual; $a++) {
+                        foreach ($anosDisponibles as $a) {
                             $selected = ($anoSeleccionado == $a) ? 'selected' : '';
                             echo "<option value='$a' $selected>$a</option>";
                         }
