@@ -188,6 +188,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tipo_mensaje = 'danger';
         }
     }
+    
+    // Enviar contraseñas masivo
+    elseif (isset($_POST['enviar_password_masivo'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $perfil = isset($_POST['perfil_filtro']) && !empty($_POST['perfil_filtro']) ? $_POST['perfil_filtro'] : null;
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarPasswordMasivo($perfil);
+            
+            $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados, {$resultado['fallidos']} fallidos";
+            $tipo_mensaje = $resultado['fallidos'] > 0 ? 'warning' : 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error en envío masivo: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+    
+    // Enviar contraseña individual
+    elseif (isset($_POST['enviar_password_individual'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $usuario_id = (int)$_POST['usuario_id'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarPasswordIndividual($usuario_id);
+            
+            $mensaje = "Contraseña enviada exitosamente al usuario";
+            $tipo_mensaje = 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error al enviar: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
 }
 
 // Obtener plantillas
@@ -209,6 +247,11 @@ $directores_list = $conn->query($directores_query);
 // Obtener auditores para tab fin proceso general
 $auditores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != '' ORDER BY nombre";
 $auditores_list = $conn->query($auditores_query);
+
+// Obtener todos los usuarios para envío de contraseñas
+$usuarios_password_query = "SELECT id, nombre, email, perfil FROM usuarios WHERE activo = 1 AND email IS NOT NULL AND email != '' ORDER BY nombre";
+$usuarios_password = $conn->query($usuarios_password_query);
+$usuarios_password2 = $conn->query($usuarios_password_query); // Segunda copia para form individual
 
 // Obtener enlaces públicos existentes
 $enlaces_publicos = $conn->query("SELECT t.*, u.nombre as creado_por_nombre 
@@ -279,6 +322,11 @@ $meses = [
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="fin-general-tab" data-bs-toggle="tab" data-bs-target="#fin-general" type="button">
                 <i class="bi bi-bar-chart"></i> Fin Proceso - General
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="envio-password-tab" data-bs-toggle="tab" data-bs-target="#envio-password" type="button">
+                <i class="bi bi-key-fill"></i> Envío de Contraseñas
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -893,11 +941,160 @@ $meses = [
             </div>
         </div>
 
-        <!-- TAB 4: HISTORIAL -->
+        <!-- TAB 4: ENVÍO DE CONTRASEÑAS -->
+        <div class="tab-pane fade" id="envio-password" role="tabpanel">
+            <div class="card mt-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-key-fill"></i> Envío de Contraseñas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Descripción:</strong> Envíe las contraseñas actuales a los usuarios del sistema.
+                    </div>
+
+                    <!-- Editor de Plantilla -->
+                    <form method="POST" class="mb-4">
+                        <input type="hidden" name="tipo_plantilla" value="envio_password">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-10">
+                                <label class="form-label">Asunto del correo:</label>
+                                <input type="text" name="asunto" class="form-control" 
+                                       value="<?= htmlspecialchars($plantillas['envio_password']['asunto'] ?? '') ?>" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Envío automático:</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="envio_automatico" 
+                                           <?= isset($plantillas['envio_password']) && $plantillas['envio_password']['envio_automatico'] ? 'checked' : '' ?>>
+                                    <label class="form-check-label">Activar</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Cuerpo del mensaje (HTML):</label>
+                            <textarea name="cuerpo" class="form-control" rows="12" required><?= htmlspecialchars($plantillas['envio_password']['cuerpo'] ?? '') ?></textarea>
+                            <small class="text-muted">
+                                <strong>Variables disponibles:</strong> 
+                                {nombre_usuario}, {email_usuario}, {password}, {url_sistema}
+                            </small>
+                        </div>
+
+                        <button type="submit" name="guardar_plantilla" class="btn btn-success">
+                            <i class="bi bi-save"></i> Guardar Plantilla
+                        </button>
+                    </form>
+
+                    <hr>
+
+                    <!-- Formulario de Envío -->
+                    <h5><i class="bi bi-send"></i> Enviar Contraseñas</h5>
+                    
+                    <div class="row">
+                        <!-- Envío Masivo -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">Envío Masivo</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Filtrar por perfil (opcional):</label>
+                                            <select name="perfil_filtro" class="form-select">
+                                                <option value="">Todos los perfiles</option>
+                                                <option value="administrativo">Administrativo</option>
+                                                <option value="cargador_informacion">Cargador de Información</option>
+                                                <option value="publicador">Publicador</option>
+                                                <option value="auditor">Auditor</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="alert alert-warning">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            <small>Se enviará un correo con la contraseña actual a todos los usuarios activos con correo registrado.</small>
+                                        </div>
+                                        
+                                        <button type="submit" name="enviar_password_masivo" class="btn btn-success w-100" onclick="return confirm('¿Está seguro de enviar contraseñas a todos los usuarios?')">
+                                            <i class="bi bi-send-fill"></i> Enviar a Todos
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Envío Individual -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-warning">
+                                    <h6 class="mb-0">Envío Individual</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="POST">
+                                        <div class="mb-3">
+                                            <label class="form-label">Usuario:</label>
+                                            <select name="usuario_id" class="form-select" required>
+                                                <option value="">Seleccione un usuario...</option>
+                                                <?php while ($usuario = $usuarios_password->fetch_assoc()): ?>
+                                                    <option value="<?= $usuario['id'] ?>">
+                                                        <?= htmlspecialchars($usuario['nombre']) ?> 
+                                                        (<?= htmlspecialchars($usuario['email']) ?>) 
+                                                        - <?= htmlspecialchars(ucfirst($usuario['perfil'])) ?>
+                                                    </option>
+                                                <?php endwhile; ?>
+                                            </select>
+                                        </div>
+                                        
+                                        <button type="submit" name="enviar_password_individual" class="btn btn-warning w-100">
+                                            <i class="bi bi-send"></i> Enviar a Usuario Específico
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Usuarios -->
+                    <div class="mt-4">
+                        <h6>Usuarios Registrados:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Email</th>
+                                        <th>Perfil</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                    if ($usuarios_password2 && $usuarios_password2->num_rows > 0) {
+                                        while ($usuario = $usuarios_password2->fetch_assoc()) {
+                                            echo '<tr>';
+                                            echo '<td>' . htmlspecialchars($usuario['nombre']) . '</td>';
+                                            echo '<td>' . htmlspecialchars($usuario['email']) . '</td>';
+                                            echo '<td><span class="badge bg-info">' . htmlspecialchars(ucfirst(str_replace('_', ' ', $usuario['perfil']))) . '</span></td>';
+                                            echo '</tr>';
+                                        }
+                                    } else {
+                                        echo '<tr><td colspan="3" class="text-center text-muted">No hay usuarios registrados</td></tr>';
+                                    }
+                                    ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: HISTORIAL -->
         <div class="tab-pane fade" id="historial" role="tabpanel">
             <div class="card mt-3">
                 <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Historial de Envíos</h5>
+                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Historia de Envíos</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">

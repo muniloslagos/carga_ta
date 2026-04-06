@@ -1555,4 +1555,137 @@ class CorreoManager {
         
         return true;
     }
+    
+    /**
+     * Enviar contraseñas de forma masiva a todos los usuarios
+     */
+    public function enviarPasswordMasivo($perfil = null) {
+        $plantilla = $this->obtenerPlantilla('envio_password');
+        
+        if (!$plantilla) {
+            throw new Exception('No se encontró la plantilla de envío de contraseña');
+        }
+        
+        // Query para obtener usuarios
+        $query = "SELECT id, nombre, email, password FROM usuarios WHERE activo = 1 AND email IS NOT NULL AND email != ''";
+        
+        if ($perfil) {
+            $stmt = $this->conn->prepare($query . " AND perfil = ?");
+            $stmt->bind_param('s', $perfil);
+            $stmt->execute();
+            $result = $stmt->get_result();
+        } else {
+            $result = $this->conn->query($query);
+        }
+        
+        $exitosos = 0;
+        $fallidos = 0;
+        $detalles = [];
+        
+        while ($usuario = $result->fetch_assoc()) {
+            try {
+                // Reemplazar variables
+                $variables = [
+                    '{nombre_usuario}' => $usuario['nombre'],
+                    '{email_usuario}' => $usuario['email'],
+                    '{password}' => $usuario['password'],
+                    '{url_sistema}' => SITE_URL
+                ];
+                
+                $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+                $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+                
+                // Enviar correo
+                if ($this->email_sender->enviarCorreo($usuario['email'], $asunto, $cuerpo, $usuario['nombre'])) {
+                    $exitosos++;
+                    $detalles[] = [
+                        'usuario_id' => $usuario['id'],
+                        'email' => $usuario['email'],
+                        'estado' => 'exitoso'
+                    ];
+                } else {
+                    $fallidos++;
+                    $detalles[] = [
+                        'usuario_id' => $usuario['id'],
+                        'email' => $usuario['email'],
+                        'estado' => 'fallido',
+                        'error' => $this->email_sender->getError()
+                    ];
+                }
+                
+            } catch (Exception $e) {
+                $fallidos++;
+                $detalles[] = [
+                    'usuario_id' => $usuario['id'],
+                    'email' => $usuario['email'],
+                    'estado' => 'fallido',
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+        
+        // Registrar en historial
+        $total = $exitosos + $fallidos;
+        $this->registrarHistorial($plantilla['id'], 'masivo', null, $total, null, null, $exitosos, $fallidos, $detalles);
+        
+        return [
+            'exitosos' => $exitosos,
+            'fallidos' => $fallidos,
+            'total' => $total
+        ];
+    }
+    
+    /**
+     * Enviar contraseña a un usuario específico
+     */
+    public function enviarPasswordIndividual($usuario_id) {
+        $plantilla = $this->obtenerPlantilla('envio_password');
+        
+        if (!$plantilla) {
+            throw new Exception('No se encontró la plantilla de envío de contraseña');
+        }
+        
+        // Obtener usuario
+        $stmt = $this->conn->prepare("SELECT id, nombre, email, password FROM usuarios WHERE id = ? AND activo = 1");
+        $stmt->bind_param('i', $usuario_id);
+        $stmt->execute();
+        $usuario = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!$usuario) {
+            throw new Exception('No se encontró el usuario');
+        }
+        
+        if (empty($usuario['email'])) {
+            throw new Exception('El usuario no tiene correo registrado');
+        }
+        
+        // Reemplazar variables
+        $variables = [
+            '{nombre_usuario}' => $usuario['nombre'],
+            '{email_usuario}' => $usuario['email'],
+            '{password}' => $usuario['password'],
+            '{url_sistema}' => SITE_URL
+        ];
+        
+        $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+        $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+        
+        // Enviar correo
+        if (!$this->email_sender->enviarCorreo($usuario['email'], $asunto, $cuerpo, $usuario['nombre'])) {
+            throw new Exception('Error al enviar correo: ' . $this->email_sender->getError());
+        }
+        
+        // Registrar en historial
+        $detalles = [
+            [
+                'usuario_id' => $usuario['id'],
+                'email' => $usuario['email'],
+                'estado' => 'exitoso'
+            ]
+        ];
+        $this->registrarHistorial($plantilla['id'], 'individual', $usuario_id, 1, null, null, 1, 0, $detalles);
+        
+        return true;
+    }
 }
