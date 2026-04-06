@@ -169,13 +169,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mes = (int)$_POST['mes_periodo'];
             $ano = (int)$_POST['ano_periodo'];
             $enviar_a_auditores = isset($_POST['enviar_a_auditores']) && $_POST['enviar_a_auditores'] === '1';
+            $enviar_a_alcalde = isset($_POST['enviar_a_alcalde']) && $_POST['enviar_a_alcalde'] === '1';
+            $alcalde_subrogante = isset($_POST['alcalde_destinatario']) ? $_POST['alcalde_destinatario'] : null;
             
             $correo_manager = new CorreoManager();
-            $resultado = $correo_manager->enviarFinProcesoGeneral($mes, $ano, $enviar_a_auditores);
+            $resultado = $correo_manager->enviarFinProcesoGeneral($mes, $ano, $enviar_a_auditores, $enviar_a_alcalde, $alcalde_subrogante);
             
             $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados ({$resultado['directores']} directores";
             if ($resultado['auditores'] > 0) {
                 $mensaje .= ", {$resultado['auditores']} auditores";
+            }
+            if ($resultado['alcalde'] > 0) {
+                $mensaje .= ", 1 alcalde/subrogante";
             }
             $mensaje .= "), {$resultado['fallidos']} fallidos";
             if (!empty($resultado['enlace_resumen'])) {
@@ -189,7 +194,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Enviar contraseñas masivo
     // Enviar contraseña individual
     elseif (isset($_POST['enviar_password_individual'])) {
         try {
@@ -230,6 +234,34 @@ $directores_list = $conn->query($directores_query);
 // Obtener auditores para tab fin proceso general
 $auditores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != '' ORDER BY nombre";
 $auditores_list = $conn->query($auditores_query);
+
+// Obtener configuración del alcalde y subrogantes
+$alcalde_config = null;
+$alcalde_subrogantes = [];
+$check_alcalde = $conn->query("SHOW TABLES LIKE 'configuracion_alcalde'");
+if ($check_alcalde && $check_alcalde->num_rows > 0) {
+    $result_alc = $conn->query("SELECT * FROM configuracion_alcalde WHERE activo = 1 LIMIT 1");
+    if ($result_alc && $result_alc->num_rows > 0) {
+        $alcalde_config = $result_alc->fetch_assoc();
+        
+        // Obtener datos de subrogantes
+        $subrogantes_ids = array_filter([
+            $alcalde_config['subrogante_1_id'],
+            $alcalde_config['subrogante_2_id'],
+            $alcalde_config['subrogante_3_id']
+        ]);
+        
+        if (!empty($subrogantes_ids)) {
+            $ids_str = implode(',', $subrogantes_ids);
+            $result_subs = $conn->query("SELECT id, nombres, apellidos, correo FROM directores WHERE id IN ($ids_str) AND activo = 1");
+            if ($result_subs) {
+                while ($sub = $result_subs->fetch_assoc()) {
+                    $alcalde_subrogantes[] = $sub;
+                }
+            }
+        }
+    }
+}
 
 // Obtener todos los usuarios para envío de contraseñas
 $usuarios_password_query = "SELECT id, nombre, email, perfil FROM usuarios WHERE activo = 1 AND email IS NOT NULL AND email != '' ORDER BY nombre";
@@ -873,6 +905,47 @@ $meses = [
                                                     <em>No hay auditores registrados con correo.</em>
                                                 <?php endif; ?>
                                             </small>
+                                        </div>
+                                        
+                                        <!-- Checkbox para enviar al alcalde -->
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="enviar_a_alcalde" value="1" id="checkAlcalde" 
+                                                       <?= !$alcalde_config ? 'disabled' : '' ?>
+                                                       onchange="document.getElementById('alcaldeDestinatarios').style.display = this.checked ? 'block' : 'none';">
+                                                <label class="form-check-label" for="checkAlcalde">
+                                                    <strong>Enviar también a Alcalde/Subrogante</strong>
+                                                </label>
+                                            </div>
+                                            <?php if ($alcalde_config): ?>
+                                                <div id="alcaldeDestinatarios" style="display:none;" class="ms-4 mt-2 p-2 border rounded bg-light">
+                                                    <small class="d-block text-muted mb-2">Seleccione destinatario:</small>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="alcalde_destinatario" value="alcalde" id="radioAlcalde" checked>
+                                                        <label class="form-check-label" for="radioAlcalde">
+                                                            <strong>Alcalde:</strong> <?= htmlspecialchars($alcalde_config['nombre'] . ' ' . $alcalde_config['apellidos']) ?>
+                                                            <br><small class="text-muted"><?= htmlspecialchars($alcalde_config['correo']) ?></small>
+                                                        </label>
+                                                    </div>
+                                                    <?php foreach ($alcalde_subrogantes as $idx => $sub): ?>
+                                                        <div class="form-check mt-2">
+                                                            <input class="form-check-input" type="radio" name="alcalde_destinatario" value="<?= $sub['id'] ?>" id="radioSub<?= $sub['id'] ?>">
+                                                            <label class="form-check-label" for="radioSub<?= $sub['id'] ?>">
+                                                                <strong>Subrogante <?= $idx + 1 ?>:</strong> <?= htmlspecialchars($sub['apellidos'] . ', ' . $sub['nombres']) ?>
+                                                                <br><small class="text-muted"><?= htmlspecialchars($sub['correo']) ?></small>
+                                                            </label>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <small class="text-muted ms-4 d-block mt-1">
+                                                    Recibirá el <strong>resumen completo de todas las direcciones</strong> (igual que auditores).
+                                                </small>
+                                            <?php else: ?>
+                                                <small class="text-warning ms-4 d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle"></i> No hay alcalde configurado. 
+                                                    <a href="<?= SITE_URL ?>admin/configuracion/">Configurar alcalde</a>.
+                                                </small>
+                                            <?php endif; ?>
                                         </div>
                                         
                                         <div class="alert alert-warning py-2">

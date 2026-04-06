@@ -842,7 +842,7 @@ class CorreoManager {
      * Cada director recibe solo los ítems de sus direcciones asignadas
      * Opcionalmente puede enviar también a auditores con resumen completo
      */
-    public function enviarFinProcesoGeneral($mes, $ano, $enviar_a_auditores = false) {
+    public function enviarFinProcesoGeneral($mes, $ano, $enviar_a_auditores = false, $enviar_a_alcalde = false, $alcalde_subrogante_id = null) {
         $plantilla = $this->obtenerPlantilla('fin_proceso_general');
         
         if (!$plantilla) {
@@ -991,8 +991,103 @@ class CorreoManager {
             $fallidos += $auditores_fallidos;
         }
         
+        // ENVÍO AL ALCALDE O SUBROGANTE (resumen completo del municipio)
+        $alcalde_exitoso = 0;
+        $alcalde_fallido = 0;
+        
+        if ($enviar_a_alcalde) {
+            // Obtener configuración del alcalde
+            $stmt_alcalde = $this->conn->prepare("SELECT * FROM configuracion_alcalde WHERE activo = 1 LIMIT 1");
+            $stmt_alcalde->execute();
+            $config_alcalde = $stmt_alcalde->get_result()->fetch_assoc();
+            $stmt_alcalde->close();
+            
+            if (!$config_alcalde) {
+                throw new Exception('No hay configuración del alcalde disponible');
+            }
+            
+            // Determinar destinatario (alcalde o subrogante)
+            $destinatario_nombre = '';
+            $destinatario_correo = '';
+            $tipo_destinatario = 'alcalde';
+            
+            if ($alcalde_subrogante_id === 'alcalde' || $alcalde_subrogante_id === null) {
+                // Enviar al alcalde titular
+                $destinatario_nombre = $config_alcalde['nombre'] . ' ' . $config_alcalde['apellidos'];
+                $destinatario_correo = $config_alcalde['correo'];
+                $tipo_destinatario = 'alcalde';
+            } else {
+                // Enviar a subrogante (es un director_id)
+                $stmt_sub = $this->conn->prepare("SELECT nombres, apellidos, correo FROM directores WHERE id = ? AND activo = 1");
+                $stmt_sub->bind_param('i', $alcalde_subrogante_id);
+                $stmt_sub->execute();
+                $subrogante = $stmt_sub->get_result()->fetch_assoc();
+                $stmt_sub->close();
+                
+                if (!$subrogante) {
+                    throw new Exception('Subrogante no encontrado o inactivo');
+                }
+                
+                $destinatario_nombre = $subrogante['nombres'] . ' ' . $subrogante['apellidos'];
+                $destinatario_correo = $subrogante['correo'];
+                $tipo_destinatario = 'subrogante';
+            }
+            
+            // Generar resumen completo del municipio (igual que auditores)
+            $resumen_completo = $this->obtenerResumenGeneralMunicipio($mes, $ano);
+            
+            try {
+                $variables = [
+                    '{nombre_director}' => $destinatario_nombre,
+                    '{cargo_rol}' => 'Sr. Alcalde',
+                    '{direcciones_director}' => 'Todas las direcciones del municipio',
+                    '{mes_carga}' => $this->nombreMes($mes),
+                    '{ano_carga}' => $ano,
+                    '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+                    '{resumen_general}' => $resumen_completo,
+                    '{enlace_resumen}' => $enlace_resumen
+                ];
+                
+                $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+                $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+                
+                if ($this->email_sender->enviarCorreo($destinatario_correo, $asunto, $cuerpo, $destinatario_nombre)) {
+                    $alcalde_exitoso = 1;
+                    $detalles[] = [
+                        'tipo' => $tipo_destinatario,
+                        'nombre' => $destinatario_nombre,
+                        'email' => $destinatario_correo,
+                        'estado' => 'exitoso'
+                    ];
+                } else {
+                    $alcalde_fallido = 1;
+                    $detalles[] = [
+                        'tipo' => $tipo_destinatario,
+                        'nombre' => $destinatario_nombre,
+                        'email' => $destinatario_correo,
+                        'estado' => 'fallido',
+                        'error' => $this->email_sender->getError()
+                    ];
+                }
+            } catch (Exception $e) {
+                $alcalde_fallido = 1;
+                $detalles[] = [
+                    'tipo' => $tipo_destinatario,
+                    'nombre' => $destinatario_nombre,
+                    'email' => $destinatario_correo,
+                    'estado' => 'fallido',
+                    'error' => $e->getMessage()
+                ];
+            }
+            
+            $exitosos += $alcalde_exitoso;
+            $fallidos += $alcalde_fallido;
+        }
+        
         // Registrar en historial
-        $total_destinatarios = count($directores) + ($enviar_a_auditores ? count($this->obtenerAuditoresConCorreo()) : 0);
+        $num_auditores = $enviar_a_auditores ? count($this->obtenerAuditoresConCorreo()) : 0;
+        $num_alcalde = $enviar_a_alcalde ? 1 : 0;
+        $total_destinatarios = count($directores) + $num_auditores + $num_alcalde;
         $this->registrarHistorial($plantilla['id'], 'masivo', null, $total_destinatarios, $mes, $ano, $exitosos, $fallidos, $detalles);
         
         return [
@@ -1000,7 +1095,8 @@ class CorreoManager {
             'fallidos' => $fallidos,
             'total' => $total_destinatarios,
             'directores' => count($directores),
-            'auditores' => $enviar_a_auditores ? ($auditores_exitosos + $auditores_fallidos) : 0,
+            'auditores' => $num_auditores,
+            'alcalde' => $num_alcalde,
             'enlace_resumen' => $enlace_resumen
         ];
     }
