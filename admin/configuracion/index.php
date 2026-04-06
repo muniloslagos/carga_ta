@@ -50,11 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Actualizar
                 $alcalde_id = $check->fetch_assoc()['id'];
                 $stmt = $conn->prepare("UPDATE configuracion_alcalde SET nombre = ?, apellidos = ?, correo = ?, subrogante_1_id = ?, subrogante_2_id = ?, subrogante_3_id = ?, modificado_por = ? WHERE id = ?");
-                $stmt->bind_param('sssiiii', $nombre, $apellidos, $correo, $subrogante_1, $subrogante_2, $subrogante_3, $_SESSION['user_id'], $alcalde_id);
+                $stmt->bind_param('sssiiiii', $nombre, $apellidos, $correo, $subrogante_1, $subrogante_2, $subrogante_3, $_SESSION['user_id'], $alcalde_id);
             } else {
                 // Insertar nuevo
                 $stmt = $conn->prepare("INSERT INTO configuracion_alcalde (nombre, apellidos, correo, subrogante_1_id, subrogante_2_id, subrogante_3_id, modificado_por) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param('sssiii', $nombre, $apellidos, $correo, $subrogante_1, $subrogante_2, $subrogante_3, $_SESSION['user_id']);
+                $stmt->bind_param('sssiiii', $nombre, $apellidos, $correo, $subrogante_1, $subrogante_2, $subrogante_3, $_SESSION['user_id']);
             }
             
             if ($stmt->execute()) {
