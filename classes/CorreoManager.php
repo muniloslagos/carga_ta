@@ -383,7 +383,20 @@ class CorreoManager {
         
         // Filtrar por mes si se proporciona
         if ($mes !== null) {
-            $query .= " AND (i.periodicidad = 'mensual' OR (i.periodicidad = 'anual' AND i.mes_carga_anual = $mes))";
+            // Meses para trimestrales: 3, 6, 9, 12
+            $mesesTrimestral = [3, 6, 9, 12];
+            $esMesTrimestral = in_array($mes, $mesesTrimestral) ? 'TRUE' : 'FALSE';
+            
+            // Meses para semestrales: 1, 7
+            $mesesSemestral = [1, 7];
+            $esMesSemestral = in_array($mes, $mesesSemestral) ? 'TRUE' : 'FALSE';
+            
+            $query .= " AND (
+                i.periodicidad = 'mensual' 
+                OR (i.periodicidad = 'trimestral' AND $esMesTrimestral)
+                OR (i.periodicidad = 'semestral' AND $esMesSemestral)
+                OR (i.periodicidad = 'anual' AND i.mes_carga_anual = $mes)
+            )";
         }
         
         $query .= " ORDER BY i.numeracion, i.nombre";
@@ -1010,7 +1023,20 @@ class CorreoManager {
         
         // Filtrar por mes si se proporciona
         if ($mes !== null) {
-            $sql .= " AND (periodicidad = 'mensual' OR (periodicidad = 'anual' AND mes_carga_anual = $mes))";
+            // Meses para trimestrales: 3, 6, 9, 12
+            $mesesTrimestral = [3, 6, 9, 12];
+            $esMesTrimestral = in_array($mes, $mesesTrimestral) ? 'TRUE' : 'FALSE';
+            
+            // Meses para semestrales: 1, 7
+            $mesesSemestral = [1, 7];
+            $esMesSemestral = in_array($mes, $mesesSemestral) ? 'TRUE' : 'FALSE';
+            
+            $sql .= " AND (
+                periodicidad = 'mensual' 
+                OR (periodicidad = 'trimestral' AND $esMesTrimestral)
+                OR (periodicidad = 'semestral' AND $esMesSemestral)
+                OR (periodicidad = 'anual' AND mes_carga_anual = $mes)
+            )";
         }
         
         $sql .= " ORDER BY nombre";
