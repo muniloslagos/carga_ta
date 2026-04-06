@@ -21,7 +21,7 @@ class CorreoManager {
     /**
      * Enviar correo de inicio de proceso a todos los cargadores
      */
-    public function enviarInicioProceso($mes, $ano) {
+    public function enviarInicioProceso($mes, $ano, $enviar_a_directores = false) {
         // Obtener plantilla
         $plantilla = $this->obtenerPlantilla('inicio_proceso');
         
@@ -48,6 +48,7 @@ class CorreoManager {
         $fallidos = 0;
         $detalles = [];
         
+        // ENVÍO A CARGADORES
         foreach ($cargadores as $cargador) {
             try {
                 // Reemplazar variables en la plantilla
@@ -68,6 +69,7 @@ class CorreoManager {
                 if ($this->email_sender->enviarCorreo($cargador['email'], $asunto, $cuerpo, $cargador['nombre'])) {
                     $exitosos++;
                     $detalles[] = [
+                        'tipo' => 'cargador',
                         'usuario_id' => $cargador['id'],
                         'email' => $cargador['email'],
                         'estado' => 'exitoso'
@@ -75,6 +77,7 @@ class CorreoManager {
                 } else {
                     $fallidos++;
                     $detalles[] = [
+                        'tipo' => 'cargador',
                         'usuario_id' => $cargador['id'],
                         'email' => $cargador['email'],
                         'estado' => 'fallido',
@@ -85,6 +88,7 @@ class CorreoManager {
             } catch (Exception $e) {
                 $fallidos++;
                 $detalles[] = [
+                    'tipo' => 'cargador',
                     'usuario_id' => $cargador['id'],
                     'email' => $cargador['email'],
                     'estado' => 'fallido',
@@ -93,13 +97,83 @@ class CorreoManager {
             }
         }
         
+        // ENVÍO A DIRECTORES (opcional)
+        $directores_exitosos = 0;
+        $directores_fallidos = 0;
+        
+        if ($enviar_a_directores) {
+            $directores = $this->obtenerDirectoresConCorreo();
+            
+            foreach ($directores as $director) {
+                try {
+                    // Obtener ítems de las direcciones del director
+                    $items_director = $this->obtenerItemsDirector($director['id']);
+                    
+                    if (empty($items_director)) {
+                        // Si no tiene ítems, saltar este director
+                        continue;
+                    }
+                    
+                    // Reemplazar variables
+                    $variables = [
+                        '{nombre_usuario}' => $director['nombre_completo'],
+                        '{mes_carga}' => $this->nombreMes($mes),
+                        '{ano_carga}' => $ano,
+                        '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
+                        '{items_asignados}' => $this->generarListaItems($items_director),
+                        '{plazo_dias}' => $plazo_dias,
+                        '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+                    ];
+                    
+                    $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+                    $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+                    
+                    // Enviar correo
+                    if ($this->email_sender->enviarCorreo($director['correo'], $asunto, $cuerpo, $director['nombre_completo'])) {
+                        $directores_exitosos++;
+                        $detalles[] = [
+                            'tipo' => 'director',
+                            'director_id' => $director['id'],
+                            'email' => $director['correo'],
+                            'estado' => 'exitoso'
+                        ];
+                    } else {
+                        $directores_fallidos++;
+                        $detalles[] = [
+                            'tipo' => 'director',
+                            'director_id' => $director['id'],
+                            'email' => $director['correo'],
+                            'estado' => 'fallido',
+                            'error' => $this->email_sender->getError()
+                        ];
+                    }
+                    
+                } catch (Exception $e) {
+                    $directores_fallidos++;
+                    $detalles[] = [
+                        'tipo' => 'director',
+                        'director_id' => $director['id'],
+                        'email' => $director['correo'],
+                        'estado' => 'fallido',
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+            
+            $exitosos += $directores_exitosos;
+            $fallidos += $directores_fallidos;
+        }
+        
         // Registrar en historial
-        $this->registrarHistorial($plantilla['id'], 'masivo', null, count($cargadores), $mes, $ano, $exitosos, $fallidos, $detalles);
+        $total_destinatarios = count($cargadores) + ($enviar_a_directores ? ($directores_exitosos + $directores_fallidos) : 0);
+        $this->registrarHistorial($plantilla['id'], 'masivo', null, $total_destinatarios, $mes, $ano, $exitosos, $fallidos, $detalles);
         
         return [
             'exitosos' => $exitosos,
             'fallidos' => $fallidos,
-            'total' => count($cargadores)
+            'total' => $total_destinatarios,
+            'cargadores' => count($cargadores),
+            'directores' => $enviar_a_directores ? ($directores_exitosos + $directores_fallidos) : 0
         ];
     }
     
@@ -819,6 +893,48 @@ class CorreoManager {
             $auditores[] = $row;
         }
         return $auditores;
+    }
+    
+    /**
+     * Obtener ítems de las direcciones asignadas a un director
+     */
+    private function obtenerItemsDirector($director_id) {
+        // Obtener direcciones del director
+        $stmt = $this->conn->prepare("SELECT id FROM direcciones WHERE director_id = ? AND activa = 1");
+        $stmt->bind_param('i', $director_id);
+        $stmt->execute();
+        $resultado = $stmt->get_result();
+        
+        $direccion_ids = [];
+        while ($row = $resultado->fetch_assoc()) {
+            $direccion_ids[] = $row['id'];
+        }
+        $stmt->close();
+        
+        if (empty($direccion_ids)) {
+            return [];
+        }
+        
+        // Obtener ítems de esas direcciones
+        $placeholders = implode(',', array_fill(0, count($direccion_ids), '?'));
+        $types = str_repeat('i', count($direccion_ids));
+        
+        $sql = "SELECT id, nombre, periodicidad FROM items_transparencia 
+                WHERE direccion_id IN ($placeholders) AND activo = 1 
+                ORDER BY nombre";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param($types, ...$direccion_ids);
+        $stmt->execute();
+        $resultado = $stmt->get_result();
+        
+        $items = [];
+        while ($row = $resultado->fetch_assoc()) {
+            $items[] = $row;
+        }
+        $stmt->close();
+        
+        return $items;
     }
     
     /**

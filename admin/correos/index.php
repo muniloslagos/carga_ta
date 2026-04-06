@@ -60,11 +60,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $mes = (int)$_POST['mes_periodo'];
             $ano = (int)$_POST['ano_periodo'];
+            $enviar_a_directores = isset($_POST['enviar_a_directores_inicio']) && $_POST['enviar_a_directores_inicio'] === '1';
             
             $correo_manager = new CorreoManager();
-            $resultado = $correo_manager->enviarInicioProceso($mes, $ano);
+            $resultado = $correo_manager->enviarInicioProceso($mes, $ano, $enviar_a_directores);
             
-            $mensaje = "Envío masivo completado: {$resultado['exitosos']} correos enviados, {$resultado['fallidos']} fallidos";
+            $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados ({$resultado['cargadores']} cargadores";
+            if ($resultado['directores'] > 0) {
+                $mensaje .= ", {$resultado['directores']} directores";
+            }
+            $mensaje .= "), {$resultado['fallidos']} fallidos";
             $tipo_mensaje = $resultado['fallidos'] > 0 ? 'warning' : 'success';
             
         } catch (Exception $e) {
@@ -312,6 +317,58 @@ $meses = [
 
                     <hr>
 
+                    <!-- Destinatarios: Directores (Opcional) -->
+                    <h5><i class="bi bi-person-badge"></i> Directores (Opcional)</h5>
+                    <div class="alert alert-info py-2 mb-3">
+                        <small><i class="bi bi-info-circle"></i> <strong>Nota:</strong> Los directores recibirán la notificación de inicio de proceso con los <strong>ítems de SUS direcciones asignadas</strong>.</small>
+                    </div>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Director</th>
+                                    <th>Correo</th>
+                                    <th>Direcciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $hay_directores_inicio = false;
+                                if ($directores_list && $directores_list->num_rows > 0):
+                                    // Reset pointer
+                                    $directores_list->data_seek(0);
+                                    while ($dir = $directores_list->fetch_assoc()): 
+                                        $hay_directores_inicio = true;
+                                        // Obtener nombres de direcciones
+                                        $dir_query = $conn->query("SELECT nombre FROM direcciones WHERE director_id = {$dir['id']} AND activa = 1 ORDER BY nombre");
+                                        $dir_nombres = [];
+                                        while ($d = $dir_query->fetch_assoc()) {
+                                            $dir_nombres[] = $d['nombre'];
+                                        }
+                                        $texto_dir = !empty($dir_nombres) ? implode(', ', $dir_nombres) : 'Sin dirección';
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($dir['nombres'] . ' ' . $dir['apellidos']) ?></td>
+                                        <td><?= htmlspecialchars($dir['correo']) ?></td>
+                                        <td><small><?= htmlspecialchars($texto_dir) ?></small></td>
+                                    </tr>
+                                <?php 
+                                    endwhile;
+                                endif;
+                                if (!$hay_directores_inicio): ?>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">
+                                            No hay directores con correo registrado. 
+                                            <a href="<?= SITE_URL ?>admin/directores/">Agregar directores</a>.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
                     <!-- Formulario de Envío -->
                     <h5><i class="bi bi-send"></i> Enviar Notificaciones</h5>
                     
@@ -340,8 +397,26 @@ $meses = [
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        <!-- Checkbox para enviar a directores -->
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="enviar_a_directores_inicio" value="1" id="checkDirectoresInicio" <?= !$hay_directores_inicio ? 'disabled' : '' ?>>
+                                                <label class="form-check-label" for="checkDirectoresInicio">
+                                                    <strong>Enviar también a Directores</strong>
+                                                </label>
+                                            </div>
+                                            <small class="text-muted ms-4">
+                                                <?php if ($hay_directores_inicio): ?>
+                                                    Los directores recibirán los <strong>ítems de sus direcciones asignadas</strong>.
+                                                <?php else: ?>
+                                                    <em>No hay directores registrados con correo.</em>
+                                                <?php endif; ?>
+                                            </small>
+                                        </div>
+                                        
                                         <button type="submit" name="enviar_masivo_inicio" class="btn btn-success w-100">
-                                            <i class="bi bi-send-fill"></i> Enviar a Todos los Cargadores
+                                            <i class="bi bi-send-fill"></i> Enviar Notificación de Inicio
                                         </button>
                                     </form>
                                 </div>
