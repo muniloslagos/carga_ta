@@ -9,6 +9,18 @@ if (!defined('SITE_NAME')) {
     require_once dirname(__DIR__) . '/config/config.php';
 }
 
+// Calcular la URL base del proyecto dinámicamente
+if (!defined('BASE_PATH')) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+    $host = $_SERVER['HTTP_HOST'];
+    $script = $_SERVER['SCRIPT_NAME'];
+    $base = dirname(dirname($script));
+    if ($base === '/' || $base === '\\') {
+        $base = '';
+    }
+    define('BASE_PATH', $base);
+}
+
 // Inicializar base de datos si no existe
 if (!isset($db)) {
     require_once dirname(__DIR__) . '/config/Database.php';
@@ -145,7 +157,7 @@ if ($is_logged_in && $current_profile === 'publicador') {
                             </span>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>mis_datos.php">
+                            <a class="nav-link text-light" href="<?php echo BASE_PATH; ?>/mis_datos.php">
                                 <i class="bi bi-gear" style="color: #95a5a6;"></i> Mis Datos
                             </a>
                         </li>
