@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
   `usuario_id` int(11) NOT NULL,
   `token` varchar(64) NOT NULL,
   `fecha_creacion` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `fecha_expiracion` timestamp NOT NULL,
+  `fecha_expiracion` timestamp NULL,
   `usado` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `token` (`token`),
