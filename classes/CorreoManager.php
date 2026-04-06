@@ -353,7 +353,7 @@ class CorreoManager {
                 'estado' => 'exitoso'
             ]
         ];
-        $this->registrarHistorial($plantilla['id'], 'individual', $director['id'], 1, $mes, $ano, 1, 0, $detalles);
+        $this->registrarHistorial($plantilla['id'], 'individual', null, 1, $mes, $ano, 1, 0, $detalles, $director['id']);
         
         return true;
     }
@@ -495,19 +495,20 @@ class CorreoManager {
     /**
      * Registrar envío en historial
      */
-    private function registrarHistorial($plantilla_id, $tipo_envio, $destinatario_id, $destinatarios_count, $mes, $ano, $exitosos, $fallidos, $detalles) {
+    private function registrarHistorial($plantilla_id, $tipo_envio, $destinatario_id, $destinatarios_count, $mes, $ano, $exitosos, $fallidos, $detalles, $director_destinatario_id = null) {
         global $_SESSION;
         
         $detalles_json = json_encode($detalles, JSON_UNESCAPED_UNICODE);
         
         $stmt = $this->conn->prepare("INSERT INTO historial_envios_correo 
-            (plantilla_id, tipo_envio, destinatario_id, destinatarios_count, mes_periodo, ano_periodo, correos_enviados, correos_fallidos, detalles_envio, enviado_por)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            (plantilla_id, tipo_envio, destinatario_id, director_destinatario_id, destinatarios_count, mes_periodo, ano_periodo, correos_enviados, correos_fallidos, detalles_envio, enviado_por)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         
-        $stmt->bind_param('isiiiiiisi', 
+        $stmt->bind_param('isiiiiiiisi', 
             $plantilla_id,
             $tipo_envio,
             $destinatario_id,
+            $director_destinatario_id,
             $destinatarios_count,
             $mes,
             $ano,
