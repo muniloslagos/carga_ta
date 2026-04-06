@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
 
 -- Agregar nuevo tipo de plantilla al enum
 ALTER TABLE `plantillas_correo` 
-MODIFY COLUMN `tipo` enum('inicio_proceso','fin_proceso_cargadores','fin_proceso_general','recuperar_password') NOT NULL;
+MODIFY COLUMN `tipo` enum('inicio_proceso','fin_proceso_cargadores','fin_proceso_general','documento_observado','recuperar_password') NOT NULL;
 
 -- Insertar plantilla de correo para recuperación de contraseña
 INSERT INTO `plantillas_correo` (`tipo`, `asunto`, `cuerpo`, `variables_disponibles`, `activo`) 
