@@ -32,9 +32,9 @@ $is_logged_in = isset($_SESSION['user_id']);
 $current_user = $is_logged_in && isset($_SESSION['user']) ? $_SESSION['user'] : null;
 $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['profile'] : null;
 
-// Para publicadores: obtener o generar token del resumen público
+// Para todos los usuarios: obtener o generar token del resumen público
 $tokenResumenPublico = null;
-if ($is_logged_in && $current_profile === 'publicador') {
+if ($is_logged_in) {
     $conn = $db->getConnection();
     $checkTokenTable = $conn->query("SHOW TABLES LIKE 'resumen_publico_tokens'");
     
@@ -126,23 +126,17 @@ if ($is_logged_in && $current_profile === 'publicador') {
                                 <i class="bi bi-house"></i> Mi Panel
                             </a>
                         </li>
-                    <?php elseif ($is_logged_in && $current_profile === 'publicador'): ?>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
-                                <i class="bi bi-house"></i> Mi Panel
-                            </a>
-                        </li>
-                        <?php if ($tokenResumenPublico): ?>
-                        <li class="nav-item">
-                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" target="_blank">
-                                <i class="bi bi-file-earmark-text"></i> Resumen
-                            </a>
-                        </li>
-                        <?php endif; ?>
                     <?php elseif ($is_logged_in): ?>
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
                                 <i class="bi bi-house"></i> Mi Panel
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                    <?php if ($is_logged_in && $tokenResumenPublico): ?>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" target="_blank">
+                                <i class="bi bi-file-earmark-text"></i> Resumen General
                             </a>
                         </li>
                     <?php endif; ?>
