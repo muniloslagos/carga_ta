@@ -26,6 +26,11 @@ TRUNCATE TABLE `observaciones_sin_movimiento`;
 -- ============================================================================
 -- IMPORTANTE: Después de ejecutar esto, eliminar manualmente la carpeta uploads/
 -- o su contenido para liberar espacio en disco
+
+-- Primero eliminar el seguimiento de documentos (tiene FK hacia documentos)
+TRUNCATE TABLE `documento_seguimiento`;
+
+-- Luego eliminar los documentos
 TRUNCATE TABLE `documentos`;
 
 -- ============================================================================
@@ -45,6 +50,7 @@ TRUNCATE TABLE `documentos`;
 -- RESUMEN DE LO QUE SE ELIMINÓ:
 -- ============================================================================
 -- ✗ Todos los documentos cargados (tabla documentos)
+-- ✗ Todo el seguimiento de documentos (tabla documento_seguimiento)
 -- ✗ Todas las observaciones de documentos
 -- ✗ Todas las observaciones de items sin movimiento
 
@@ -54,6 +60,7 @@ TRUNCATE TABLE `documentos`;
 -- Ejecutar estas consultas para verificar el reset:
 
 SELECT 'Documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM documentos;
+SELECT 'Seguimiento de documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM documento_seguimiento;
 SELECT 'Observaciones de documentos restantes:' AS verificacion, COUNT(*) AS cantidad FROM observaciones_documentos;
 SELECT 'Observaciones sin movimiento restantes:' AS verificacion, COUNT(*) AS cantidad FROM observaciones_sin_movimiento;
 
