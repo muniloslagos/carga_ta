@@ -31,16 +31,26 @@ mysqldump -u usuario -p nombre_db > backup_antes_reset_$(date +%Y%m%d_%H%M%S).sq
 
 ### Paso 2: Ejecutar Reset SQL
 
+#### ⚠️ IMPORTANTE: Error Común
+
+Si ves el error `#1701 - Cannot truncate a table referenced in a foreign key constraint`, significa que estás ejecutando líneas individuales en lugar del script completo.
+
+**Ver: [COMO_EJECUTAR_RESET.md](COMO_EJECUTAR_RESET.md) para instrucciones detalladas**
+
+#### Desde Terminal (Recomendado)
+
 ```bash
-# Conectarse a MySQL
-mysql -u usuario -p nombre_db
-
-# Ejecutar el script
-source sql/reset_sistema.sql;
-
-# O desde la terminal directamente:
+# Conectarse a MySQL y ejecutar
 mysql -u usuario -p nombre_db < sql/reset_sistema.sql
 ```
+
+#### Desde phpMyAdmin
+
+1. Ve a la pestaña **Importar** (NO SQL)
+2. Selecciona el archivo `sql/reset_sistema.sql`
+3. Haz clic en "Continuar"
+
+**NO copies y pegues líneas individuales en la pestaña SQL**
 
 ### Paso 3: Eliminar Archivos Físicos
 

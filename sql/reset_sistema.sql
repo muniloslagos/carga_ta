@@ -8,9 +8,15 @@
 -- - Ejecutar SOLO en ambiente de producción cuando se vaya a iniciar operación real
 -- - Los archivos físicos en uploads/ deben eliminarse MANUALMENTE
 -- - El historial de correos y tokens públicos se MANTIENEN
+-- - EJECUTAR EL SCRIPT COMPLETO, NO LÍNEA POR LÍNEA (usar SOURCE o importar archivo)
 --
 -- Fecha: 2026-04-06
 -- ============================================================================
+
+-- ⚠️ ADVERTENCIA: Este script debe ejecutarse COMPLETO desde el inicio
+-- Si ejecutas solo partes de él, obtendrás errores de foreign key constraints
+-- Usa: mysql -u usuario -p db_name < reset_sistema.sql
+-- O en phpMyAdmin: Importar > Seleccionar archivo > Ejecutar
 
 -- Desactivar verificación de claves foráneas temporalmente
 SET FOREIGN_KEY_CHECKS = 0;
@@ -18,6 +24,10 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================================
 -- 1. ELIMINAR OBSERVACIONES DE DOCUMENTOS
 -- ============================================================================
+-- ⚠️ IMPORTANTE: Si ves error "Cannot truncate a table referenced in a foreign key"
+-- es porque estás ejecutando líneas individuales en lugar del script completo.
+-- Debes ejecutar TODO el archivo desde el inicio para que SET FOREIGN_KEY_CHECKS funcione.
+
 TRUNCATE TABLE `observaciones_documentos`;
 TRUNCATE TABLE `observaciones_sin_movimiento`;
 
