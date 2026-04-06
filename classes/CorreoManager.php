@@ -41,8 +41,8 @@ class CorreoManager {
         $plazo_dias = 6;
         $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
         
-        // Obtener todos los cargadores con sus ítems asignados
-        $cargadores = $this->obtenerCargadoresConItems();
+        // Obtener todos los cargadores con sus ítems asignados para este mes
+        $cargadores = $this->obtenerCargadoresConItems($mes);
         
         $exitosos = 0;
         $fallidos = 0;
@@ -106,8 +106,8 @@ class CorreoManager {
             
             foreach ($directores as $director) {
                 try {
-                    // Obtener ítems de las direcciones del director
-                    $items_director = $this->obtenerItemsDirector($director['id']);
+                    // Obtener ítems de las direcciones del director para este mes
+                    $items_director = $this->obtenerItemsDirector($director['id'], $mes);
                     
                     if (empty($items_director)) {
                         // Si no tiene ítems, saltar este director
@@ -188,11 +188,11 @@ class CorreoManager {
             throw new Exception('No se encontró la plantilla de inicio de proceso');
         }
         
-        // Obtener datos del cargador
-        $cargador = $this->obtenerCargadorConItems($usuario_id);
+        // Obtener datos del cargador con ítems del mes
+        $cargador = $this->obtenerCargadorConItems($usuario_id, $mes);
         
         if (!$cargador) {
-            throw new Exception('No se encontró el cargador o no tiene ítems asignados');
+            throw new Exception('No se encontró el cargador o no tiene ítems asignados para este mes');
         }
         
         // Calcular fechas
@@ -264,11 +264,11 @@ class CorreoManager {
             throw new Exception('No se encontró el director o no tiene correo registrado');
         }
         
-        // Obtener ítems de las direcciones del director
-        $items_director = $this->obtenerItemsDirector($director_id);
+        // Obtener ítems de las direcciones del director para este mes
+        $items_director = $this->obtenerItemsDirector($director_id, $mes);
         
         if (empty($items_director)) {
-            throw new Exception('El director no tiene ítems asignados (sin direcciones con ítems)');
+            throw new Exception('El director no tiene ítems asignados para este mes');
         }
         
         // Calcular fechas
@@ -330,7 +330,7 @@ class CorreoManager {
     /**
      * Obtener todos los cargadores con sus ítems asignados
      */
-    private function obtenerCargadoresConItems() {
+    private function obtenerCargadoresConItems($mes = null) {
         $query = "SELECT DISTINCT 
                     u.id, 
                     u.nombre, 
@@ -345,7 +345,7 @@ class CorreoManager {
         $cargadores = [];
         
         while ($row = $result->fetch_assoc()) {
-            $row['items'] = $this->obtenerItemsUsuario($row['id']);
+            $row['items'] = $this->obtenerItemsUsuario($row['id'], $mes);
             $cargadores[] = $row;
         }
         
@@ -355,7 +355,7 @@ class CorreoManager {
     /**
      * Obtener un cargador específico con sus ítems
      */
-    private function obtenerCargadorConItems($usuario_id) {
+    private function obtenerCargadorConItems($usuario_id, $mes = null) {
         $stmt = $this->conn->prepare("SELECT id, nombre, email 
             FROM usuarios 
             WHERE id = ? AND perfil = 'cargador_informacion' AND activo = 1");
@@ -365,7 +365,7 @@ class CorreoManager {
         $cargador = $result->fetch_assoc();
         
         if ($cargador) {
-            $cargador['items'] = $this->obtenerItemsUsuario($usuario_id);
+            $cargador['items'] = $this->obtenerItemsUsuario($usuario_id, $mes);
         }
         
         return $cargador;
@@ -373,13 +373,22 @@ class CorreoManager {
     
     /**
      * Obtener ítems asignados a un usuario
+     * Si se proporciona $mes, filtra solo los ítems que corresponden a ese mes
      */
-    private function obtenerItemsUsuario($usuario_id) {
-        $stmt = $this->conn->prepare("SELECT i.id, i.nombre, i.numeracion, i.periodicidad, i.mes_carga_anual
+    private function obtenerItemsUsuario($usuario_id, $mes = null) {
+        $query = "SELECT i.id, i.nombre, i.numeracion, i.periodicidad, i.mes_carga_anual
             FROM items_transparencia i
             INNER JOIN item_usuarios ui ON i.id = ui.item_id
-            WHERE ui.usuario_id = ? AND i.activo = 1
-            ORDER BY i.numeracion, i.nombre");
+            WHERE ui.usuario_id = ? AND i.activo = 1";
+        
+        // Filtrar por mes si se proporciona
+        if ($mes !== null) {
+            $query .= " AND (i.periodicidad = 'mensual' OR (i.periodicidad = 'anual' AND i.mes_carga_anual = $mes))";
+        }
+        
+        $query .= " ORDER BY i.numeracion, i.nombre";
+        
+        $stmt = $this->conn->prepare($query);
         $stmt->bind_param('i', $usuario_id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -975,7 +984,7 @@ class CorreoManager {
     /**
      * Obtener ítems de las direcciones asignadas a un director
      */
-    private function obtenerItemsDirector($director_id) {
+    private function obtenerItemsDirector($director_id, $mes = null) {
         // Obtener direcciones del director
         $stmt = $this->conn->prepare("SELECT id FROM direcciones WHERE director_id = ? AND activa = 1");
         $stmt->bind_param('i', $director_id);
@@ -996,9 +1005,15 @@ class CorreoManager {
         $placeholders = implode(',', array_fill(0, count($direccion_ids), '?'));
         $types = str_repeat('i', count($direccion_ids));
         
-        $sql = "SELECT id, nombre, periodicidad FROM items_transparencia 
-                WHERE direccion_id IN ($placeholders) AND activo = 1 
-                ORDER BY nombre";
+        $sql = "SELECT id, nombre, periodicidad, mes_carga_anual FROM items_transparencia 
+                WHERE direccion_id IN ($placeholders) AND activo = 1";
+        
+        // Filtrar por mes si se proporciona
+        if ($mes !== null) {
+            $sql .= " AND (periodicidad = 'mensual' OR (periodicidad = 'anual' AND mes_carga_anual = $mes))";
+        }
+        
+        $sql .= " ORDER BY nombre";
         
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param($types, ...$direccion_ids);
