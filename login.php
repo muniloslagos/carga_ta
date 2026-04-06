@@ -38,14 +38,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $usuarioClass->authenticate($email, $password);
 
         if ($user) {
+            // Obtener perfiles asignados al usuario
+            $perfiles = $usuarioClass->getPerfiles($user['id']);
+            
+            // Si no tiene perfiles en la nueva tabla, usar el perfil de la tabla usuarios
+            if (empty($perfiles)) {
+                $perfiles = [$user['perfil']];
+            }
+            
+            // Si tiene múltiples perfiles, guardar temporalmente y redirigir a selección
+            if (count($perfiles) > 1) {
+                $_SESSION['temp_user_id'] = $user['id'];
+                
+                // Registrar en logs
+                $action = "Inicio de sesión - Múltiples perfiles";
+                $ip = $_SERVER['REMOTE_ADDR'];
+                $conn = $db->getConnection();
+                $sql = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES ({$user['id']}, '$action', '$ip')";
+                $conn->query($sql);
+                
+                header('Location: ' . SITE_URL . 'seleccionar_perfil.php');
+                exit;
+            }
+            
+            // Si tiene un solo perfil, login directo
+            $perfil_unico = $perfiles[0];
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user'] = [
                 'id' => $user['id'],
                 'nombre' => $user['nombre'],
                 'email' => $user['email'],
-                'perfil' => $user['perfil']
+                'perfil' => $perfil_unico
             ];
-            $_SESSION['profile'] = $user['perfil'];
+            $_SESSION['profile'] = $perfil_unico;
 
             // Registrar en logs
             $action = "Inicio de sesión";
@@ -54,9 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES ({$user['id']}, '$action', '$ip')";
             $conn->query($sql);
 
-            if ($user['perfil'] === 'administrativo') {
+            if ($perfil_unico === 'administrativo') {
                 header('Location: ' . SITE_URL . 'admin/index.php');
-            } elseif ($user['perfil'] === 'publicador') {
+            } elseif ($perfil_unico === 'publicador') {
                 header('Location: ' . SITE_URL . 'usuario/dashboard.php');
             } else {
                 header('Location: ' . SITE_URL . 'usuario/dashboard.php');

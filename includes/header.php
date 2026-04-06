@@ -32,6 +32,16 @@ $is_logged_in = isset($_SESSION['user_id']);
 $current_user = $is_logged_in && isset($_SESSION['user']) ? $_SESSION['user'] : null;
 $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['profile'] : null;
 
+// Obtener perfiles múltiples del usuario si está autenticado
+$user_perfiles = [];
+$tiene_multiples_perfiles = false;
+if ($is_logged_in && $current_user) {
+    require_once dirname(__DIR__) . '/classes/Usuario.php';
+    $usuarioClass = new Usuario($db->getConnection());
+    $user_perfiles = $usuarioClass->getPerfiles($current_user['id']);
+    $tiene_multiples_perfiles = count($user_perfiles) > 1;
+}
+
 // Para todos los usuarios: obtener o generar token del resumen público
 $tokenResumenPublico = null;
 if ($is_logged_in) {
@@ -155,6 +165,14 @@ if ($is_logged_in) {
                                 <i class="bi bi-gear" style="color: #95a5a6;"></i> Mis Datos
                             </a>
                         </li>
+                        <?php if ($tiene_multiples_perfiles): ?>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>seleccionar_perfil.php" 
+                               onclick="return confirm('¿Deseas cambiar de perfil? Se cerrará la sesión actual.');">
+                                <i class="bi bi-arrow-left-right" style="color: #f39c12;"></i> Cambiar Perfil
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>logout.php">
                                 <i class="bi bi-box-arrow-right" style="color: #e74c3c;"></i> Salir
