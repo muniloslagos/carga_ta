@@ -33,6 +33,21 @@ $direccionSeleccionada = isset($_GET['direccion']) ? (int)$_GET['direccion'] : 0
 if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = $mesActual;
 if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = $anoActual;
 
+// Obtener años disponibles desde la configuración
+$anosDisponibles = [];
+$tableCheckAnos = $conn->query("SHOW TABLES LIKE 'anos_configurados'");
+if ($tableCheckAnos && $tableCheckAnos->num_rows > 0) {
+    $anosResult = $conn->query("SELECT ano FROM anos_configurados WHERE activo = 1 ORDER BY ano DESC");
+    while ($rowAno = $anosResult->fetch_assoc()) {
+        $anosDisponibles[] = (int)$rowAno['ano'];
+    }
+}
+// Fallback si no hay años configurados
+if (empty($anosDisponibles)) {
+    $anosDisponibles = range($anoActual, $anoActual - 2);
+    rsort($anosDisponibles);
+}
+
 // Obtener todas las direcciones para el filtro
 $conn = $db->getConnection();
 $direccionesResult = $conn->query("SELECT id, nombre FROM direcciones WHERE activa = 1 ORDER BY nombre");
@@ -102,7 +117,11 @@ $mesBusqueda = $mesSeleccionado;
             <div class="card-body">
                 <form method="GET" class="d-flex gap-2 flex-wrap">
                     <select name="mes" class="form-select" onchange="this.form.submit()">
-                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <?php 
+                        // Para 2026, comenzar desde marzo (mes 3)
+                        $mesInicio = ($anoSeleccionado == 2026) ? 3 : 1;
+                        for ($m = $mesInicio; $m <= 12; $m++): 
+                        ?>
                             <option value="<?php echo $m; ?>" <?php echo ($m === $mesSeleccionado) ? 'selected' : ''; ?>>
                                 <?php echo $meses[$m]; ?>
                             </option>
@@ -110,11 +129,11 @@ $mesBusqueda = $mesSeleccionado;
                     </select>
                     
                     <select name="ano" class="form-select" onchange="this.form.submit()">
-                        <?php for ($a = 2024; $a <= 2026; $a++): ?>
+                        <?php foreach ($anosDisponibles as $a): ?>
                             <option value="<?php echo $a; ?>" <?php echo ($a === $anoSeleccionado) ? 'selected' : ''; ?>>
                                 <?php echo $a; ?>
                             </option>
-                        <?php endfor; ?>
+                        <?php endforeach; ?>
                     </select>
 
                     <select name="direccion" class="form-select" onchange="this.form.submit()" style="min-width: 220px;">

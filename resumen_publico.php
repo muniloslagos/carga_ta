@@ -279,7 +279,9 @@ while ($d = $direcciones->fetch_assoc()) {
                 <span class="fw-bold text-muted"><i class="bi bi-calendar3"></i> Cambiar Período:</span>
                 <select name="mes" class="form-select form-select-sm" style="max-width: 200px;">
                     <?php
-                    for ($m = 1; $m <= 12; $m++) {
+                    // Para 2026, comenzar desde marzo (mes 3)
+                    $mesInicio = ($ano == 2026) ? 3 : 1;
+                    for ($m = $mesInicio; $m <= 12; $m++) {
                         $selected = ($mes == $m) ? 'selected' : '';
                         echo "<option value='$m' $selected>{$meses[$m]}</option>";
                     }

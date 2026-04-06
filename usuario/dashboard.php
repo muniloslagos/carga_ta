@@ -431,7 +431,9 @@ if (isset($_SESSION['success'])) {
                     <span class="fw-bold text-muted"><i class="bi bi-calendar3"></i> Período:</span>
                     <select name="mes" class="form-select form-select-sm" style="max-width: 200px;" onchange="this.form.submit();">
                         <?php
-                        for ($m = 1; $m <= 12; $m++) {
+                        // Para 2026, comenzar desde marzo (mes 3)
+                        $mesInicio = ($anoSeleccionado == 2026) ? 3 : 1;
+                        for ($m = $mesInicio; $m <= 12; $m++) {
                             $selected = ($mesSeleccionado == $m) ? 'selected' : '';
                             echo "<option value='$m' $selected>{$meses[$m]}</option>";
                         }
