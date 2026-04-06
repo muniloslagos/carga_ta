@@ -115,6 +115,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
                             </button>
                         </form>
+                        
+                        <div class="text-center mt-3">
+                            <a href="<?php echo SITE_URL; ?>recuperar_password.php" class="text-decoration-none">
+                                <i class="bi bi-key"></i> ¿Olvidaste tu contraseña?
+                            </a>
+                        </div>
 
                         <hr>
 

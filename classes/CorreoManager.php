@@ -1130,4 +1130,69 @@ class CorreoManager {
         
         return true;
     }
+    
+    /**
+     * Enviar correo de recuperación de contraseña
+     */
+    public function enviarRecuperacionPassword($usuario_id) {
+        $plantilla = $this->obtenerPlantilla('recuperar_password');
+        
+        if (!$plantilla) {
+            throw new Exception('No se encontró la plantilla de recuperación de contraseña');
+        }
+        
+        // Obtener datos del usuario
+        $stmt = $this->conn->prepare("SELECT id, nombre, email FROM usuarios WHERE id = ? AND activo = 1");
+        $stmt->bind_param('i', $usuario_id);
+        $stmt->execute();
+        $usuario = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!$usuario) {
+            throw new Exception('Usuario no encontrado o inactivo');
+        }
+        
+        // Generar token único
+        $token = bin2hex(random_bytes(32));
+        
+        // Calcular expiración (1 hora)
+        $fecha_expiracion = date('Y-m-d H:i:s', time() + 3600);
+        
+        // Guardar token en la base de datos
+        $stmt = $this->conn->prepare("INSERT INTO password_reset_tokens (usuario_id, token, fecha_expiracion) VALUES (?, ?, ?)");
+        $stmt->bind_param('iss', $usuario_id, $token, $fecha_expiracion);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Generar enlace de recuperación
+        $enlace_recuperacion = SITE_URL . 'resetear_password.php?token=' . $token;
+        
+        // Formatear hora de expiración
+        $hora_expiracion = date('H:i', time() + 3600);
+        
+        // Reemplazar variables en el correo
+        $variables = [
+            '{nombre_usuario}' => $usuario['nombre'],
+            '{enlace_recuperacion}' => $enlace_recuperacion,
+            '{fecha_expiracion}' => $hora_expiracion
+        ];
+        
+        $asunto_final = $plantilla['asunto'];
+        $cuerpo_final = str_replace(array_keys($variables), array_values($variables), $plantilla['cuerpo']);
+        
+        // Enviar correo
+        $emailSender = new EmailSender($this->conn);
+        $resultado = $emailSender->enviarCorreo(
+            $usuario['email'],
+            $asunto_final,
+            $cuerpo_final,
+            $usuario['nombre']
+        );
+        
+        if (!$resultado) {
+            throw new Exception('No se pudo enviar el correo de recuperación');
+        }
+        
+        return true;
+    }
 }
