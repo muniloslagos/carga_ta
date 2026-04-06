@@ -1,6 +1,11 @@
 <?php
 session_start();
-require_once 'config/database.php';
+require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/config/Database.php';
+
+// Inicializar base de datos
+$db = new Database();
+$conn = $db->getConnection();
 
 // Verificar que el usuario esté autenticado
 if (!isset($_SESSION['user_id'])) {
