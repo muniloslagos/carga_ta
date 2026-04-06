@@ -30,37 +30,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'nombre' => trim($_POST['nombre'] ?? ''),
             'email' => trim($_POST['email'] ?? ''),
             'password' => $_POST['password'] ?? '',
-            'perfil' => $_POST['perfil'] ?? '',
+            'perfil' => '', // Ya no se usa directamente
             'direccion_id' => intval($_POST['direccion_id'] ?? 0)
         ];
+        
+        $perfiles_seleccionados = $_POST['perfiles'] ?? [];
 
-        if (!empty($data['nombre']) && !empty($data['email']) && !empty($data['password'])) {
+        if (!empty($data['nombre']) && !empty($data['email']) && !empty($data['password']) && !empty($perfiles_seleccionados)) {
+            // Usar el primer perfil seleccionado como perfil principal en la tabla usuarios (compatibilidad)
+            $data['perfil'] = $perfiles_seleccionados[0];
+            
             if ($usuarioClass->create($data)) {
-                $_SESSION['success'] = 'Usuario creado correctamente';
+                // Obtener el ID del usuario recién creado
+                $nuevo_usuario_id = $db->getConnection()->insert_id;
+                
+                // Agregar todos los perfiles seleccionados
+                foreach ($perfiles_seleccionados as $index => $perfil) {
+                    $es_principal = ($index === 0) ? 1 : 0;
+                    $usuarioClass->agregarPerfil($nuevo_usuario_id, $perfil, $_SESSION['user_id'], $es_principal);
+                }
+                
+                $_SESSION['success'] = 'Usuario creado correctamente con ' . count($perfiles_seleccionados) . ' perfil(es)';
                 $redirect = true;
             } else {
                 $error = 'Error al crear el usuario: ' . $db->getConnection()->error;
             }
         } else {
-            $error = 'Complete todos los campos requeridos';
+            $error = 'Complete todos los campos requeridos y seleccione al menos un perfil';
         }
     } elseif ($action === 'update') {
         $data = [
             'nombre' => trim($_POST['nombre'] ?? ''),
             'email' => trim($_POST['email'] ?? ''),
-            'perfil' => $_POST['perfil'] ?? '',
+            'perfil' => '', // Se actualizará después
             'direccion_id' => intval($_POST['direccion_id'] ?? 0)
         ];
 
         if (!empty($_POST['password'])) {
             $data['password'] = $_POST['password'];
         }
+        
+        $perfiles_seleccionados = $_POST['perfiles'] ?? [];
+        $usuario_id = intval($_POST['usuario_id']);
 
-        if ($usuarioClass->update(intval($_POST['usuario_id']), $data)) {
-            $_SESSION['success'] = 'Usuario actualizado correctamente';
-            $redirect = true;
+        if (!empty($perfiles_seleccionados)) {
+            // Usar el primer perfil seleccionado como perfil principal
+            $data['perfil'] = $perfiles_seleccionados[0];
+            
+            if ($usuarioClass->update($usuario_id, $data)) {
+                // Obtener perfiles actuales del usuario
+                $perfiles_actuales = $usuarioClass->getPerfiles($usuario_id);
+                
+                // Eliminar perfiles que ya no están seleccionados
+                foreach ($perfiles_actuales as $perfil_actual) {
+                    if (!in_array($perfil_actual, $perfiles_seleccionados)) {
+                        $usuarioClass->eliminarPerfil($usuario_id, $perfil_actual);
+                    }
+                }
+                
+                // Agregar nuevos perfiles seleccionados
+                foreach ($perfiles_seleccionados as $index => $perfil) {
+                    $es_principal = ($index === 0) ? 1 : 0;
+                    $usuarioClass->agregarPerfil($usuario_id, $perfil, $_SESSION['user_id'], $es_principal);
+                }
+                
+                $_SESSION['success'] = 'Usuario actualizado correctamente con ' . count($perfiles_seleccionados) . ' perfil(es)';
+                $redirect = true;
+            } else {
+                $error = 'Error al actualizar el usuario';
+            }
         } else {
-            $error = 'Error al actualizar el usuario';
+            $error = 'Debe seleccionar al menos un perfil';
         }
     } elseif ($action === 'delete') {
         if ($usuarioClass->deactivate(intval($_POST['usuario_id']))) {
@@ -140,7 +180,21 @@ require_once '../../includes/header.php';
                         </td>
                         <td><?php echo htmlspecialchars($usuario['email']); ?></td>
                         <td>
-                            <span class="badge bg-info"><?php echo $PROFILES[$usuario['perfil']] ?? $usuario['perfil']; ?></span>
+                            <?php 
+                            // Obtener perfiles del usuario
+                            $perfiles_usuario = $usuarioClass->getPerfiles($usuario['id']);
+                            if (empty($perfiles_usuario)) {
+                                // Fallback al perfil de la tabla usuarios
+                                echo '<span class="badge bg-info">' . ($PROFILES[$usuario['perfil']] ?? $usuario['perfil']) . '</span>';
+                            } else {
+                                foreach ($perfiles_usuario as $index => $perfil) {
+                                    $badge_class = $index === 0 ? 'bg-primary' : 'bg-info';
+                                    echo '<span class="badge ' . $badge_class . ' me-1">' . ($PROFILES[$perfil] ?? $perfil);
+                                    if ($index === 0) echo ' <i class="bi bi-star-fill" title="Principal"></i>';
+                                    echo '</span>';
+                                }
+                            }
+                            ?>
                         </td>
                         <td><?php echo htmlspecialchars($usuario['direccion_nombre'] ?? 'N/A'); ?></td>
                         <td><small class="text-muted"><?php echo date('d/m/Y', strtotime($usuario['fecha_creacion'])); ?></small></td>
@@ -195,13 +249,25 @@ require_once '../../includes/header.php';
                     </div>
 
                     <div class="mb-3">
-                        <label for="perfil" class="form-label">Perfil</label>
-                        <select class="form-select" id="perfil" name="perfil" required>
-                            <option value="">Seleccionar perfil</option>
+                        <label class="form-label">Perfiles <small class="text-muted">(selecciona uno o más)</small></label>
+                        <div class="border rounded p-3">
                             <?php foreach ($PROFILES as $key => $value): ?>
-                                <option value="<?php echo $key; ?>"><?php echo $value; ?></option>
+                                <div class="form-check">
+                                    <input class="form-check-input perfil-checkbox" 
+                                           type="checkbox" 
+                                           name="perfiles[]" 
+                                           value="<?php echo $key; ?>" 
+                                           id="perfil_<?php echo $key; ?>">
+                                    <label class="form-check-label" for="perfil_<?php echo $key; ?>">
+                                        <?php echo $value; ?>
+                                    </label>
+                                </div>
                             <?php endforeach; ?>
-                        </select>
+                        </div>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle"></i> 
+                            El primer perfil seleccionado será el perfil principal
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -237,14 +303,26 @@ function editUsuario(id) {
             document.getElementById('usuarioId').value = data.id;
             document.getElementById('nombre').value = data.nombre;
             document.getElementById('email').value = data.email;
-            document.getElementById('perfil').value = data.perfil;
             document.getElementById('direccion_id').value = data.direccion_id || 0;
             document.getElementById('password').required = false;
             document.getElementById('passwordNote').textContent = '(opcional para editar)';
+            
+            // Desmarcar todos los checkboxes primero
+            document.querySelectorAll('.perfil-checkbox').forEach(cb => cb.checked = false);
+            
+            // Marcar los perfiles asignados al usuario
+            if (data.perfiles && Array.isArray(data.perfiles)) {
+                data.perfiles.forEach(perfil => {
+                    const checkbox = document.getElementById('perfil_' + perfil);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
         });
 }
 
-// Reset modal cuando se abre para crear nuevo
+// Reset modal cuando se cierra
 document.getElementById('usuarioModal').addEventListener('hide.bs.modal', function() {
     document.getElementById('usuarioForm').reset();
     document.getElementById('usuarioModalLabel').textContent = 'Nuevo Usuario';
@@ -252,6 +330,16 @@ document.getElementById('usuarioModal').addEventListener('hide.bs.modal', functi
     document.getElementById('usuarioId').value = '';
     document.getElementById('password').required = true;
     document.getElementById('passwordNote').textContent = '';
+});
+
+// Validar que al menos un perfil esté seleccionado antes de enviar
+document.getElementById('usuarioForm').addEventListener('submit', function(e) {
+    const checkboxes = document.querySelectorAll('.perfil-checkbox:checked');
+    if (checkboxes.length === 0) {
+        e.preventDefault();
+        alert('Debes seleccionar al menos un perfil');
+        return false;
+    }
 });
 </script>
 

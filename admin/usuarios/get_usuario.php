@@ -24,8 +24,18 @@ if (!$usuario) {
     exit;
 }
 
+// Obtener perfiles asignados al usuario
+$perfiles = $usuarioClass->getPerfiles($id);
+// Si no tiene perfiles en la nueva tabla, usar el perfil de la tabla usuarios
+if (empty($perfiles)) {
+    $perfiles = [$usuario['perfil']];
+}
+
 // No enviar contraseña al cliente
 unset($usuario['password']);
+
+// Agregar perfiles al array del usuario
+$usuario['perfiles'] = $perfiles;
 
 header('Content-Type: application/json');
 echo json_encode($usuario);
