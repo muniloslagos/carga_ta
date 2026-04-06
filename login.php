@@ -121,12 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <i class="bi bi-key"></i> ¿Olvidaste tu contraseña?
                             </a>
                         </div>
-
-                        <hr>
-
-                        <div class="alert alert-info">
-                            <strong>Nota:</strong> Si es la primera vez, acceda a <a href="setup.php">setup.php</a> para crear la base de datos.
-                        </div>
                     </div>
                 </div>
 
