@@ -1557,96 +1557,26 @@ class CorreoManager {
     }
     
     /**
-     * Enviar contraseñas de forma masiva a todos los usuarios
+     * Enviar contraseña a un usuario específico con actualización de contraseña
      */
-    public function enviarPasswordMasivo($perfil = null) {
+    public function enviarPasswordIndividual($usuario_id, $nueva_password) {
         $plantilla = $this->obtenerPlantilla('envio_password');
         
         if (!$plantilla) {
             throw new Exception('No se encontró la plantilla de envío de contraseña');
         }
         
-        // Query para obtener usuarios
-        $query = "SELECT id, nombre, email, password FROM usuarios WHERE activo = 1 AND email IS NOT NULL AND email != ''";
-        
-        if ($perfil) {
-            $stmt = $this->conn->prepare($query . " AND perfil = ?");
-            $stmt->bind_param('s', $perfil);
-            $stmt->execute();
-            $result = $stmt->get_result();
-        } else {
-            $result = $this->conn->query($query);
+        // Validar contraseña
+        if (empty($nueva_password)) {
+            throw new Exception('Debe proporcionar una contraseña');
         }
         
-        $exitosos = 0;
-        $fallidos = 0;
-        $detalles = [];
-        
-        while ($usuario = $result->fetch_assoc()) {
-            try {
-                // Reemplazar variables
-                $variables = [
-                    '{nombre_usuario}' => $usuario['nombre'],
-                    '{email_usuario}' => $usuario['email'],
-                    '{password}' => $usuario['password'],
-                    '{url_sistema}' => SITE_URL
-                ];
-                
-                $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
-                $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
-                
-                // Enviar correo
-                if ($this->email_sender->enviarCorreo($usuario['email'], $asunto, $cuerpo, $usuario['nombre'])) {
-                    $exitosos++;
-                    $detalles[] = [
-                        'usuario_id' => $usuario['id'],
-                        'email' => $usuario['email'],
-                        'estado' => 'exitoso'
-                    ];
-                } else {
-                    $fallidos++;
-                    $detalles[] = [
-                        'usuario_id' => $usuario['id'],
-                        'email' => $usuario['email'],
-                        'estado' => 'fallido',
-                        'error' => $this->email_sender->getError()
-                    ];
-                }
-                
-            } catch (Exception $e) {
-                $fallidos++;
-                $detalles[] = [
-                    'usuario_id' => $usuario['id'],
-                    'email' => $usuario['email'],
-                    'estado' => 'fallido',
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
-        
-        // Registrar en historial
-        $total = $exitosos + $fallidos;
-        $this->registrarHistorial($plantilla['id'], 'masivo', null, $total, null, null, $exitosos, $fallidos, $detalles);
-        
-        return [
-            'exitosos' => $exitosos,
-            'fallidos' => $fallidos,
-            'total' => $total
-        ];
-    }
-    
-    /**
-     * Enviar contraseña a un usuario específico
-     */
-    public function enviarPasswordIndividual($usuario_id) {
-        $plantilla = $this->obtenerPlantilla('envio_password');
-        
-        if (!$plantilla) {
-            throw new Exception('No se encontró la plantilla de envío de contraseña');
+        if (strlen($nueva_password) < 6) {
+            throw new Exception('La contraseña debe tener al menos 6 caracteres');
         }
         
         // Obtener usuario
-        $stmt = $this->conn->prepare("SELECT id, nombre, email, password FROM usuarios WHERE id = ? AND activo = 1");
+        $stmt = $this->conn->prepare("SELECT id, nombre, email FROM usuarios WHERE id = ? AND activo = 1");
         $stmt->bind_param('i', $usuario_id);
         $stmt->execute();
         $usuario = $stmt->get_result()->fetch_assoc();
@@ -1660,11 +1590,20 @@ class CorreoManager {
             throw new Exception('El usuario no tiene correo registrado');
         }
         
-        // Reemplazar variables
+        // Actualizar contraseña en la base de datos
+        $password_hash = password_hash($nueva_password, PASSWORD_DEFAULT);
+        $stmt = $this->conn->prepare("UPDATE usuarios SET password = ? WHERE id = ?");
+        $stmt->bind_param('si', $password_hash, $usuario_id);
+        if (!$stmt->execute()) {
+            throw new Exception('Error al actualizar la contraseña');
+        }
+        $stmt->close();
+        
+        // Reemplazar variables en el correo (con contraseña en texto plano)
         $variables = [
             '{nombre_usuario}' => $usuario['nombre'],
             '{email_usuario}' => $usuario['email'],
-            '{password}' => $usuario['password'],
+            '{password}' => $nueva_password,
             '{url_sistema}' => SITE_URL
         ];
         

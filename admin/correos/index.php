@@ -190,35 +190,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Enviar contraseñas masivo
-    elseif (isset($_POST['enviar_password_masivo'])) {
-        try {
-            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
-            
-            $perfil = isset($_POST['perfil_filtro']) && !empty($_POST['perfil_filtro']) ? $_POST['perfil_filtro'] : null;
-            
-            $correo_manager = new CorreoManager();
-            $resultado = $correo_manager->enviarPasswordMasivo($perfil);
-            
-            $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados, {$resultado['fallidos']} fallidos";
-            $tipo_mensaje = $resultado['fallidos'] > 0 ? 'warning' : 'success';
-            
-        } catch (Exception $e) {
-            $error = 'Error en envío masivo: ' . $e->getMessage();
-            $tipo_mensaje = 'danger';
-        }
-    }
-    
     // Enviar contraseña individual
     elseif (isset($_POST['enviar_password_individual'])) {
         try {
             require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
             
             $usuario_id = (int)$_POST['usuario_id'];
+            $nueva_password = trim($_POST['nueva_password']);
             
             $correo_manager = new CorreoManager();
-            $resultado = $correo_manager->enviarPasswordIndividual($usuario_id);
+            $resultado = $correo_manager->enviarPasswordIndividual($usuario_id, $nueva_password);
             
-            $mensaje = "Contraseña enviada exitosamente al usuario";
+            $mensaje = "Contraseña actualizada y enviada exitosamente al usuario";
             $tipo_mensaje = 'success';
             
         } catch (Exception $e) {
@@ -993,40 +976,8 @@ $meses = [
                     <h5><i class="bi bi-send"></i> Enviar Contraseñas</h5>
                     
                     <div class="row">
-                        <!-- Envío Masivo -->
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0">Envío Masivo</h6>
-                                </div>
-                                <div class="card-body">
-                                    <form method="POST">
-                                        <div class="mb-3">
-                                            <label class="form-label">Filtrar por perfil (opcional):</label>
-                                            <select name="perfil_filtro" class="form-select">
-                                                <option value="">Todos los perfiles</option>
-                                                <option value="administrativo">Administrativo</option>
-                                                <option value="cargador_informacion">Cargador de Información</option>
-                                                <option value="publicador">Publicador</option>
-                                                <option value="auditor">Auditor</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="alert alert-warning">
-                                            <i class="bi bi-exclamation-triangle"></i>
-                                            <small>Se enviará un correo con la contraseña actual a todos los usuarios activos con correo registrado.</small>
-                                        </div>
-                                        
-                                        <button type="submit" name="enviar_password_masivo" class="btn btn-success w-100" onclick="return confirm('¿Está seguro de enviar contraseñas a todos los usuarios?')">
-                                            <i class="bi bi-send-fill"></i> Enviar a Todos
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Envío Individual -->
-                        <div class="col-md-6">
+                        <div class="col-md-8 mx-auto">
                             <div class="card">
                                 <div class="card-header bg-warning">
                                     <h6 class="mb-0">Envío Individual</h6>
@@ -1047,8 +998,14 @@ $meses = [
                                             </select>
                                         </div>
                                         
+                                        <div class="mb-3">
+                                            <label class="form-label">Nueva Contraseña:</label>
+                                            <input type="password" name="nueva_password" class="form-control" required minlength="6" placeholder="Mínimo 6 caracteres">
+                                            <small class="text-muted">La contraseña será actualizada en el sistema y enviada por correo al usuario.</small>
+                                        </div>
+                                        
                                         <button type="submit" name="enviar_password_individual" class="btn btn-warning w-100">
-                                            <i class="bi bi-send"></i> Enviar a Usuario Específico
+                                            <i class="bi bi-send"></i> Actualizar Contraseña y Enviar
                                         </button>
                                     </form>
                                 </div>

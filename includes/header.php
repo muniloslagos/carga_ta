@@ -145,6 +145,11 @@ if ($is_logged_in && $current_profile === 'publicador') {
                             </span>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>mis_datos.php">
+                                <i class="bi bi-gear" style="color: #95a5a6;"></i> Mis Datos
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>logout.php">
                                 <i class="bi bi-box-arrow-right" style="color: #e74c3c;"></i> Salir
                             </a>
