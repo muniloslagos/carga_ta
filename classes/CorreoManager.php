@@ -826,14 +826,32 @@ class CorreoManager {
     
     /**
      * Generar token público para resumen municipal
+     * CAMBIO: Reutiliza token existente del usuario o crea uno nuevo
+     * El token ya no está asociado a un período específico
      */
     public function generarTokenPublico($mes, $ano) {
-        $token = bin2hex(random_bytes(32));
+        $userId = $_SESSION['user_id'];
         
-        $stmt = $this->conn->prepare("INSERT INTO resumen_publico_tokens (token, mes, ano, creado_por) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param('siis', $token, $mes, $ano, $_SESSION['user_id']);
+        // Buscar token existente del usuario
+        $stmt = $this->conn->prepare("SELECT token FROM resumen_publico_tokens WHERE creado_por = ? ORDER BY fecha_creacion DESC LIMIT 1");
+        $stmt->bind_param('i', $userId);
         $stmt->execute();
-        $stmt->close();
+        $result = $stmt->get_result();
+        
+        if ($row = $result->fetch_assoc()) {
+            // Reutilizar token existente
+            $token = $row['token'];
+            $stmt->close();
+        } else {
+            // Generar nuevo token solo si el usuario no tiene ninguno
+            $stmt->close();
+            $token = bin2hex(random_bytes(32));
+            
+            $stmtIns = $this->conn->prepare("INSERT INTO resumen_publico_tokens (token, mes, ano, creado_por) VALUES (?, ?, ?, ?)");
+            $stmtIns->bind_param('siii', $token, $mes, $ano, $userId);
+            $stmtIns->execute();
+            $stmtIns->close();
+        }
         
         return $token;
     }

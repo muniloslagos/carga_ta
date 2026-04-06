@@ -36,16 +36,28 @@ if ($token_data['fecha_expiracion'] && strtotime($token_data['fecha_expiracion']
     exit;
 }
 
-// Permitir cambiar mes/año mediante parámetros GET (preservando el token)
-$mes = isset($_GET['mes']) && is_numeric($_GET['mes']) ? (int)$_GET['mes'] : (int)$token_data['mes'];
-$ano = isset($_GET['ano']) && is_numeric($_GET['ano']) ? (int)$_GET['ano'] : (int)$token_data['ano'];
+// CAMBIO: Token solo valida acceso, período se define por GET o mes anterior actual
+// Obtener mes/año de parámetros GET o usar mes anterior al actual por defecto
+if (isset($_GET['mes']) && is_numeric($_GET['mes'])) {
+    $mes = (int)$_GET['mes'];
+    $ano = isset($_GET['ano']) && is_numeric($_GET['ano']) ? (int)$_GET['ano'] : (int)date('Y');
+} else {
+    // Por defecto: mes anterior al actual (igual que en dashboard)
+    $mes = (int)date('n') - 1;
+    $ano = (int)date('Y');
+    if ($mes < 1) {
+        $mes = 12;
+        $ano--;
+    }
+}
 
 // Validar rango de mes y año
 if ($mes < 1 || $mes > 12) {
-    $mes = (int)$token_data['mes'];
+    $mes = (int)date('n') - 1;
+    if ($mes < 1) $mes = 12;
 }
 if ($ano < 2020 || $ano > 2050) {
-    $ano = (int)$token_data['ano'];
+    $ano = (int)date('Y');
 }
 
 $meses = [
