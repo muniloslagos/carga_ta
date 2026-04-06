@@ -674,6 +674,7 @@ class CorreoManager {
                 
                 $variables = [
                     '{nombre_director}' => $director['nombre_completo'],
+                    '{cargo_rol}' => 'Director/a de ',
                     '{direcciones_director}' => $texto_direcciones,
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
@@ -729,6 +730,7 @@ class CorreoManager {
                 try {
                     $variables = [
                         '{nombre_director}' => $auditor['nombre_completo'], // Usar mismo placeholder
+                        '{cargo_rol}' => 'Auditor/a - ',
                         '{direcciones_director}' => 'Todas las direcciones del municipio',
                         '{mes_carga}' => $this->nombreMes($mes),
                         '{ano_carga}' => $ano,
