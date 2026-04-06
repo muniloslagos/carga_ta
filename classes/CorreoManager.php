@@ -808,11 +808,10 @@ class CorreoManager {
      * Obtener auditores activos con correo registrado
      */
     private function obtenerAuditoresConCorreo() {
-        $result = $this->conn->query("SELECT id, nombres, apellidos, email, 
-                                             CONCAT(nombres, ' ', apellidos) as nombre_completo
+        $result = $this->conn->query("SELECT id, nombre as nombre_completo, email
                                       FROM usuarios 
                                       WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != ''
-                                      ORDER BY apellidos, nombres");
+                                      ORDER BY nombre");
         $auditores = [];
         while ($row = $result->fetch_assoc()) {
             $auditores[] = $row;

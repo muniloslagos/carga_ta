@@ -181,7 +181,7 @@ $directores_query = "SELECT id, nombres, apellidos, correo FROM directores WHERE
 $directores_list = $conn->query($directores_query);
 
 // Obtener auditores para tab fin proceso general
-$auditores_query = "SELECT id, nombres, apellidos, email FROM usuarios WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != '' ORDER BY apellidos, nombres";
+$auditores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != '' ORDER BY nombre";
 $auditores_list = $conn->query($auditores_query);
 
 // Obtener enlaces públicos existentes
@@ -634,7 +634,7 @@ $meses = [
                                         $hay_auditores = true;
                                 ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($aud['nombres'] . ' ' . $aud['apellidos']) ?></td>
+                                        <td><?= htmlspecialchars($aud['nombre']) ?></td>
                                         <td><?= htmlspecialchars($aud['email']) ?></td>
                                     </tr>
                                 <?php 
