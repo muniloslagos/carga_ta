@@ -142,11 +142,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $mes = (int)$_POST['mes_periodo'];
             $ano = (int)$_POST['ano_periodo'];
+            $enviar_a_auditores = isset($_POST['enviar_a_auditores']) && $_POST['enviar_a_auditores'] === '1';
             
             $correo_manager = new CorreoManager();
-            $resultado = $correo_manager->enviarFinProcesoGeneral($mes, $ano);
+            $resultado = $correo_manager->enviarFinProcesoGeneral($mes, $ano, $enviar_a_auditores);
             
-            $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados a directores, {$resultado['fallidos']} fallidos";
+            $mensaje = "Envío completado: {$resultado['exitosos']} correos enviados ({$resultado['directores']} directores";
+            if ($resultado['auditores'] > 0) {
+                $mensaje .= ", {$resultado['auditores']} auditores";
+            }
+            $mensaje .= "), {$resultado['fallidos']} fallidos";
             if (!empty($resultado['enlace_resumen'])) {
                 $mensaje .= " | Enlace público generado";
             }
@@ -174,6 +179,10 @@ $cargadores2 = $conn->query($cargadores_query); // Segunda copia para el segundo
 // Obtener directores para tab fin proceso general
 $directores_query = "SELECT id, nombres, apellidos, correo FROM directores WHERE activo = 1 AND correo IS NOT NULL AND correo != '' ORDER BY apellidos, nombres";
 $directores_list = $conn->query($directores_query);
+
+// Obtener auditores para tab fin proceso general
+$auditores_query = "SELECT id, nombres, apellidos, email FROM usuarios WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != '' ORDER BY apellidos, nombres";
+$auditores_list = $conn->query($auditores_query);
 
 // Obtener enlaces públicos existentes
 $enlaces_publicos = $conn->query("SELECT t.*, u.nombre as creado_por_nombre 
@@ -604,6 +613,45 @@ $meses = [
                         </table>
                     </div>
 
+                    <!-- Destinatarios: Auditores (Opcional) -->
+                    <h5><i class="bi bi-shield-check"></i> Auditores (Opcional)</h5>
+                    <div class="alert alert-info py-2 mb-3">
+                        <small><i class="bi bi-info-circle"></i> <strong>Nota:</strong> Los auditores recibirán el resumen <strong>COMPLETO de TODAS las direcciones</strong> del municipio para poder realizar auditoría integral.</small>
+                    </div>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Auditor</th>
+                                    <th>Correo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $hay_auditores = false;
+                                if ($auditores_list && $auditores_list->num_rows > 0):
+                                    while ($aud = $auditores_list->fetch_assoc()): 
+                                        $hay_auditores = true;
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($aud['nombres'] . ' ' . $aud['apellidos']) ?></td>
+                                        <td><?= htmlspecialchars($aud['email']) ?></td>
+                                    </tr>
+                                <?php 
+                                    endwhile;
+                                endif;
+                                if (!$hay_auditores): ?>
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted">
+                                            No hay auditores con correo registrado. 
+                                            <a href="<?= SITE_URL ?>admin/usuarios/">Agregar auditores</a>.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
                     <hr>
 
                     <!-- Formulario de Envío -->
@@ -613,10 +661,10 @@ $meses = [
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header bg-info text-white">
-                                    <h6 class="mb-0">Envío a Todos los Directores</h6>
+                                    <h6 class="mb-0">Envío Masivo - Cierre del Proceso</h6>
                                 </div>
                                 <div class="card-body">
-                                    <form method="POST" onsubmit="return confirm('¿Enviar correo de cierre del proceso a todos los directores?');">
+                                    <form method="POST" onsubmit="return confirm('¿Enviar correo de cierre del proceso? Se enviará a directores y opcionalmente a auditores según selección.');">
                                         <div class="mb-3">
                                             <label class="form-label">Período:</label>
                                             <div class="row">
@@ -633,11 +681,29 @@ $meses = [
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        <!-- Checkbox para enviar a auditores -->
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="enviar_a_auditores" value="1" id="checkAuditores" <?= !$hay_auditores ? 'disabled' : '' ?>>
+                                                <label class="form-check-label" for="checkAuditores">
+                                                    <strong>Enviar también a Auditores</strong>
+                                                </label>
+                                            </div>
+                                            <small class="text-muted ms-4">
+                                                <?php if ($hay_auditores): ?>
+                                                    Los auditores recibirán el <strong>resumen completo de todas las direcciones</strong>.
+                                                <?php else: ?>
+                                                    <em>No hay auditores registrados con correo.</em>
+                                                <?php endif; ?>
+                                            </small>
+                                        </div>
+                                        
                                         <div class="alert alert-warning py-2">
                                             <small><i class="bi bi-exclamation-triangle"></i> Se generará un enlace público con el resumen municipal completo.</small>
                                         </div>
                                         <button type="submit" name="enviar_masivo_fin_general" class="btn btn-info text-white w-100" <?= !$hay_directores ? 'disabled' : '' ?>>
-                                            <i class="bi bi-send-fill"></i> Enviar Cierre a Directores
+                                            <i class="bi bi-send-fill"></i> Enviar Cierre del Proceso
                                         </button>
                                     </form>
                                 </div>

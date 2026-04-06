@@ -625,8 +625,9 @@ class CorreoManager {
     /**
      * Enviar correo de fin de proceso general a todos los directores
      * Cada director recibe solo los ítems de sus direcciones asignadas
+     * Opcionalmente puede enviar también a auditores con resumen completo
      */
-    public function enviarFinProcesoGeneral($mes, $ano) {
+    public function enviarFinProcesoGeneral($mes, $ano, $enviar_a_auditores = false) {
         $plantilla = $this->obtenerPlantilla('fin_proceso_general');
         
         if (!$plantilla) {
@@ -653,6 +654,7 @@ class CorreoManager {
         $fallidos = 0;
         $detalles = [];
         
+        // ENVÍO A DIRECTORES (resumen filtrado por sus direcciones)
         foreach ($directores as $director) {
             try {
                 // Obtener nombres de direcciones asignadas al director
@@ -686,6 +688,7 @@ class CorreoManager {
                 if ($this->email_sender->enviarCorreo($director['correo'], $asunto, $cuerpo, $director['nombre_completo'])) {
                     $exitosos++;
                     $detalles[] = [
+                        'tipo' => 'director',
                         'director_id' => $director['id'],
                         'email' => $director['correo'],
                         'estado' => 'exitoso'
@@ -693,6 +696,7 @@ class CorreoManager {
                 } else {
                     $fallidos++;
                     $detalles[] = [
+                        'tipo' => 'director',
                         'director_id' => $director['id'],
                         'email' => $director['correo'],
                         'estado' => 'fallido',
@@ -702,6 +706,7 @@ class CorreoManager {
             } catch (Exception $e) {
                 $fallidos++;
                 $detalles[] = [
+                    'tipo' => 'director',
                     'director_id' => $director['id'],
                     'email' => $director['correo'],
                     'estado' => 'fallido',
@@ -710,13 +715,75 @@ class CorreoManager {
             }
         }
         
+        // ENVÍO A AUDITORES (resumen completo de todas las direcciones)
+        $auditores_exitosos = 0;
+        $auditores_fallidos = 0;
+        
+        if ($enviar_a_auditores) {
+            $auditores = $this->obtenerAuditoresConCorreo();
+            
+            // Generar resumen completo del municipio
+            $resumen_completo = $this->obtenerResumenGeneralMunicipio($mes, $ano);
+            
+            foreach ($auditores as $auditor) {
+                try {
+                    $variables = [
+                        '{nombre_director}' => $auditor['nombre_completo'], // Usar mismo placeholder
+                        '{direcciones_director}' => 'Todas las direcciones del municipio',
+                        '{mes_carga}' => $this->nombreMes($mes),
+                        '{ano_carga}' => $ano,
+                        '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+                        '{resumen_general}' => $resumen_completo,
+                        '{enlace_resumen}' => $enlace_resumen
+                    ];
+                    
+                    $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+                    $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+                    
+                    if ($this->email_sender->enviarCorreo($auditor['email'], $asunto, $cuerpo, $auditor['nombre_completo'])) {
+                        $auditores_exitosos++;
+                        $detalles[] = [
+                            'tipo' => 'auditor',
+                            'usuario_id' => $auditor['id'],
+                            'email' => $auditor['email'],
+                            'estado' => 'exitoso'
+                        ];
+                    } else {
+                        $auditores_fallidos++;
+                        $detalles[] = [
+                            'tipo' => 'auditor',
+                            'usuario_id' => $auditor['id'],
+                            'email' => $auditor['email'],
+                            'estado' => 'fallido',
+                            'error' => $this->email_sender->getError()
+                        ];
+                    }
+                } catch (Exception $e) {
+                    $auditores_fallidos++;
+                    $detalles[] = [
+                        'tipo' => 'auditor',
+                        'usuario_id' => $auditor['id'],
+                        'email' => $auditor['email'],
+                        'estado' => 'fallido',
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+            
+            $exitosos += $auditores_exitosos;
+            $fallidos += $auditores_fallidos;
+        }
+        
         // Registrar en historial
-        $this->registrarHistorial($plantilla['id'], 'masivo', null, count($directores), $mes, $ano, $exitosos, $fallidos, $detalles);
+        $total_destinatarios = count($directores) + ($enviar_a_auditores ? count($this->obtenerAuditoresConCorreo()) : 0);
+        $this->registrarHistorial($plantilla['id'], 'masivo', null, $total_destinatarios, $mes, $ano, $exitosos, $fallidos, $detalles);
         
         return [
             'exitosos' => $exitosos,
             'fallidos' => $fallidos,
-            'total' => count($directores),
+            'total' => $total_destinatarios,
+            'directores' => count($directores),
+            'auditores' => $enviar_a_auditores ? ($auditores_exitosos + $auditores_fallidos) : 0,
             'enlace_resumen' => $enlace_resumen
         ];
     }
@@ -735,6 +802,22 @@ class CorreoManager {
             $directores[] = $row;
         }
         return $directores;
+    }
+    
+    /**
+     * Obtener auditores activos con correo registrado
+     */
+    private function obtenerAuditoresConCorreo() {
+        $result = $this->conn->query("SELECT id, nombres, apellidos, email, 
+                                             CONCAT(nombres, ' ', apellidos) as nombre_completo
+                                      FROM usuarios 
+                                      WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != ''
+                                      ORDER BY apellidos, nombres");
+        $auditores = [];
+        while ($row = $result->fetch_assoc()) {
+            $auditores[] = $row;
+        }
+        return $auditores;
     }
     
     /**
