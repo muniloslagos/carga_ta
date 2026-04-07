@@ -282,6 +282,7 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
             
             if ($verificador) {
                 $estadoBadge = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Publicado</span>';
+                $itemNombreJs = json_encode($item['nombre'], JSON_HEX_APOS | JSON_HEX_QUOT);
                 $botones = '<a href="#" class="btn btn-sm btn-info" data-bs-toggle="modal" 
                            data-bs-target="#modalVerDocumento" 
                            onclick="verDocumento(' . $documento['documento_id'] . ', \'' . htmlspecialchars($item['nombre']) . '\', \'' . htmlspecialchars($documento['titulo']) . '\');">
@@ -294,7 +295,7 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
                         </a>
                         <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal" 
                            data-bs-target="#modalEliminarVerificador"
-                           onclick="eliminarVerificador(' . $verificador['id'] . ', \'' . htmlspecialchars($item['nombre'], ENT_QUOTES) . '\');">
+                           onclick="eliminarVerificador(' . $verificador['id'] . ', ' . $itemNombreJs . ');">
                             <i class="bi bi-trash"></i> Eliminar
                         </a>';
             } else {
