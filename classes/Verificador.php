@@ -139,13 +139,26 @@ class Verificador {
         return $stmt->execute();
     }
 
-    // Eliminar verificador
+    // Eliminar verificador y retrotraer documento a estado "Cargado"
     public function delete($id) {
         $verificador = $this->getById($id);
-        if ($verificador && file_exists($this->uploadDir . $verificador['archivo_verificador'])) {
+        
+        if (!$verificador) {
+            return false;
+        }
+        
+        // Eliminar archivo físico del verificador
+        if (file_exists($this->uploadDir . $verificador['archivo_verificador'])) {
             unlink($this->uploadDir . $verificador['archivo_verificador']);
         }
+        
+        // Cambiar estado del documento a "Cargado" (retrotraer)
+        $updateDocSql = "UPDATE documentos SET estado = 'Cargado' WHERE id = ?";
+        $updateDocStmt = $this->db->prepare($updateDocSql);
+        $updateDocStmt->bind_param("i", $verificador['documento_id']);
+        $updateDocStmt->execute();
 
+        // Eliminar registro del verificador
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->bind_param("i", $id);

@@ -291,6 +291,11 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
                            data-bs-target="#modalVerVerificador"
                            onclick="verVerificador(' . $verificador['id'] . ', \'' . htmlspecialchars($verificador['archivo_verificador']) . '\');">
                             <i class="bi bi-file-check"></i> Ver Verif
+                        </a>
+                        <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal" 
+                           data-bs-target="#modalEliminarVerificador"
+                           onclick="eliminarVerificador(' . $verificador['id'] . ', \'' . htmlspecialchars($item['nombre'], ENT_QUOTES) . '\');">
+                            <i class="bi bi-trash"></i> Eliminar
                         </a>';
             } else {
                 $estadoBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Cargado</span>';
@@ -470,6 +475,49 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
     </div>
 </div>
 
+<!-- MODAL: Eliminar Verificador -->
+<div class="modal fade" id="modalEliminarVerificador" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash"></i> Eliminar Verificador</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="eliminar_verificador.php">
+                <div class="modal-body">
+                    <input type="hidden" name="verificador_id" id="eliminarVerifId">
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>¿Está seguro de eliminar este verificador?</strong>
+                    </div>
+                    
+                    <p><strong>Item:</strong> <span id="eliminarItemNombre"></span></p>
+                    <p class="text-muted mb-3">
+                        Al eliminar el verificador, el documento volverá al estado <strong>"Cargado"</strong> 
+                        y podrá cargar una nueva imagen de verificación.
+                    </p>
+                    
+                    <div class="mb-3">
+                        <label for="motivoEliminacion" class="form-label">
+                            Motivo de eliminación <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="motivoEliminacion" name="motivo_eliminacion" 
+                                  rows="3" required placeholder="Ej: Error en la imagen, falta de claridad, documento incorrecto..."></textarea>
+                        <small class="text-muted">Este motivo quedará registrado en el historial</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Confirmar Eliminación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function verDocumento(docId, itemNombre, titulo) {
     fetch(`get_documento.php?doc_id=${docId}`)
@@ -497,6 +545,12 @@ function verSinMovimiento(itemNombre, observacion, fecha) {
     document.getElementById('sinMovItemNombre').textContent = itemNombre;
     document.getElementById('sinMovFecha').textContent = fecha;
     document.getElementById('sinMovObservacion').textContent = observacion;
+}
+
+function eliminarVerificador(verifId, itemNombre) {
+    document.getElementById('eliminarVerifId').value = verifId;
+    document.getElementById('eliminarItemNombre').textContent = itemNombre;
+    document.getElementById('motivoEliminacion').value = '';
 }
 
 function seleccionarDocumento(docId, itemId, usuarioId, itemNombre) {
