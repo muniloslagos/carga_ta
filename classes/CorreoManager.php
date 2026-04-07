@@ -1138,12 +1138,17 @@ class CorreoManager {
     
     /**
      * Obtener auditores activos con correo registrado
+     * CAMBIO: Consulta tabla usuario_perfiles para soporte de múltiples perfiles
      */
     private function obtenerAuditoresConCorreo() {
-        $result = $this->conn->query("SELECT id, nombre as nombre_completo, email
-                                      FROM usuarios 
-                                      WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != ''
-                                      ORDER BY nombre");
+        $result = $this->conn->query("
+            SELECT DISTINCT u.id, u.nombre as nombre_completo, u.email
+            FROM usuarios u
+            INNER JOIN usuario_perfiles up ON u.id = up.usuario_id
+            WHERE up.perfil = 'auditor' AND u.activo = 1 
+              AND u.email IS NOT NULL AND u.email != ''
+            ORDER BY u.nombre
+        ");
         $auditores = [];
         while ($row = $result->fetch_assoc()) {
             $auditores[] = $row;

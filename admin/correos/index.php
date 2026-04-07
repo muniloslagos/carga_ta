@@ -223,7 +223,14 @@ while ($row = $result->fetch_assoc()) {
 }
 
 // Obtener usuarios cargadores para selector
-$cargadores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'cargador_informacion' AND activo = 1 ORDER BY nombre";
+// CAMBIO: Consulta tabla usuario_perfiles para soporte de múltiples perfiles
+$cargadores_query = "
+    SELECT DISTINCT u.id, u.nombre, u.email 
+    FROM usuarios u
+    INNER JOIN usuario_perfiles up ON u.id = up.usuario_id
+    WHERE up.perfil = 'cargador_informacion' AND u.activo = 1 
+    ORDER BY u.nombre
+";
 $cargadores = $conn->query($cargadores_query);
 $cargadores2 = $conn->query($cargadores_query); // Segunda copia para el segundo form
 
@@ -232,7 +239,15 @@ $directores_query = "SELECT id, nombres, apellidos, correo FROM directores WHERE
 $directores_list = $conn->query($directores_query);
 
 // Obtener auditores para tab fin proceso general
-$auditores_query = "SELECT id, nombre, email FROM usuarios WHERE perfil = 'auditor' AND activo = 1 AND email IS NOT NULL AND email != '' ORDER BY nombre";
+// CAMBIO: Consulta tabla usuario_perfiles para soporte de múltiples perfiles
+$auditores_query = "
+    SELECT DISTINCT u.id, u.nombre, u.email 
+    FROM usuarios u
+    INNER JOIN usuario_perfiles up ON u.id = up.usuario_id
+    WHERE up.perfil = 'auditor' AND u.activo = 1 
+      AND u.email IS NOT NULL AND u.email != '' 
+    ORDER BY u.nombre
+";
 $auditores_list = $conn->query($auditores_query);
 
 // Obtener configuración del alcalde y subrogantes

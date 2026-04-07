@@ -234,7 +234,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        $stmt = $conn->prepare("SELECT id, nombre, email FROM usuarios WHERE perfil = ? AND activo = 1 ORDER BY nombre");
+        // CAMBIO: Consulta tabla usuario_perfiles para soporte de múltiples perfiles
+        $stmt = $conn->prepare("
+            SELECT DISTINCT u.id, u.nombre, u.email 
+            FROM usuarios u
+            INNER JOIN usuario_perfiles up ON u.id = up.usuario_id
+            WHERE up.perfil = ? AND u.activo = 1 
+            ORDER BY u.nombre
+        ");
         $stmt->bind_param('s', $perfil);
         $stmt->execute();
         $result = $stmt->get_result();

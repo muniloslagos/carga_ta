@@ -17,8 +17,15 @@ $conn = $db->getConnection();
 
 $item_id = intval($_GET['item_id'] ?? 0);
 
-// Obtener todos los publicadores (perfil = 'publicador')
-$stmt = $conn->prepare("SELECT id, nombre, email FROM usuarios WHERE perfil = 'publicador' AND activo = 1 ORDER BY nombre");
+// Obtener todos los publicadores (usuarios con perfil 'publicador' en usuario_perfiles)
+// CAMBIO: Consulta tabla usuario_perfiles para soporte de múltiples perfiles
+$stmt = $conn->prepare("
+    SELECT DISTINCT u.id, u.nombre, u.email 
+    FROM usuarios u
+    INNER JOIN usuario_perfiles up ON u.id = up.usuario_id
+    WHERE up.perfil = 'publicador' AND u.activo = 1 
+    ORDER BY u.nombre
+");
 $stmt->execute();
 $result = $stmt->get_result();
 $publicadores = [];
