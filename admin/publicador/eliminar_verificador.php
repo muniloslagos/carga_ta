@@ -18,7 +18,7 @@ require_once dirname(dirname(__DIR__)) . '/classes/Historial.php';
 
 // Validar autenticación del publicador
 $publicador_id = $_SESSION['user_id'] ?? null;
-$current_profile = $_SESSION['perfil'] ?? null;
+$current_profile = $_SESSION['profile'] ?? null;
 
 // Solo publicadores y administrativos pueden eliminar verificadores
 if (!$publicador_id || ($current_profile !== 'publicador' && $current_profile !== 'administrativo')) {
