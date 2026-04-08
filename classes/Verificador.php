@@ -152,8 +152,8 @@ class Verificador {
             unlink($this->uploadDir . $verificador['archivo_verificador']);
         }
         
-        // Cambiar estado del documento a "Cargado" (retrotraer)
-        $updateDocSql = "UPDATE documentos SET estado = 'Cargado' WHERE id = ?";
+        // Cambiar estado del documento a "aprobado" (retrotraer desde Publicado)
+        $updateDocSql = "UPDATE documentos SET estado = 'aprobado' WHERE id = ?";
         $updateDocStmt = $this->db->prepare($updateDocSql);
         $updateDocStmt->bind_param("i", $verificador['documento_id']);
         $updateDocStmt->execute();

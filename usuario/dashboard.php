@@ -2026,7 +2026,7 @@ function confirmarEliminarVerificador() {
         return;
     }
     
-    if (!confirm('¿Está seguro de eliminar este verificador? El documento volverá al estado "Cargado".')) {
+    if (!confirm('¿Está seguro de eliminar este verificador? El documento volverá al estado "aprobado".')) {
         return;
     }
     
@@ -2285,7 +2285,7 @@ function confirmarEliminarVerificador() {
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i> <strong>Atención:</strong> Esta acción eliminará el verificador y retrotraerá el documento al estado "Cargado", permitiendo cargar un nuevo verificador.
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Atención:</strong> Esta acción eliminará el verificador y retrotraerá el documento al estado "aprobado", permitiendo cargar un nuevo verificador.
                 </div>
                 
                 <input type="hidden" id="eliminarVerifId">

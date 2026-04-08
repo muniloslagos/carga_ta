@@ -105,7 +105,7 @@ if (!$verificador) {
 $documento_id = $verificador['documento_id'];
 $archivo_eliminado = $verificador['archivo_verificador'];
 
-// Eliminar verificador (esto también retrotraerá el documento a "Cargado")
+// Eliminar verificador (esto también retrotraerá el documento a "aprobado")
 if ($verificadorClass->delete($verificador_id)) {
     
     // Registrar en historial
@@ -114,7 +114,7 @@ if ($verificadorClass->delete($verificador_id)) {
         'documento_id' => $documento_id,
         'usuario_id' => $publicador_id,
         'tipo' => 'verificador_eliminado',
-        'descripcion' => 'Verificador eliminado y documento retrotraído a "Cargado"',
+        'descripcion' => 'Verificador eliminado y documento retrotraído a "aprobado"',
         'detalle' => 'Archivo: ' . $archivo_eliminado . ' | Motivo: ' . $motivo
     ]);
     
@@ -124,7 +124,7 @@ if ($verificadorClass->delete($verificador_id)) {
         echo json_encode(['success' => true, 'message' => 'Verificador eliminado correctamente']);
         exit;
     }
-    $_SESSION['success'] = 'Verificador eliminado correctamente. El documento ha sido retrotraído a estado "Cargado".';
+    $_SESSION['success'] = 'Verificador eliminado correctamente. El documento ha sido retrotraído a estado "aprobado".';
 } else {
     if ($isAjax) {
         ob_clean();
