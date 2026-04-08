@@ -40,10 +40,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $verificador_id = (int)($_POST['verificador_id'] ?? 0);
-$motivo = trim($_POST['motivo_eliminacion'] ?? 'Sin motivo especificado');
+$motivo = trim($_POST['motivo'] ?? trim($_POST['motivo_eliminacion'] ?? 'Sin motivo especificado'));
+
+// Detectar si es una petición AJAX
+$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+          strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
 
 // Validaciones
 if (!$verificador_id) {
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'ID de verificador no válido']);
+        exit;
+    }
     $_SESSION['error'] = 'ID de verificador no válido';
     header('Location: index.php');
     exit;
@@ -54,6 +63,11 @@ $verificadorClass = new Verificador($db_conn);
 $verificador = $verificadorClass->getById($verificador_id);
 
 if (!$verificador) {
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Verificador no encontrado']);
+        exit;
+    }
     $_SESSION['error'] = 'Verificador no encontrado';
     header('Location: index.php');
     exit;
@@ -75,8 +89,18 @@ if ($verificadorClass->delete($verificador_id)) {
         'detalle' => 'Archivo: ' . $archivo_eliminado . ' | Motivo: ' . $motivo
     ]);
     
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'message' => 'Verificador eliminado correctamente']);
+        exit;
+    }
     $_SESSION['success'] = 'Verificador eliminado correctamente. El documento ha sido retrotraído a estado "Cargado".';
 } else {
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error al eliminar el verificador']);
+        exit;
+    }
     $_SESSION['error'] = 'Error al eliminar el verificador. Intente nuevamente.';
 }
 

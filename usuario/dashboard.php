@@ -2036,6 +2036,9 @@ function confirmarEliminarVerificador() {
     
     fetch('../admin/publicador/eliminar_verificador.php', {
         method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
         body: formData
     })
     .then(response => response.json())
