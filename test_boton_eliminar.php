@@ -3,10 +3,12 @@
  * Script de diagnóstico: Verificar si el botón "Eliminar Verificador" debería aparecer
  */
 require_once 'config/config.php';
+require_once 'config/Database.php';
 require_once 'classes/Documento.php';
 require_once 'classes/Verificador.php';
 require_once 'classes/Item.php';
 
+$db = new Database();
 $conn = $db->getConnection();
 $documentoClass = new Documento($conn);
 $verificadorClass = new Verificador($conn);
