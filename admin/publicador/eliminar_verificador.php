@@ -20,7 +20,6 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Verificador.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Documento.php';
-require_once dirname(dirname(__DIR__)) . '/classes/Historial.php';
 
 // Validar autenticación del publicador
 $publicador_id = $_SESSION['user_id'] ?? null;
@@ -108,15 +107,8 @@ $archivo_eliminado = $verificador['archivo_verificador'];
 // Eliminar verificador (esto también retrotraerá el documento a "aprobado")
 if ($verificadorClass->delete($verificador_id)) {
     
-    // Registrar en historial
-    $historialClass = new Historial($db_conn);
-    $historialClass->registrar([
-        'documento_id' => $documento_id,
-        'usuario_id' => $publicador_id,
-        'tipo' => 'verificador_eliminado',
-        'descripcion' => 'Verificador eliminado y documento retrotraído a "aprobado"',
-        'detalle' => 'Archivo: ' . $archivo_eliminado . ' | Motivo: ' . $motivo
-    ]);
+    // Nota: La eliminación queda registrada implícitamente al desaparecer el verificador
+    // y el documento cambiar de estado a 'aprobado'
     
     if ($isAjax) {
         ob_clean();
