@@ -644,6 +644,7 @@ if (isset($_SESSION['success'])) {
                                     $plazoFinal = $itemPlazoClass->getPlazoFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
+                                   
                                     
                                     // Fecha Envío con icono de cumplimiento
                                     if ($ultimoDoc) {
@@ -802,6 +803,16 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
+                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#modalEliminarVerificador"
+                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;"
+                                                                title="Eliminar verificador y retrotraer documento">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($ultimoDoc): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
@@ -1034,6 +1045,16 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
+                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#modalEliminarVerificador"
+                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;"
+                                                                title="Eliminar verificador y retrotraer documento">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($ultimoDoc): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
@@ -1249,6 +1270,16 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
                                                         <i class="bi bi-dash-circle"></i> Sin Movimiento
                                                     </button>
+                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#modalEliminarVerificador"
+                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;"
+                                                                title="Eliminar verificador y retrotraer documento">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                    <?php endif; ?>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
@@ -1506,6 +1537,16 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;">
                                                         <i class="bi bi-check-circle"></i> Verificador
                                                     </button>
+                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#modalEliminarVerificador"
+                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                style="white-space: nowrap;"
+                                                                title="Eliminar verificador y retrotraer documento">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                    <?php endif; ?>
                                                 <?php elseif (($tieneDocDelUsuario || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($tieneDocDelUsuario): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
@@ -1968,6 +2009,51 @@ function verEnPantallaCompleta(imageSrc) {
         if(e.key === 'Escape') overlay.remove();
     });
 }
+
+// --- ELIMINAR VERIFICADOR ---
+function prepararEliminarVerificador(verifId, itemNombre) {
+    document.getElementById('eliminarVerifId').value = verifId;
+    document.getElementById('eliminarVerifItemNombre').textContent = itemNombre;
+    document.getElementById('eliminarVerifMotivo').value = '';
+}
+
+function confirmarEliminarVerificador() {
+    const verifId = document.getElementById('eliminarVerifId').value;
+    const motivo = document.getElementById('eliminarVerifMotivo').value.trim();
+    
+    if (!motivo) {
+        alert('Debe indicar el motivo de eliminación');
+        return;
+    }
+    
+    if (!confirm('¿Está seguro de eliminar este verificador? El documento volverá al estado "Cargado".')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('verificador_id', verifId);
+    formData.append('motivo', motivo);
+    
+    fetch('../admin/publicador/eliminar_verificador.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Verificador eliminado exitosamente');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalEliminarVerificador'));
+            modal.hide();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Error al eliminar el verificador'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al eliminar el verificador');
+    });
+}
 </script>
 
 <!-- MODAL: HISTORIAL -->
@@ -2164,6 +2250,41 @@ function verEnPantallaCompleta(imageSrc) {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Eliminar Verificador -->
+<div class="modal fade" id="modalEliminarVerificador" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <div>
+                    <h5 class="modal-title"><i class="bi bi-trash"></i> Eliminar Verificador</h5>
+                    <small>Item: <strong id="eliminarVerifItemNombre">-</strong></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Atención:</strong> Esta acción eliminará el verificador y retrotraerá el documento al estado "Cargado", permitiendo cargar un nuevo verificador.
+                </div>
+                
+                <input type="hidden" id="eliminarVerifId">
+                
+                <div class="mb-3">
+                    <label for="eliminarVerifMotivo" class="form-label">Motivo de Eliminación <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="eliminarVerifMotivo" rows="4" 
+                              placeholder="Explique el motivo por el cual elimina este verificador..." 
+                              required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarEliminarVerificador()">
+                    <i class="bi bi-trash"></i> Eliminar Verificador
+                </button>
             </div>
         </div>
     </div>
