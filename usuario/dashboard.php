@@ -2041,7 +2041,21 @@ function confirmarEliminarVerificador() {
         },
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Primero verificar si la respuesta es exitosa
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        // Obtener el texto de la respuesta
+        return response.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Respuesta no es JSON:', text);
+                throw new Error('La respuesta del servidor no es JSON válido: ' + text.substring(0, 100));
+            }
+        });
+    })
     .then(data => {
         if (data.success) {
             alert('Verificador eliminado exitosamente');
@@ -2053,8 +2067,8 @@ function confirmarEliminarVerificador() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error al eliminar el verificador');
+        console.error('Error completo:', error);
+        alert('Error al eliminar el verificador: ' + error.message);
     });
 }
 </script>

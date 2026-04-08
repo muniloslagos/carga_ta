@@ -3,13 +3,19 @@
  * Eliminar Verificador - Permite retrotraer un documento a estado "Cargado"
  * Solo para publicadores que necesitan corregir una verificación
  */
+
+// Detectar si es AJAX antes de cualquier cosa
+$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+          strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+
+// Si es AJAX, iniciar buffer de salida para evitar output no deseado
+if ($isAjax) {
+    ob_start();
+}
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
-// Detectar si es una petición AJAX PRIMERO
-$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-          strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
 
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Verificador.php';
@@ -23,6 +29,7 @@ $current_profile = $_SESSION['profile'] ?? null;
 // Solo publicadores y administrativos pueden eliminar verificadores
 if (!$publicador_id || ($current_profile !== 'publicador' && $current_profile !== 'administrativo')) {
     if ($isAjax) {
+        ob_clean(); // Limpiar cualquier output previo
         header('Content-Type: application/json');
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'No tiene permisos para eliminar verificadores']);
@@ -38,6 +45,7 @@ $db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($db_conn->connect_error) {
     if ($isAjax) {
+        ob_clean();
         header('Content-Type: application/json');
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Error de conexión a la base de datos']);
@@ -52,6 +60,7 @@ if ($db_conn->connect_error) {
 // Validar método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     if ($isAjax) {
+        ob_clean();
         header('Content-Type: application/json');
         http_response_code(405);
         echo json_encode(['success' => false, 'error' => 'Método no permitido']);
@@ -67,6 +76,7 @@ $motivo = trim($_POST['motivo'] ?? trim($_POST['motivo_eliminacion'] ?? 'Sin mot
 // Validaciones
 if (!$verificador_id) {
     if ($isAjax) {
+        ob_clean();
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'ID de verificador no válido']);
         exit;
@@ -82,6 +92,7 @@ $verificador = $verificadorClass->getById($verificador_id);
 
 if (!$verificador) {
     if ($isAjax) {
+        ob_clean();
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'Verificador no encontrado']);
         exit;
@@ -108,6 +119,7 @@ if ($verificadorClass->delete($verificador_id)) {
     ]);
     
     if ($isAjax) {
+        ob_clean();
         header('Content-Type: application/json');
         echo json_encode(['success' => true, 'message' => 'Verificador eliminado correctamente']);
         exit;
@@ -115,6 +127,7 @@ if ($verificadorClass->delete($verificador_id)) {
     $_SESSION['success'] = 'Verificador eliminado correctamente. El documento ha sido retrotraído a estado "Cargado".';
 } else {
     if ($isAjax) {
+        ob_clean();
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'Error al eliminar el verificador']);
         exit;
