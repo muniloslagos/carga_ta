@@ -796,23 +796,22 @@ if (isset($_SESSION['success'])) {
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
-                                                    <button type="button" class="btn btn-sm btn-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#modalVerVerificador"
-                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Verificador
-                                                    </button>
-                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
-                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                    <div class="btn-group" role="group" style="white-space: nowrap;">
+                                                        <button type="button" class="btn btn-sm btn-success" 
                                                                 data-bs-toggle="modal" 
-                                                                data-bs-target="#modalEliminarVerificador"
-                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                                style="white-space: nowrap;"
-                                                                title="Eliminar verificador y retrotraer documento">
-                                                            <i class="bi bi-trash"></i> Eliminar
+                                                                data-bs-target="#modalVerVerificador"
+                                                                onclick="verVerificador(<?php echo $verificador['id']; ?>)">
+                                                            <i class="bi bi-check-circle"></i> Verificador
                                                         </button>
-                                                    <?php endif; ?>
+                                                        <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#modalEliminarVerificador"
+                                                                    onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')" title="Eliminar verificador">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($ultimoDoc): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
@@ -1038,23 +1037,23 @@ if (isset($_SESSION['success'])) {
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
-                                                    <button type="button" class="btn btn-sm btn-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#modalVerVerificador"
-                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Verificador
-                                                    </button>
-                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
-                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                    <div class="btn-group" role="group" style="white-space: nowrap;">
+                                                        <button type="button" class="btn btn-sm btn-success" 
                                                                 data-bs-toggle="modal" 
-                                                                data-bs-target="#modalEliminarVerificador"
-                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                                style="white-space: nowrap;"
-                                                                title="Eliminar verificador y retrotraer documento">
-                                                            <i class="bi bi-trash"></i> Eliminar
+                                                                data-bs-target="#modalVerVerificador"
+                                                                onclick="verVerificador(<?php echo $verificador['id']; ?>)">
+                                                            <i class="bi bi-check-circle"></i> Verificador
                                                         </button>
-                                                    <?php endif; ?>
+                                                        <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#modalEliminarVerificador"
+                                                                    onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                    title="Eliminar verificador">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($ultimoDoc): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
@@ -1270,26 +1269,26 @@ if (isset($_SESSION['success'])) {
                                                             style="white-space: nowrap;" title="Registrar que no hay movimiento para este período">
                                                         <i class="bi bi-dash-circle"></i> Sin Movimiento
                                                     </button>
-                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
-                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
-                                                                data-bs-toggle="modal" 
-                                                                data-bs-target="#modalEliminarVerificador"
-                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                                style="white-space: nowrap;"
-                                                                title="Eliminar verificador y retrotraer documento">
-                                                            <i class="bi bi-trash"></i> Eliminar
-                                                        </button>
-                                                    <?php endif; ?>
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
-                                                    <button type="button" class="btn btn-sm btn-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#modalVerVerificador"
-                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Verificador
-                                                    </button>
+                                                    <div class="btn-group" role="group" style="white-space: nowrap;">
+                                                        <button type="button" class="btn btn-sm btn-success" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#modalVerVerificador"
+                                                                onclick="verVerificador(<?php echo $verificador['id']; ?>)">
+                                                            <i class="bi bi-check-circle"></i> Verificador
+                                                        </button>
+                                                        <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#modalEliminarVerificador"
+                                                                    onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
+                                                                    title="Eliminar verificador">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 <?php elseif (($ultimoDoc || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($ultimoDoc): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
@@ -1530,23 +1529,22 @@ if (isset($_SESSION['success'])) {
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                                 <?php if ($verificador): ?>
-                                                    <button type="button" class="btn btn-sm btn-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#modalVerVerificador"
-                                                            onclick="verVerificador(<?php echo $verificador['id']; ?>)"
-                                                            style="white-space: nowrap;">
-                                                        <i class="bi bi-check-circle"></i> Verificador
-                                                    </button>
-                                                    <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
-                                                        <button type="button" class="btn btn-sm btn-danger ms-1" 
+                                                    <div class="btn-group" role="group" style="white-space: nowrap;">
+                                                        <button type="button" class="btn btn-sm btn-success" 
                                                                 data-bs-toggle="modal" 
-                                                                data-bs-target="#modalEliminarVerificador"
-                                                                onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')"
-                                                                style="white-space: nowrap;"
-                                                                title="Eliminar verificador y retrotraer documento">
-                                                            <i class="bi bi-trash"></i> Eliminar
+                                                                data-bs-target="#modalVerVerificador"
+                                                                onclick="verVerificador(<?php echo $verificador['id']; ?>)">
+                                                            <i class="bi bi-check-circle"></i> Verificador
                                                         </button>
-                                                    <?php endif; ?>
+                                                        <?php if ($user_perfil === 'publicador' || $user_perfil === 'administrativo'): ?>
+                                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#modalEliminarVerificador"
+                                                                    onclick="prepararEliminarVerificador(<?php echo $verificador['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>')" title="Eliminar verificador">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 <?php elseif (($tieneDocDelUsuario || $tieneSinMovimiento) && $user_perfil === 'publicador'): ?>
                                                     <?php if ($tieneDocDelUsuario): ?>
                                                         <button type="button" class="btn btn-sm btn-warning"
