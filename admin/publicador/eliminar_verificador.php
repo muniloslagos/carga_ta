@@ -7,6 +7,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Detectar si es una petición AJAX PRIMERO
+$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+          strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Verificador.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Documento.php';
@@ -18,6 +22,12 @@ $current_profile = $_SESSION['perfil'] ?? null;
 
 // Solo publicadores y administrativos pueden eliminar verificadores
 if (!$publicador_id || ($current_profile !== 'publicador' && $current_profile !== 'administrativo')) {
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'No tiene permisos para eliminar verificadores']);
+        exit;
+    }
     http_response_code(403);
     $_SESSION['error'] = 'No tiene permisos para eliminar verificadores.';
     header('Location: index.php');
@@ -27,6 +37,12 @@ if (!$publicador_id || ($current_profile !== 'publicador' && $current_profile !=
 $db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($db_conn->connect_error) {
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Error de conexión a la base de datos']);
+        exit;
+    }
     http_response_code(500);
     $_SESSION['error'] = 'Error de conexión a la base de datos';
     header('Location: index.php');
@@ -35,16 +51,18 @@ if ($db_conn->connect_error) {
 
 // Validar método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Método no permitido']);
+        exit;
+    }
     header('Location: index.php');
     exit;
 }
 
 $verificador_id = (int)($_POST['verificador_id'] ?? 0);
 $motivo = trim($_POST['motivo'] ?? trim($_POST['motivo_eliminacion'] ?? 'Sin motivo especificado'));
-
-// Detectar si es una petición AJAX
-$isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-          strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
 
 // Validaciones
 if (!$verificador_id) {
