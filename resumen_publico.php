@@ -256,11 +256,23 @@ while ($d = $direcciones->fetch_assoc()) {
             color: white;
             padding: 30px 0;
         }
+        .header-banner img {
+            height: 80px;
+            width: auto;
+            max-width: 150px;
+            object-fit: contain;
+        }
         .stat-card { border-radius: 10px; text-align: center; padding: 20px; }
         .badge-periodicidad { font-size: 0.7rem; }
         @media print {
             .no-print { display: none !important; }
             .header-banner { background: #1a3a5c !important; -webkit-print-color-adjust: exact; }
+            .header-banner img { height: 60px !important; }
+        }
+        @media (max-width: 768px) {
+            .header-banner img { height: 50px; max-width: 100px; }
+            .header-banner h1 { font-size: 1.5rem; }
+            .header-banner h4 { font-size: 1rem; }
         }
     </style>
 </head>
@@ -269,9 +281,14 @@ while ($d = $direcciones->fetch_assoc()) {
 <div class="header-banner">
     <div class="container">
         <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="mb-1"><i class="bi bi-shield-check"></i> Resumen Municipal - Transparencia Activa</h1>
-                <h4 class="mb-0">Período: <?php echo htmlspecialchars($nombre_mes . ' ' . $ano); ?></h4>
+            <div class="d-flex align-items-center gap-3">
+                <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo_blanco2025.png" 
+                     alt="Logo Municipalidad de Los Lagos" 
+                     style="height: 80px; width: auto;">
+                <div>
+                    <h1 class="mb-1"><i class="bi bi-shield-check"></i> Resumen Municipal - Transparencia Activa</h1>
+                    <h4 class="mb-0">Período: <?php echo htmlspecialchars($nombre_mes . ' ' . $ano); ?></h4>
+                </div>
             </div>
             <div class="text-end no-print">
                 <button onclick="window.print()" class="btn btn-outline-light">
