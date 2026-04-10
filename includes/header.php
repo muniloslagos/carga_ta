@@ -135,7 +135,7 @@ if ($is_logged_in) {
                     <?php endif; ?>
                     <?php if ($is_logged_in && $tokenResumenPublico): ?>
                         <li class="nav-item">
-                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" target="_blank">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>&_t=<?php echo time(); ?>" target="_blank">
                                 <i class="bi bi-file-earmark-text"></i> Resumen General
                             </a>
                         </li>

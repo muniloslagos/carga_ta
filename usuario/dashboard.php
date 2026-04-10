@@ -397,7 +397,7 @@ if (isset($_SESSION['success'])) {
         </div>
         <?php if ($user_perfil === 'publicador' && $tokenResumenPublico): ?>
         <div class="col-auto">
-            <a href="../resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>" 
+            <a href="../resumen_publico.php?token=<?php echo $tokenResumenPublico; ?>&_t=<?php echo time(); ?>" 
                class="btn btn-success" 
                target="_blank"
                title="Ver resumen público municipal">
