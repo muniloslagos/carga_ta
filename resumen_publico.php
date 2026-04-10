@@ -197,7 +197,7 @@ while ($item = $all_items->fetch_assoc()) {
     // Buscar verificador
     $verificador = null;
     if ($documento) {
-        $stmtVer = $conn->prepare("SELECT fecha_carga_portal FROM verificadores_publicador 
+        $stmtVer = $conn->prepare("SELECT fecha_carga_portal, archivo_verificador FROM verificadores_publicador 
             WHERE documento_id = ? ORDER BY fecha_carga_portal DESC LIMIT 1");
         $stmtVer->bind_param('i', $documento['id']);
         $stmtVer->execute();
@@ -251,7 +251,8 @@ while ($item = $all_items->fetch_assoc()) {
         'estado' => $estado,
         'estado_clase' => $estado_clase,
         'fecha_envio' => $fecha_envio,
-        'fecha_publicacion' => $fecha_publicacion
+        'fecha_publicacion' => $fecha_publicacion,
+        'archivo_verificador' => $verificador ? ($verificador['archivo_verificador'] ?? null) : null
     ];
 }
 
@@ -311,7 +312,10 @@ while ($d = $direcciones->fetch_assoc()) {
                     <h4 class="mb-0">Período: <?php echo htmlspecialchars($nombre_mes . ' ' . $ano); ?></h4>
                 </div>
             </div>
-            <div class="text-end no-print">
+            <div class="text-end no-print d-flex gap-2 justify-content-end">
+                <button onclick="descargarPDF()" class="btn btn-outline-light">
+                    <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+                </button>
                 <button onclick="window.print()" class="btn btn-outline-light">
                     <i class="bi bi-printer"></i> Imprimir
                 </button>
@@ -444,9 +448,23 @@ while ($d = $direcciones->fetch_assoc()) {
                                         </span>
                                     </td>
                                     <td>
-                                        <span class="badge bg-<?php echo $item['estado_clase']; ?>">
-                                            <?php echo htmlspecialchars($item['estado']); ?>
-                                        </span>
+                                        <?php if ($item['estado_clase'] === 'success' && !empty($item['archivo_verificador'])): 
+                                            $ext = strtolower(pathinfo($item['archivo_verificador'], PATHINFO_EXTENSION));
+                                            $esPdf = ($ext === 'pdf');
+                                            $urlVerif = SITE_URL . 'uploads/' . htmlspecialchars($item['archivo_verificador']);
+                                            $nombreItem = htmlspecialchars(addslashes($item['nombre']));
+                                        ?>
+                                            <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalVerificador" 
+                                               onclick="mostrarVerificador('<?php echo $urlVerif; ?>', '<?php echo $nombreItem; ?>', <?php echo $esPdf ? 'true' : 'false'; ?>)">
+                                                <span class="badge bg-success" style="cursor:pointer" title="Clic para ver verificador">
+                                                    <i class="bi bi-eye"></i> <?php echo htmlspecialchars($item['estado']); ?>
+                                                </span>
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="badge bg-<?php echo $item['estado_clase']; ?>">
+                                                <?php echo htmlspecialchars($item['estado']); ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td><?php echo htmlspecialchars($item['fecha_envio']); ?></td>
                                     <td><?php echo htmlspecialchars($item['fecha_publicacion']); ?></td>
@@ -467,6 +485,83 @@ while ($d = $direcciones->fetch_assoc()) {
     </div>
 </div>
 
+<!-- Modal Verificador -->
+<div class="modal fade" id="modalVerificador" tabindex="-1" aria-labelledby="modalVerificadorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalVerificadorLabel">Verificador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="imgVerificador" src="" alt="Verificador" class="img-fluid rounded shadow" style="max-height: 70vh; display:none;">
+                <iframe id="pdfVerificador" src="" style="width:100%; height:70vh; border:none; display:none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <a id="linkDescargarVerif" href="" download class="btn btn-primary">
+                    <i class="bi bi-download"></i> Descargar
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function mostrarVerificador(url, nombre, esPdf) {
+    document.getElementById('modalVerificadorLabel').textContent = nombre;
+    document.getElementById('linkDescargarVerif').href = url;
+    const img = document.getElementById('imgVerificador');
+    const pdf = document.getElementById('pdfVerificador');
+    if (esPdf) {
+        img.style.display = 'none';
+        img.src = '';
+        pdf.src = url;
+        pdf.style.display = 'block';
+    } else {
+        pdf.style.display = 'none';
+        pdf.src = '';
+        img.src = url;
+        img.style.display = 'block';
+    }
+}
+// Limpiar modal al cerrar
+document.getElementById('modalVerificador').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('imgVerificador').src = '';
+    document.getElementById('pdfVerificador').src = '';
+});
+
+function descargarPDF() {
+    const btn = event.target.closest('button');
+    const textoOriginal = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Generando...';
+    btn.disabled = true;
+    
+    // Ocultar elementos no-print
+    document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+    
+    const element = document.body;
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: 'Resumen_Transparencia_<?php echo htmlspecialchars($nombre_mes); ?>_<?php echo $ano; ?>.pdf',
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+    
+    html2pdf().set(opt).from(element).save().then(() => {
+        document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+        btn.innerHTML = textoOriginal;
+        btn.disabled = false;
+    }).catch(() => {
+        document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+        btn.innerHTML = textoOriginal;
+        btn.disabled = false;
+    });
+}
+</script>
 </body>
 </html>
