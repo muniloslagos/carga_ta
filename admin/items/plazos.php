@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo'])) {
         // Guardar plazo para TODOS los items mensual - mes específico
         $mes = (int)($_POST['mes'] ?? 0);
         $plazo_fecha = $_POST['plazo_fecha'] ?? '';
+        $motivo = trim($_POST['motivo_extension'] ?? '');
         $ano = (int)($_POST['ano'] ?? date('Y'));
         
         if ($mes > 0 && $mes <= 12 && $plazo_fecha && $ano) {
@@ -44,7 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo'])) {
                         'ano' => $ano,
                         'mes' => $mes,
                         'plazo_interno' => $plazo_fecha,
-                        'fecha_carga_portal' => null
+                        'fecha_carga_portal' => null,
+                        'motivo_extension' => $motivo ?: null
                     ]);
                     if ($resultado) $guardados++;
                 }
@@ -61,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo'])) {
         $item_id = (int)($_POST['item_id'] ?? 0);
         $ano = (int)($_POST['ano'] ?? 0);
         $plazo_fecha = $_POST['plazo_fecha'] ?? '';
+        $motivo = trim($_POST['motivo_extension'] ?? '');
         
         if ($item_id && $ano && $plazo_fecha) {
             // Obtener mes_carga_anual del item
@@ -72,7 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo'])) {
                 'ano' => $ano,
                 'mes' => $mesCargaAnual,
                 'plazo_interno' => $plazo_fecha,
-                'fecha_carga_portal' => null
+                'fecha_carga_portal' => null,
+                'motivo_extension' => $motivo ?: null
             ]);
             
             if ($resultado) {
@@ -181,13 +185,19 @@ $anoActual = (int)date('Y');
                         for ($m = 1; $m <= 12; $m++) {
                             $plazo_mes = $itemPlazoClass->getByItemAndMes($itemsPorPeriodicidad['mensual'][0]['id'] ?? null, $ano_mensual_actual, $m);
                             $fecha_actual = $plazo_mes ? $plazo_mes['plazo_interno'] : '';
+                            $motivo_actual = $plazo_mes && isset($plazo_mes['motivo_extension']) ? addslashes($plazo_mes['motivo_extension']) : '';
                         ?>
                             <tr>
                                 <td><strong><?php echo $meses_nombre[$m]; ?> <?php echo $ano_mensual_actual; ?></strong></td>
-                                <td>
+                <td>
                                     <?php 
                                     if ($fecha_actual) {
                                         echo '<span class="badge bg-success">' . date('d/m/Y', strtotime($fecha_actual)) . '</span>';
+                                        
+                                        // Mostrar motivo si existe
+                                        if (!empty($plazo_mes['motivo_extension'])) {
+                                            echo '<br><small class="text-muted"><i class="bi bi-info-circle"></i> ' . htmlspecialchars($plazo_mes['motivo_extension']) . '</small>';
+                                        }
                                     } else {
                                         echo '<span class="text-muted">No configurado</span>';
                                     }
@@ -197,7 +207,7 @@ $anoActual = (int)date('Y');
                                     <button class="btn btn-sm btn-primary" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#modalPlazoMensual"
-                                            onclick="editarPlazoMensual(<?php echo $m; ?>, '<?php echo $meses_nombre[$m]; ?>', '<?php echo $fecha_actual; ?>', <?php echo $ano_mensual_actual; ?>)">
+                                            onclick="editarPlazoMensual(<?php echo $m; ?>, '<?php echo $meses_nombre[$m]; ?>', '<?php echo $fecha_actual; ?>', <?php echo $ano_mensual_actual; ?>, '<?php echo $motivo_actual; ?>')">
                                         <i class="bi bi-pencil"></i> Configurar
                                     </button>
                                 </td>
@@ -242,13 +252,28 @@ $anoActual = (int)date('Y');
                         <input type="text" class="form-control" id="mesNombreModal" disabled>
                     </div>
 
+                    <div class="alert alert-info mb-3">
+                        <strong><i class="bi bi-calculator"></i> Plazo automático:</strong>
+                        <span id="plazoAutomaticoMensual" class="ms-2">Calculando...</span>
+                        <br>
+                        <small class="text-muted">Calculado como el 6° día hábil del mes siguiente</small>
+                    </div>
+
                     <div class="mb-3">
                         <label for="plazoFechaMensualModal" class="form-label">Fecha de Vencimiento <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="plazoFechaMensualModal" name="plazo_fecha" required>
                         <small class="text-muted">Esta fecha se aplicará a TODOS los items mensual en este mes</small>
                     </div>
 
-                    <div class="alert alert-info">
+                    <div class="mb-3">
+                        <label for="motivoExtensionMensual" class="form-label">Motivo de Extensión (opcional)</label>
+                        <input type="text" class="form-control" id="motivoExtensionMensual" name="motivo_extension" 
+                               placeholder="Ej: Ampliado por feriados 18 y 19 de septiembre"
+                               maxlength="255">
+                        <small class="text-muted">Complete solo si extiende el plazo por feriados u otro motivo</small>
+                    </div>
+
+                    <div class="alert alert-warning">
                         <strong>Nota:</strong> Al guardar, el sistema asignará esta fecha de plazo a todos los items con periodicidad mensual para este mes.
                     </div>
                 </div>
@@ -401,10 +426,25 @@ $anoActual = (int)date('Y');
                         </select>
                     </div>
 
+                    <div class="alert alert-info mb-3">
+                        <strong><i class="bi bi-calculator"></i> Plazo automático:</strong>
+                        <span id="plazoAutomaticoAnual" class="ms-2">6° día hábil de febrero</span>
+                        <br>
+                        <small class="text-muted">Los items anuales tienen plazo fijo el 6° día hábil de febrero</small>
+                    </div>
+
                     <div class="mb-3">
                         <label for="plazoFechaModal" class="form-label">Fecha de Vencimiento <span class="text-danger">*</span></label>
                         <input type="date" class="form-control" id="plazoFechaModal" name="plazo_fecha" required>
                         <small class="text-muted">Especifique la fecha de vencimiento para este item</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motivoExtensionAnual" class="form-label">Motivo de Extensión (opcional)</label>
+                        <input type="text" class="form-control" id="motivoExtensionAnual" name="motivo_extension" 
+                               placeholder="Ej: Ampliado por feriados de año nuevo"
+                               maxlength="255">
+                        <small class="text-muted">Complete solo si extiende el plazo por feriados u otro motivo</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -423,13 +463,63 @@ function editarPlazoAnual(itemId, itemNombre, plazoFecha) {
     document.getElementById('modalItemId').value = itemId;
     document.getElementById('itemNombreModal').value = itemNombre;
     document.getElementById('plazoFechaModal').value = plazoFecha;
+    document.getElementById('motivoExtensionAnual').value = '';
 }
 
-function editarPlazoMensual(mes, mesNombre, fechaActual, ano) {
+function editarPlazoMensual(mes, mesNombre, fechaActual, ano, motivo) {
     document.getElementById('modalMes').value = mes;
     document.getElementById('modalAnoMensual').value = ano;
     document.getElementById('mesNombreModal').value = mesNombre + ' ' + ano;
     document.getElementById('plazoFechaMensualModal').value = fechaActual;
+    document.getElementById('motivoExtensionMensual').value = motivo || '';
+    
+    // Calcular plazo automático (6° día hábil del mes siguiente al mes de carga)
+    // Mes de carga es el anterior al mes configurado
+    // Ejemplo: Para configurar plazo de Enero, el mes de carga es Diciembre del año anterior
+    var mesCarga = mes - 1;
+    var anoCarga = ano;
+    if (mesCarga < 1) {
+        mesCarga = 12;
+        anoCarga--;
+    }
+    
+    // Calcular mes deadline (mes siguiente al mes de carga)
+    var mesDeadline = mesCarga + 1;
+    var anoDeadline = anoCarga;
+    if (mesDeadline > 12) {
+        mesDeadline = 1;
+        anoDeadline++;
+    }
+    
+    // El plazo automático sería el 6° día hábil del mes deadline
+    var plazoAuto = calcularSextoDiaHabil(anoDeadline, mesDeadline);
+    document.getElementById('plazoAutomaticoMensual').innerHTML = 
+        '<strong>' + plazoAuto + '</strong> (6° día hábil)';
+}
+
+// Función auxiliar para calcular aproximadamente el 6° día hábil
+// (Simplificada - no considera feriados, solo sábados/domingos)
+function calcularSextoDiaHabil(ano, mes) {
+    var diasHabiles = 0;
+    var dia = 1;
+    var maxDias = new Date(ano, mes, 0).getDate();
+    
+    while (diasHabiles < 6 && dia <= maxDias) {
+        var fecha = new Date(ano, mes - 1, dia);
+        var diaSemana = fecha.getDay(); // 0=domingo, 6=sábado
+        
+        if (diaSemana !== 0 && diaSemana !== 6) {
+            diasHabiles++;
+            if (diasHabiles === 6) {
+                var meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                return dia + ' de ' + meses[mes] + ' ' + ano;
+            }
+        }
+        dia++;
+    }
+    
+    return 'No calculable';
 }
 </script>
 

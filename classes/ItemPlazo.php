@@ -31,20 +31,23 @@ class ItemPlazo {
     // Crear plazo
     public function create($data) {
         $sql = "INSERT INTO {$this->table} 
-                (item_id, ano, mes, plazo_interno, fecha_carga_portal)
-                VALUES (?, ?, ?, ?, ?)
+                (item_id, ano, mes, plazo_interno, fecha_carga_portal, motivo_extension)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                 plazo_interno = VALUES(plazo_interno),
                 fecha_carga_portal = VALUES(fecha_carga_portal),
+                motivo_extension = VALUES(motivo_extension),
                 fecha_actualizacion = NOW()";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("iiiss",
+        $motivo = $data['motivo_extension'] ?? null;
+        $stmt->bind_param("iiisss",
             $data['item_id'],
             $data['ano'],
             $data['mes'],
             $data['plazo_interno'],
-            $data['fecha_carga_portal']
+            $data['fecha_carga_portal'],
+            $motivo
         );
 
         return $stmt->execute();
@@ -54,13 +57,16 @@ class ItemPlazo {
     public function update($id, $data) {
         $sql = "UPDATE {$this->table} SET 
                 plazo_interno = ?,
-                fecha_carga_portal = ?
+                fecha_carga_portal = ?,
+                motivo_extension = ?
                 WHERE id = ?";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bind_param("ssi",
+        $motivo = $data['motivo_extension'] ?? null;
+        $stmt->bind_param("sssi",
             $data['plazo_interno'],
             $data['fecha_carga_portal'],
+            $motivo,
             $id
         );
 

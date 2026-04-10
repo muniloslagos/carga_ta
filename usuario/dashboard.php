@@ -671,7 +671,7 @@ if (isset($_SESSION['success'])) {
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
-                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
                                         if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
@@ -951,7 +951,7 @@ if (isset($_SESSION['success'])) {
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
-                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
                                         if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
@@ -1195,7 +1195,7 @@ if (isset($_SESSION['success'])) {
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($ultimoDoc) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
-                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
                                         if ($ultimoDoc || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }
@@ -1443,7 +1443,7 @@ if (isset($_SESSION['success'])) {
                                     if ($user_perfil === 'publicador') {
                                         if ($verificador) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
                                         elseif ($tieneDocDelUsuario) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
-                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'publicado'; }
+                                        elseif ($tieneSinMovimiento) { $rowClass = 'table-warning'; $dataEstado = 'pendiente_publicar'; }
                                         else { $rowClass = 'table-danger'; $dataEstado = 'sin_doc'; }
                                     } else {
                                         if ($tieneDocDelUsuario || $tieneSinMovimiento) { $rowClass = 'table-success'; $dataEstado = 'cargado'; }

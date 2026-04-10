@@ -3,6 +3,12 @@
  * Resumen público municipal - Sin autenticación
  * Accesible mediante token generado al enviar correo de fin de proceso
  */
+
+// Evitar caché del navegador para mostrar siempre datos actualizados
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/Database.php';
 
