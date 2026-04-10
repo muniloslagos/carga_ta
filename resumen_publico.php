@@ -120,6 +120,19 @@ while ($item = $all_items->fetch_assoc()) {
     $dir_id = $item['direccion_id'] ?? 0;
     $dir_nombre = $item['direccion_nombre'] ?? 'Sin Dirección';
     
+    // Filtrar items que no corresponden al período seleccionado
+    $mesesTrimestral = [3, 6, 9, 12];
+    $mesesSemestral = [1, 7];
+    if ($item['periodicidad'] === 'trimestral' && !in_array($mes, $mesesTrimestral)) {
+        continue;
+    }
+    if ($item['periodicidad'] === 'semestral' && !in_array($mes, $mesesSemestral)) {
+        continue;
+    }
+    if ($item['periodicidad'] === 'anual' && intval($item['mes_carga_anual'] ?? 1) !== $mes) {
+        continue;
+    }
+    
     if (!isset($items_por_direccion[$dir_id])) {
         $items_por_direccion[$dir_id] = [
             'nombre' => $dir_nombre,
