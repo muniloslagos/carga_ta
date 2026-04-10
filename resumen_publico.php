@@ -487,20 +487,22 @@ while ($d = $direcciones->fetch_assoc()) {
 
 <!-- Modal Verificador -->
 <div class="modal fade" id="modalVerificador" tabindex="-1" aria-labelledby="modalVerificadorLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered" id="modalVerificadorDialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalVerificadorLabel">Verificador</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnToggleSize" onclick="toggleModalSize()" title="Maximizar">
+                        <i class="bi bi-arrows-fullscreen" id="iconToggleSize"></i>
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
             </div>
             <div class="modal-body text-center">
                 <img id="imgVerificador" src="" alt="Verificador" class="img-fluid rounded shadow" style="max-height: 70vh; display:none;">
                 <iframe id="pdfVerificador" src="" style="width:100%; height:70vh; border:none; display:none;"></iframe>
             </div>
             <div class="modal-footer">
-                <a id="linkFullscreen" href="" target="_blank" class="btn btn-info text-white">
-                    <i class="bi bi-arrows-fullscreen"></i> Pantalla Completa
-                </a>
                 <a id="linkDescargarVerif" href="" download class="btn btn-primary">
                     <i class="bi bi-download"></i> Descargar
                 </a>
@@ -516,7 +518,12 @@ while ($d = $direcciones->fetch_assoc()) {
 function mostrarVerificador(url, nombre, esPdf) {
     document.getElementById('modalVerificadorLabel').textContent = nombre;
     document.getElementById('linkDescargarVerif').href = url;
-    document.getElementById('linkFullscreen').href = url;
+    // Resetear a tamaño normal al abrir
+    const dialog = document.getElementById('modalVerificadorDialog');
+    dialog.classList.remove('modal-fullscreen');
+    dialog.classList.add('modal-lg');
+    document.getElementById('iconToggleSize').className = 'bi bi-arrows-fullscreen';
+    document.getElementById('btnToggleSize').title = 'Maximizar';
     const img = document.getElementById('imgVerificador');
     const pdf = document.getElementById('pdfVerificador');
     if (esPdf) {
@@ -536,6 +543,27 @@ document.getElementById('modalVerificador').addEventListener('hidden.bs.modal', 
     document.getElementById('imgVerificador').src = '';
     document.getElementById('pdfVerificador').src = '';
 });
+
+function toggleModalSize() {
+    const dialog = document.getElementById('modalVerificadorDialog');
+    const icon = document.getElementById('iconToggleSize');
+    const btn = document.getElementById('btnToggleSize');
+    if (dialog.classList.contains('modal-fullscreen')) {
+        dialog.classList.remove('modal-fullscreen');
+        dialog.classList.add('modal-lg');
+        icon.className = 'bi bi-arrows-fullscreen';
+        btn.title = 'Maximizar';
+        document.getElementById('imgVerificador').style.maxHeight = '70vh';
+        document.getElementById('pdfVerificador').style.height = '70vh';
+    } else {
+        dialog.classList.remove('modal-lg');
+        dialog.classList.add('modal-fullscreen');
+        icon.className = 'bi bi-fullscreen-exit';
+        btn.title = 'Reducir';
+        document.getElementById('imgVerificador').style.maxHeight = '85vh';
+        document.getElementById('pdfVerificador').style.height = '85vh';
+    }
+}
 
 function descargarPDF() {
     const btn = event.target.closest('button');
