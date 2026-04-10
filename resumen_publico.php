@@ -580,7 +580,7 @@ function descargarPDF() {
         filename: 'Resumen_Transparencia_<?php echo htmlspecialchars($nombre_mes); ?>_<?php echo $ano; ?>.pdf',
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'mm', format: 'legal', orientation: 'portrait' },
+        jsPDF: { unit: 'mm', format: 'legal', orientation: 'landscape' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
     
