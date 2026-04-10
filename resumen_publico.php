@@ -155,25 +155,27 @@ while ($item = $all_items->fetch_assoc()) {
         $stmtSM->close();
     }
     
-    // Buscar documento
+    // Buscar documento (con fallback para docs sin mes_carga/ano_carga)
     $documento = null;
     if ($sinMovimiento) {
         $stmtDoc = $conn->prepare("SELECT id, fecha_subida FROM documentos 
-            WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? 
+            WHERE item_id = ? 
+            AND ((mes_carga = ? AND ano_carga = ?) OR (mes_carga IS NULL AND MONTH(fecha_subida) = ? AND YEAR(fecha_subida) = ?))
             AND titulo LIKE 'Sin Movimiento%'
             AND estado != 'reemplazado'
             ORDER BY fecha_subida DESC LIMIT 1");
-        $stmtDoc->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+        $stmtDoc->bind_param('iiiii', $item['id'], $mes_busqueda, $ano, $mes_busqueda, $ano);
         $stmtDoc->execute();
         $documento = $stmtDoc->get_result()->fetch_assoc();
         $stmtDoc->close();
     } else {
         $stmtDoc = $conn->prepare("SELECT id, fecha_subida FROM documentos 
-            WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+            WHERE item_id = ? 
+            AND ((mes_carga = ? AND ano_carga = ?) OR (mes_carga IS NULL AND MONTH(fecha_subida) = ? AND YEAR(fecha_subida) = ?))
             AND (titulo NOT LIKE 'Sin Movimiento%' OR titulo IS NULL)
             AND estado != 'reemplazado'
             ORDER BY fecha_subida DESC LIMIT 1");
-        $stmtDoc->bind_param('iii', $item['id'], $mes_busqueda, $ano);
+        $stmtDoc->bind_param('iiiii', $item['id'], $mes_busqueda, $ano, $mes_busqueda, $ano);
         $stmtDoc->execute();
         $documento = $stmtDoc->get_result()->fetch_assoc();
         $stmtDoc->close();
