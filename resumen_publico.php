@@ -498,6 +498,9 @@ while ($d = $direcciones->fetch_assoc()) {
                 <iframe id="pdfVerificador" src="" style="width:100%; height:70vh; border:none; display:none;"></iframe>
             </div>
             <div class="modal-footer">
+                <a id="linkFullscreen" href="" target="_blank" class="btn btn-info text-white">
+                    <i class="bi bi-arrows-fullscreen"></i> Pantalla Completa
+                </a>
                 <a id="linkDescargarVerif" href="" download class="btn btn-primary">
                     <i class="bi bi-download"></i> Descargar
                 </a>
@@ -513,6 +516,7 @@ while ($d = $direcciones->fetch_assoc()) {
 function mostrarVerificador(url, nombre, esPdf) {
     document.getElementById('modalVerificadorLabel').textContent = nombre;
     document.getElementById('linkDescargarVerif').href = url;
+    document.getElementById('linkFullscreen').href = url;
     const img = document.getElementById('imgVerificador');
     const pdf = document.getElementById('pdfVerificador');
     if (esPdf) {
