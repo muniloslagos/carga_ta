@@ -31,22 +31,30 @@ class ItemPlazo {
     // Crear plazo
     public function create($data) {
         $sql = "INSERT INTO {$this->table} 
-                (item_id, ano, mes, plazo_interno, fecha_carga_portal, motivo_extension)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (item_id, ano, mes, plazo_interno, fecha_carga_portal, dias_extra_cargador, dias_extra_publicador, motivo_extension)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                 plazo_interno = VALUES(plazo_interno),
                 fecha_carga_portal = VALUES(fecha_carga_portal),
+                dias_extra_cargador = VALUES(dias_extra_cargador),
+                dias_extra_publicador = VALUES(dias_extra_publicador),
                 motivo_extension = VALUES(motivo_extension),
                 fecha_actualizacion = NOW()";
 
         $stmt = $this->db->prepare($sql);
         $motivo = $data['motivo_extension'] ?? null;
-        $stmt->bind_param("iiisss",
+        $dias_extra_cargador = (int)($data['dias_extra_cargador'] ?? 0);
+        $dias_extra_publicador = (int)($data['dias_extra_publicador'] ?? 0);
+        $plazo_interno = $data['plazo_interno'] ?? null;
+        $fecha_carga_portal = $data['fecha_carga_portal'] ?? null;
+        $stmt->bind_param("iiissiis",
             $data['item_id'],
             $data['ano'],
             $data['mes'],
-            $data['plazo_interno'],
-            $data['fecha_carga_portal'],
+            $plazo_interno,
+            $fecha_carga_portal,
+            $dias_extra_cargador,
+            $dias_extra_publicador,
             $motivo
         );
 
@@ -58,14 +66,22 @@ class ItemPlazo {
         $sql = "UPDATE {$this->table} SET 
                 plazo_interno = ?,
                 fecha_carga_portal = ?,
+                dias_extra_cargador = ?,
+                dias_extra_publicador = ?,
                 motivo_extension = ?
                 WHERE id = ?";
 
         $stmt = $this->db->prepare($sql);
         $motivo = $data['motivo_extension'] ?? null;
-        $stmt->bind_param("sssi",
-            $data['plazo_interno'],
-            $data['fecha_carga_portal'],
+        $dias_extra_cargador = (int)($data['dias_extra_cargador'] ?? 0);
+        $dias_extra_publicador = (int)($data['dias_extra_publicador'] ?? 0);
+        $plazo_interno = $data['plazo_interno'] ?? null;
+        $fecha_carga_portal = $data['fecha_carga_portal'] ?? null;
+        $stmt->bind_param("ssiisi",
+            $plazo_interno,
+            $fecha_carga_portal,
+            $dias_extra_cargador,
+            $dias_extra_publicador,
             $motivo,
             $id
         );
@@ -103,7 +119,9 @@ class ItemPlazo {
 
     /**
      * Obtiene el plazo FINAL de ENVÍO para un item en un período.
-     * Prioridad: personalizado en item_plazos > calculado automáticamente.
+     * Si hay días extra configurados, calcula: N-ésimo día hábil con (6 + dias_extra).
+     * Si hay fecha fija (plazo_interno), la usa directamente.
+     * Si no hay nada, calcula automáticamente (6° día hábil).
      * @return string|null  'Y-m-d' o null
      */
     public function getPlazoFinal($item_id, $ano, $mes, $periodicidad = null) {
@@ -116,19 +134,28 @@ class ItemPlazo {
             $periodicidad = $row['periodicidad'] ?? 'mensual';
         }
 
-        // Plazo personalizado (columna plazo_interno)
         $personalizado = $this->getByItemAndMes($item_id, $ano, $mes);
+
+        // Días extra configurados → calcular base + extra
+        if ($personalizado && !empty($personalizado['dias_extra_cargador'])) {
+            $diasExtra = (int)$personalizado['dias_extra_cargador'];
+            return PlazoCalculator::calcularPlazoEnvioConExtra($periodicidad, (int)$ano, (int)$mes, $diasExtra);
+        }
+
+        // Fecha fija legacy (plazo_interno)
         if ($personalizado && !empty($personalizado['plazo_interno'])) {
             return $personalizado['plazo_interno'];
         }
 
-        // Calcular automáticamente
+        // Calcular automáticamente (6° día hábil)
         return PlazoCalculator::calcularPlazoEnvio($periodicidad, (int)$ano, (int)$mes);
     }
 
     /**
      * Obtiene el plazo FINAL de PUBLICACIÓN para un item en un período.
-     * Prioridad: personalizado en item_plazos (columna fecha_carga_portal) > calculado automáticamente.
+     * Si hay días extra configurados, calcula: N-ésimo día hábil con (10 + dias_extra).
+     * Si hay fecha fija (fecha_carga_portal), la usa directamente.
+     * Si no hay nada, calcula automáticamente (10° día hábil).
      * @return string|null 'Y-m-d' o null
      */
     public function getPlazoPublicacionFinal($item_id, $ano, $mes, $periodicidad = null) {
@@ -141,13 +168,20 @@ class ItemPlazo {
             $periodicidad = $row['periodicidad'] ?? 'mensual';
         }
 
-        // Plazo personalizado (columna fecha_carga_portal reutilizada como plazo publicación)
         $personalizado = $this->getByItemAndMes($item_id, $ano, $mes);
+
+        // Días extra configurados → calcular base + extra
+        if ($personalizado && !empty($personalizado['dias_extra_publicador'])) {
+            $diasExtra = (int)$personalizado['dias_extra_publicador'];
+            return PlazoCalculator::calcularPlazoPublicacionConExtra($periodicidad, (int)$ano, (int)$mes, $diasExtra);
+        }
+
+        // Fecha fija legacy (fecha_carga_portal)
         if ($personalizado && !empty($personalizado['fecha_carga_portal'])) {
             return $personalizado['fecha_carga_portal'];
         }
 
-        // Calcular automáticamente (10.° día hábil)
+        // Calcular automáticamente (10° día hábil)
         return PlazoCalculator::calcularPlazoPublicacion($periodicidad, (int)$ano, (int)$mes);
     }
 }

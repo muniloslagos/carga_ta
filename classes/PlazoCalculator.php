@@ -128,6 +128,18 @@ class PlazoCalculator {
     }
 
     /**
+     * Plazo de ENVÍO con días extra (6 + extra días hábiles).
+     * @return string|null  'Y-m-d' o null si es ocurrencia
+     */
+    public static function calcularPlazoEnvioConExtra(string $periodicidad, int $ano, int $mes, int $diasExtra): ?string {
+        if (strtolower($periodicidad) === 'ocurrencia') {
+            return null;
+        }
+        [$dy, $dm] = self::mesDeadlineEnvio($periodicidad, $ano, $mes);
+        return self::calcularNesimoDiaHabil($dy, $dm, 6 + $diasExtra);
+    }
+
+    /**
      * Plazo de PUBLICACIÃ“N automÃ¡tico (10.Â° dÃ­a hÃ¡bil = 4 hÃ¡biles despuÃ©s del plazo envÃ­o).
      * @return string|null  'Y-m-d' o null si es ocurrencia
      */
@@ -137,6 +149,18 @@ class PlazoCalculator {
         }
         [$dy, $dm] = self::mesDeadlineEnvio($periodicidad, $ano, $mes);
         return self::calcularNesimoDiaHabil($dy, $dm, 10);
+    }
+
+    /**
+     * Plazo de PUBLICACIÓN con días extra (10 + extra días hábiles).
+     * @return string|null  'Y-m-d' o null si es ocurrencia
+     */
+    public static function calcularPlazoPublicacionConExtra(string $periodicidad, int $ano, int $mes, int $diasExtra): ?string {
+        if (strtolower($periodicidad) === 'ocurrencia') {
+            return null;
+        }
+        [$dy, $dm] = self::mesDeadlineEnvio($periodicidad, $ano, $mes);
+        return self::calcularNesimoDiaHabil($dy, $dm, 10 + $diasExtra);
     }
 
     /**
