@@ -479,6 +479,29 @@ if (!isset($PERIODICIDADES)) {
                                     onclick="editItem(<?php echo $item['id']; ?>)">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                            <?php
+                            // Contar notas del item
+                            $checkNotasTable = $conn->query("SHOW TABLES LIKE 'item_notas'");
+                            $countNotas = 0;
+                            if ($checkNotasTable && $checkNotasTable->num_rows > 0) {
+                                $stmtNotas = $conn->prepare("SELECT COUNT(*) as total FROM item_notas WHERE item_id = ?");
+                                $stmtNotas->bind_param('i', $item['id']);
+                                $stmtNotas->execute();
+                                $countNotas = (int)$stmtNotas->get_result()->fetch_assoc()['total'];
+                            }
+                            ?>
+                            <button class="btn btn-sm btn-secondary position-relative" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#notasModal"
+                                    onclick="loadItemNotas(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars(addslashes($item['numeracion'] . ' - ' . $item['nombre'])); ?>')"
+                                    title="Notas del item">
+                                <i class="bi bi-journal-text"></i>
+                                <?php if ($countNotas > 0): ?>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6em;">
+                                        <?php echo $countNotas; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </button>
                             <form method="POST" style="display: inline;" onsubmit="return confirm('¿Desactivar item?');">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="item_id" value="<?php echo $item['id']; ?>">
@@ -664,6 +687,51 @@ if (!isset($PERIODICIDADES)) {
                 <button type="button" class="btn btn-success" id="btnBulkAssign">
                     <i class="bi bi-check-circle"></i> Asignar a Items Seleccionados
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para notas del item -->
+<div class="modal fade" id="notasModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-journal-text"></i> Notas del Item</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="notasItemNombre"></p>
+
+                <!-- Formulario nueva nota -->
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="bi bi-plus-circle"></i> Agregar Nota</h6>
+                        <form id="formNuevaNota" enctype="multipart/form-data">
+                            <input type="hidden" id="notasItemId">
+                            <div class="mb-2">
+                                <textarea class="form-control" id="notaTexto" rows="3" 
+                                          placeholder="Escriba la nota o anotación del item..." required></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label"><i class="bi bi-paperclip"></i> Adjuntar archivo (opcional)</label>
+                                <input type="file" class="form-control form-control-sm" id="notaArchivo" 
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+                                <small class="text-muted">Máx. 10MB. Formatos: PDF, Word, Excel, imágenes</small>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-save"></i> Guardar Nota
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Lista de notas -->
+                <div id="notasListContainer">
+                    <div class="text-center text-muted py-3">
+                        <div class="spinner-border spinner-border-sm" role="status"></div> Cargando notas...
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -980,6 +1048,129 @@ document.getElementById('itemModal').addEventListener('hide.bs.modal', function(
 document.getElementById('bulkAssignModal').addEventListener('show.bs.modal', function() {
     updateBulkAssignModal();
 });
+
+// ============================================
+// NOTAS DEL ITEM
+// ============================================
+var _notasItemId = 0;
+
+function loadItemNotas(itemId, itemNombre) {
+    _notasItemId = itemId;
+    document.getElementById('notasItemId').value = itemId;
+    document.getElementById('notasItemNombre').innerHTML = '<strong>' + itemNombre + '</strong>';
+    document.getElementById('notaTexto').value = '';
+    document.getElementById('notaArchivo').value = '';
+    fetchNotas(itemId);
+}
+
+function fetchNotas(itemId) {
+    var container = document.getElementById('notasListContainer');
+    container.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm" role="status"></div> Cargando notas...</div>';
+
+    fetch('notas_ajax.php?action=list&item_id=' + itemId)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success || data.notas.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3"><i class="bi bi-journal"></i> No hay notas registradas</div>';
+                return;
+            }
+            var html = '';
+            data.notas.forEach(function(nota) {
+                var fecha = new Date(nota.fecha_registro);
+                var fechaStr = fecha.toLocaleDateString('es-CL', {day:'2-digit', month:'2-digit', year:'numeric'}) 
+                             + ' ' + fecha.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'});
+                
+                html += '<div class="card mb-2">';
+                html += '<div class="card-body py-2 px-3">';
+                html += '<div class="d-flex justify-content-between align-items-start">';
+                html += '<div class="flex-grow-1">';
+                html += '<small class="text-muted"><i class="bi bi-person"></i> ' + escapeHtml(nota.usuario_nombre) + ' &mdash; <i class="bi bi-clock"></i> ' + fechaStr + '</small>';
+                html += '<p class="mb-1 mt-1">' + escapeHtml(nota.nota) + '</p>';
+                
+                if (nota.archivo) {
+                    var siteUrl = '<?php echo SITE_URL; ?>';
+                    var archivoUrl = siteUrl + 'uploads/notas/' + encodeURIComponent(nota.archivo);
+                    var nombreOriginal = nota.archivo_original || nota.archivo;
+                    html += '<a href="' + archivoUrl + '" target="_blank" class="btn btn-sm btn-outline-primary mt-1">';
+                    html += '<i class="bi bi-paperclip"></i> ' + escapeHtml(nombreOriginal) + '</a>';
+                }
+                
+                html += '</div>';
+                html += '<button class="btn btn-sm btn-outline-danger ms-2" onclick="eliminarNota(' + nota.id + ')" title="Eliminar nota">';
+                html += '<i class="bi bi-trash"></i></button>';
+                html += '</div>';
+                html += '</div></div>';
+            });
+            container.innerHTML = html;
+        })
+        .catch(function() {
+            container.innerHTML = '<div class="alert alert-danger">Error al cargar notas</div>';
+        });
+}
+
+document.getElementById('formNuevaNota').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var itemId = document.getElementById('notasItemId').value;
+    var nota = document.getElementById('notaTexto').value.trim();
+    if (!nota) return;
+
+    var formData = new FormData();
+    formData.append('action', 'create');
+    formData.append('item_id', itemId);
+    formData.append('nota', nota);
+
+    var archivoInput = document.getElementById('notaArchivo');
+    if (archivoInput.files.length > 0) {
+        formData.append('archivo', archivoInput.files[0]);
+    }
+
+    var btn = this.querySelector('button[type=submit]');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+    fetch('notas_ajax.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save"></i> Guardar Nota';
+            if (data.success) {
+                document.getElementById('notaTexto').value = '';
+                document.getElementById('notaArchivo').value = '';
+                fetchNotas(itemId);
+            } else {
+                alert(data.message || 'Error al guardar');
+            }
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save"></i> Guardar Nota';
+            alert('Error de conexión');
+        });
+});
+
+function eliminarNota(notaId) {
+    if (!confirm('¿Eliminar esta nota?')) return;
+
+    var formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('nota_id', notaId);
+
+    fetch('notas_ajax.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                fetchNotas(_notasItemId);
+            } else {
+                alert(data.message || 'Error al eliminar');
+            }
+        });
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
 </script>
 
 <?php require_once '../../includes/footer.php'; ?>
