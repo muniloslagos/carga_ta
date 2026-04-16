@@ -122,7 +122,7 @@ while ($item = $all_items->fetch_assoc()) {
     
     // Filtrar items que no corresponden al período seleccionado
     $mesesTrimestral = [3, 6, 9, 12];
-    $mesesSemestral = [1, 7];
+    $mesesSemestral = [6, 12];
     if ($item['periodicidad'] === 'trimestral' && !in_array($mes, $mesesTrimestral)) {
         continue;
     }
@@ -205,6 +205,19 @@ while ($item = $all_items->fetch_assoc()) {
         $stmtVer->close();
     }
     
+    // Verificar si el documento tiene observaciones pendientes
+    $tieneObservacion = false;
+    if ($documento && !$verificador) {
+        $checkTablaObs = $conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
+        if ($checkTablaObs && $checkTablaObs->num_rows > 0) {
+            $stmtObs = $conn->prepare("SELECT id FROM observaciones_documentos WHERE documento_id = ? AND resuelta = 0 LIMIT 1");
+            $stmtObs->bind_param('i', $documento['id']);
+            $stmtObs->execute();
+            $tieneObservacion = (bool)$stmtObs->get_result()->fetch_assoc();
+            $stmtObs->close();
+        }
+    }
+    
     // Determinar estado
     $estado = '';
     $estado_clase = '';
@@ -219,8 +232,13 @@ while ($item = $all_items->fetch_assoc()) {
         $totales['publicados']++;
         $items_por_direccion[$dir_id]['totales']['publicados']++;
     } elseif ($documento) {
-        $estado = $sinMovimiento ? 'Sin Movimiento (Sin Publicar)' : 'Cargado (Sin Publicar)';
-        $estado_clase = 'warning';
+        if ($tieneObservacion) {
+            $estado = $sinMovimiento ? 'Sin Movimiento (Observado)' : 'Cargado (Observado)';
+            $estado_clase = 'danger';
+        } else {
+            $estado = $sinMovimiento ? 'Sin Movimiento (Sin Publicar)' : 'Cargado (Sin Publicar)';
+            $estado_clase = 'warning';
+        }
         $fecha_envio = date('d/m/Y', strtotime($documento['fecha_subida']));
         $fecha_publicacion = 'Pendiente';
         $totales['cargados']++;

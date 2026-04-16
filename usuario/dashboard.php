@@ -264,7 +264,7 @@ while ($row = $resultado->fetch_assoc()) {
 
 // Filtrar items según reglas del mes seleccionado
 $mesesTrimestral = [3, 6, 9, 12];
-$mesesSemestral = [1, 7];
+$mesesSemestral = [6, 12];
 
 if (!in_array($mesSeleccionado, $mesesTrimestral)) {
     $itemsPorPeriodicidad['trimestral'] = [];

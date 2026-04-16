@@ -429,8 +429,8 @@ class CorreoManager {
             $mesesTrimestral = [3, 6, 9, 12];
             $esMesTrimestral = in_array($mes, $mesesTrimestral) ? 'TRUE' : 'FALSE';
             
-            // Meses para semestrales: 1, 7
-            $mesesSemestral = [1, 7];
+            // Meses para semestrales: 6, 12 (fin de cada semestre)
+            $mesesSemestral = [6, 12];
             $esMesSemestral = in_array($mes, $mesesSemestral) ? 'TRUE' : 'FALSE';
             
             $query .= " AND (
@@ -1189,8 +1189,8 @@ class CorreoManager {
             $mesesTrimestral = [3, 6, 9, 12];
             $esMesTrimestral = in_array($mes, $mesesTrimestral) ? 'TRUE' : 'FALSE';
             
-            // Meses para semestrales: 1, 7
-            $mesesSemestral = [1, 7];
+            // Meses para semestrales: 6, 12 (fin de cada semestre)
+            $mesesSemestral = [6, 12];
             $esMesSemestral = in_array($mes, $mesesSemestral) ? 'TRUE' : 'FALSE';
             
             $sql .= " AND (
@@ -1252,6 +1252,19 @@ class CorreoManager {
             $html .= '</tr></thead><tbody>';
             
             foreach ($items as $item) {
+                // Filtrar items que no corresponden al período actual
+                $mesesTrimestral = [3, 6, 9, 12];
+                $mesesSemestral = [6, 12];
+                if ($item['periodicidad'] === 'trimestral' && !in_array($mes, $mesesTrimestral)) {
+                    continue;
+                }
+                if ($item['periodicidad'] === 'semestral' && !in_array($mes, $mesesSemestral)) {
+                    continue;
+                }
+                if ($item['periodicidad'] === 'anual' && intval($item['mes_carga_anual'] ?? 1) !== $mes) {
+                    continue;
+                }
+
                 // Determinar mes de búsqueda según periodicidad
                 $mes_busqueda = $mes;
                 if ($item['periodicidad'] === 'anual') {
@@ -1416,6 +1429,19 @@ class CorreoManager {
             $html .= '</tr></thead><tbody>';
             
             foreach ($items as $item) {
+                // Filtrar items que no corresponden al período actual
+                $mesesTrimestral = [3, 6, 9, 12];
+                $mesesSemestral = [6, 12];
+                if ($item['periodicidad'] === 'trimestral' && !in_array($mes, $mesesTrimestral)) {
+                    continue;
+                }
+                if ($item['periodicidad'] === 'semestral' && !in_array($mes, $mesesSemestral)) {
+                    continue;
+                }
+                if ($item['periodicidad'] === 'anual' && intval($item['mes_carga_anual'] ?? 1) !== $mes) {
+                    continue;
+                }
+
                 // Determinar mes de búsqueda según periodicidad
                 $mes_busqueda = $mes;
                 if ($item['periodicidad'] === 'anual') {
