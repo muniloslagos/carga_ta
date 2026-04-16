@@ -495,6 +495,67 @@ while ($d = $direcciones->fetch_assoc()) {
         </div>
     <?php endforeach; ?>
 
+    <!-- Tabla resumen de items pendientes -->
+    <?php
+    $items_pendientes = [];
+    foreach ($items_por_direccion as $did => $ddata) {
+        foreach ($ddata['items'] as $it) {
+            if ($it['estado_clase'] !== 'success') {
+                $items_pendientes[] = [
+                    'nombre' => $it['nombre'],
+                    'numeracion' => $it['numeracion'],
+                    'periodicidad' => $it['periodicidad'],
+                    'estado' => $it['estado'],
+                    'estado_clase' => $it['estado_clase'],
+                    'director' => $dir_directores[$did] ?? 'Sin director asignado'
+                ];
+            }
+        }
+    }
+    ?>
+    <?php if (!empty($items_pendientes)): ?>
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-exclamation-triangle-fill"></i> Ítems con Documentos No Cargados o Pendientes de Publicación
+                <span class="badge bg-white text-danger ms-2"><?php echo count($items_pendientes); ?></span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ítem</th>
+                            <th>Periodicidad</th>
+                            <th>Estado</th>
+                            <th>Director Responsable</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($items_pendientes as $pend): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($pend['nombre']); ?></td>
+                                <td>
+                                    <span class="badge bg-secondary badge-periodicidad">
+                                        <?php echo ucfirst(htmlspecialchars($pend['periodicidad'])); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-<?php echo $pend['estado_clase']; ?>">
+                                        <?php echo htmlspecialchars($pend['estado']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo htmlspecialchars($pend['director']); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="text-center text-muted mb-4">
         <small>
             Generado el <?php echo date('d/m/Y H:i:s'); ?> — 
