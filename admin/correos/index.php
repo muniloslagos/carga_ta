@@ -162,6 +162,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Enviar correo masivo fin de proceso general (a directores)
+    elseif (isset($_POST['enviar_individual_fin_general_director'])) {
+        try {
+            require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
+            
+            $director_id = (int)$_POST['director_id'];
+            $mes = (int)$_POST['mes_periodo'];
+            $ano = (int)$_POST['ano_periodo'];
+            
+            $correo_manager = new CorreoManager();
+            $resultado = $correo_manager->enviarFinProcesoGeneralDirector($director_id, $mes, $ano);
+            
+            $mensaje = "Correo de cierre del proceso enviado exitosamente al director";
+            $tipo_mensaje = 'success';
+            
+        } catch (Exception $e) {
+            $error = 'Error al enviar: ' . $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
+    
     elseif (isset($_POST['enviar_masivo_fin_general'])) {
         try {
             require_once dirname(dirname(__DIR__)) . '/classes/CorreoManager.php';
@@ -976,36 +996,50 @@ $meses = [
                             </div>
                         </div>
 
-                        <!-- Enlaces públicos generados -->
+                        <!-- Envío Individual a Director -->
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header bg-secondary text-white">
-                                    <h6 class="mb-0"><i class="bi bi-link-45deg"></i> Enlaces Públicos Generados</h6>
+                                    <h6 class="mb-0"><i class="bi bi-person-fill"></i> Envío Individual a Director</h6>
                                 </div>
-                                <div class="card-body" style="max-height:300px; overflow-y:auto;">
-                                    <?php if ($enlaces_publicos && $enlaces_publicos->num_rows > 0): ?>
-                                        <div class="list-group list-group-flush">
-                                            <?php while ($enlace = $enlaces_publicos->fetch_assoc()): ?>
-                                                <div class="list-group-item px-0">
-                                                    <div class="d-flex justify-content-between">
-                                                        <strong><?= $meses[$enlace['mes']] ?> <?= $enlace['ano'] ?></strong>
-                                                        <small class="text-muted"><?= date('d/m/Y H:i', strtotime($enlace['fecha_creacion'])) ?></small>
-                                                    </div>
-                                                    <div class="input-group input-group-sm mt-1">
-                                                        <input type="text" class="form-control form-control-sm" 
-                                                               value="<?= htmlspecialchars(SITE_URL . 'resumen_publico.php?token=' . $enlace['token']) ?>" 
-                                                               readonly id="link-<?= $enlace['id'] ?>">
-                                                        <button class="btn btn-outline-secondary btn-sm" type="button" 
-                                                                onclick="navigator.clipboard.writeText(document.getElementById('link-<?= $enlace['id'] ?>').value); this.innerHTML='<i class=\'bi bi-check\'></i> Copiado';">
-                                                            <i class="bi bi-clipboard"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            <?php endwhile; ?>
+                                <div class="card-body">
+                                    <form method="POST" onsubmit="return confirm('¿Enviar correo de cierre del proceso a este director?');">
+                                        <div class="mb-3">
+                                            <label class="form-label">Director:</label>
+                                            <select name="director_id" class="form-select" required>
+                                                <option value="">Seleccione un director...</option>
+                                                <?php 
+                                                if ($directores_list && $directores_list->num_rows > 0) {
+                                                    $directores_list->data_seek(0);
+                                                }
+                                                while ($director = $directores_list->fetch_assoc()): ?>
+                                                    <option value="<?= $director['id'] ?>">
+                                                        <?= htmlspecialchars($director['nombres'] . ' ' . $director['apellidos']) ?>
+                                                        (<?= htmlspecialchars($director['correo']) ?>)
+                                                    </option>
+                                                <?php endwhile; ?>
+                                            </select>
                                         </div>
-                                    <?php else: ?>
-                                        <p class="text-muted text-center mb-0">No hay enlaces generados aún.</p>
-                                    <?php endif; ?>
+                                        <div class="mb-3">
+                                            <label class="form-label">Período:</label>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <select name="mes_periodo" class="form-select" required>
+                                                        <?php foreach ($meses as $num => $nombre): ?>
+                                                            <option value="<?= $num ?>" <?= $num === $mes_actual ? 'selected' : '' ?>><?= $nombre ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <input type="number" name="ano_periodo" class="form-control" 
+                                                           value="<?= $ano_actual ?>" min="2020" max="2099" required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" name="enviar_individual_fin_general_director" class="btn btn-secondary w-100">
+                                            <i class="bi bi-send"></i> Enviar a Director Específico
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>

@@ -1218,6 +1218,90 @@ class CorreoManager {
     }
     
     /**
+     * Enviar correo de fin de proceso general a un director específico
+     */
+    public function enviarFinProcesoGeneralDirector($director_id, $mes, $ano) {
+        $plantilla = $this->obtenerPlantilla('fin_proceso_general');
+        
+        if (!$plantilla) {
+            throw new Exception('No se encontró la plantilla de fin de proceso general');
+        }
+        
+        // Obtener datos del director
+        $stmt = $this->conn->prepare("SELECT id, nombres, apellidos, correo, 
+                                             CONCAT(nombres, ' ', apellidos) as nombre_completo
+                                      FROM directores 
+                                      WHERE id = ? AND activo = 1 AND correo IS NOT NULL AND correo != ''");
+        $stmt->bind_param('i', $director_id);
+        $stmt->execute();
+        $director = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        if (!$director) {
+            throw new Exception('No se encontró el director o no tiene correo registrado');
+        }
+        
+        // Generar token y enlace público
+        $token = $this->generarTokenPublico($mes, $ano);
+        $enlace_resumen = SITE_URL . 'resumen_publico.php?token=' . $token;
+        
+        // Calcular fecha del 10° día hábil
+        $siguiente_mes = $mes + 1;
+        $siguiente_ano = $ano;
+        if ($siguiente_mes > 12) {
+            $siguiente_mes = 1;
+            $siguiente_ano++;
+        }
+        $fecha_cierre = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, 10);
+        
+        // Obtener nombres de direcciones asignadas
+        $stmtDir = $this->conn->prepare("SELECT nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
+        $stmtDir->bind_param('i', $director_id);
+        $stmtDir->execute();
+        $dirResult = $stmtDir->get_result();
+        $nombres_direcciones = [];
+        while ($dd = $dirResult->fetch_assoc()) {
+            $nombres_direcciones[] = $dd['nombre'];
+        }
+        $stmtDir->close();
+        $texto_direcciones = !empty($nombres_direcciones) ? implode(', ', $nombres_direcciones) : 'Sin dirección asignada';
+        
+        // Resumen solo con los ítems de las direcciones del director
+        $resumen_director = $this->obtenerResumenDireccionesDirector($director_id, $mes, $ano);
+        
+        $variables = [
+            '{nombre_director}' => $director['nombre_completo'],
+            '{cargo_rol}' => 'Director/a de ',
+            '{direcciones_director}' => $texto_direcciones,
+            '{mes_carga}' => $this->nombreMes($mes),
+            '{ano_carga}' => $ano,
+            '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+            '{resumen_general}' => $resumen_director,
+            '{enlace_resumen}' => $enlace_resumen
+        ];
+        
+        $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
+        $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+        
+        if (!$this->email_sender->enviarCorreo($director['correo'], $asunto, $cuerpo, $director['nombre_completo'])) {
+            throw new Exception('Error al enviar correo: ' . $this->email_sender->getError());
+        }
+        
+        // Registrar en historial
+        $detalles = [
+            [
+                'tipo' => 'director',
+                'director_id' => $director['id'],
+                'email' => $director['correo'],
+                'estado' => 'exitoso'
+            ]
+        ];
+        $this->registrarHistorial($plantilla['id'], 'individual', null, 1, $mes, $ano, 1, 0, $detalles, $director['id']);
+        
+        return true;
+    }
+    
+    /**
      * Generar resumen general de todos los ítems del municipio para un período
      */
     private function obtenerResumenGeneralMunicipio($mes, $ano) {
