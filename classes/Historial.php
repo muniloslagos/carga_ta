@@ -78,19 +78,23 @@ class Historial {
 
         // 2. Verificadores agregados (con publicador y fecha)
         $sql = "SELECT 
-                vp.id as verificador_id,
-                'verificador_agregado' as tipo_movimiento,
-                u.nombre as usuario,
-                vp.fecha_carga_portal as fecha,
-                vp.archivo_verificador,
-                vp.comentarios,
-                d.titulo as documento_titulo,
-                d.mes_carga as mes,
-                d.ano_carga as ano
-                FROM verificadores_publicador vp
-                LEFT JOIN usuarios u ON vp.publicador_id = u.id
-                LEFT JOIN documentos d ON vp.documento_id = d.id
-                WHERE vp.item_id = ?";
+            vp.id as verificador_id,
+            'verificador_agregado' as tipo_movimiento,
+            u.nombre as usuario,
+            vp.fecha_carga_portal as fecha,
+            vp.archivo_verificador,
+            vp.comentarios,
+            d.titulo as documento_titulo,
+            d.fecha_subida as fecha_envio_documento,
+            osm.fecha_creacion as fecha_sin_movimiento,
+            d.mes_carga as mes,
+            d.ano_carga as ano
+            FROM verificadores_publicador vp
+            LEFT JOIN usuarios u ON vp.publicador_id = u.id
+            LEFT JOIN documentos d ON vp.documento_id = d.id
+            LEFT JOIN observaciones_sin_movimiento osm ON osm.item_id = vp.item_id
+                AND osm.mes = d.mes_carga AND osm.ano = d.ano_carga
+            WHERE vp.item_id = ?";
 
         $params = [$item_id];
         $types = "i";
@@ -110,6 +114,16 @@ class Historial {
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
+            // En historial, la columna fecha debe mostrar:
+            // 1) Fecha de envío del documento
+            // 2) Si es "Sin Movimiento", fecha de declaración de Sin Movimiento
+            $fecha_movimiento = $row['fecha_envio_documento'] ?: $row['fecha'];
+            if (!empty($row['documento_titulo'])
+                && stripos($row['documento_titulo'], 'Sin Movimiento') === 0
+                && !empty($row['fecha_sin_movimiento'])) {
+                $fecha_movimiento = $row['fecha_sin_movimiento'];
+            }
+
             $detalle = 'Archivo: ' . $row['archivo_verificador'];
             
             // Agregar comentarios del verificador si existen
@@ -120,7 +134,7 @@ class Historial {
             $movimientos[] = [
                 'tipo' => 'verificador_agregado',
                 'usuario' => $row['usuario'] ?? 'Usuario no identificado',
-                'fecha' => $row['fecha'],
+                'fecha' => $fecha_movimiento,
                 'descripcion' => 'Verificador agregado para: ' . $row['documento_titulo'],
                 'verificador_id' => $row['verificador_id'],
                 'detalle' => $detalle,
