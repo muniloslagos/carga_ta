@@ -618,10 +618,13 @@ if (isset($_SESSION['success'])) {
                                     if ($tieneSinMovimiento && !$ultimoDoc) {
                                         // Buscar documento placeholder creado para Sin Movimiento
                                         $checkPlaceholder = $conn->prepare("
-                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre,
+                                                   osm.fecha_creacion as fecha_sin_movimiento
                                             FROM documentos d
                                             INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
                                             LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            LEFT JOIN observaciones_sin_movimiento osm ON osm.item_id = d.item_id
+                                                AND osm.mes = ds.mes AND osm.ano = ds.ano
                                             WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
@@ -631,6 +634,10 @@ if (isset($_SESSION['success'])) {
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {
                                             $ultimoDoc = $placeholderResult->fetch_assoc();
+                                            // Si es un placeholder de Sin Movimiento, usar la fecha de declaración en lugar de fecha creación placeholder
+                                            if (!empty($ultimoDoc['fecha_sin_movimiento'])) {
+                                                $ultimoDoc['fecha_envio'] = $ultimoDoc['fecha_sin_movimiento'];
+                                            }
                                         }
                                     }
                                     
@@ -911,10 +918,13 @@ if (isset($_SESSION['success'])) {
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
                                     if ($tieneSinMovimiento && !$ultimoDoc) {
                                         $checkPlaceholder = $conn->prepare("
-                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre,
+                                                   osm.fecha_creacion as fecha_sin_movimiento
                                             FROM documentos d
                                             INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
                                             LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            LEFT JOIN observaciones_sin_movimiento osm ON osm.item_id = d.item_id
+                                                AND osm.mes = ds.mes AND osm.ano = ds.ano
                                             WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
@@ -924,6 +934,10 @@ if (isset($_SESSION['success'])) {
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {
                                             $ultimoDoc = $placeholderResult->fetch_assoc();
+                                            // Si es un placeholder de Sin Movimiento, usar la fecha de declaración en lugar de fecha creación placeholder
+                                            if (!empty($ultimoDoc['fecha_sin_movimiento'])) {
+                                                $ultimoDoc['fecha_envio'] = $ultimoDoc['fecha_sin_movimiento'];
+                                            }
                                         }
                                     }
                                     
@@ -1152,10 +1166,13 @@ if (isset($_SESSION['success'])) {
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
                                     if ($tieneSinMovimiento && !$ultimoDoc) {
                                         $checkPlaceholder = $conn->prepare("
-                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+                                            SELECT d.id, d.titulo, d.archivo, d.estado, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre,
+                                                   osm.fecha_creacion as fecha_sin_movimiento
                                             FROM documentos d
                                             INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
                                             LEFT JOIN usuarios u ON d.usuario_id = u.id
+                                            LEFT JOIN observaciones_sin_movimiento osm ON osm.item_id = d.item_id
+                                                AND osm.mes = ds.mes AND osm.ano = ds.ano
                                             WHERE d.item_id = ? AND ds.mes = ? AND ds.ano = ?
                                             AND d.titulo LIKE 'Sin Movimiento%'
                                             LIMIT 1
@@ -1165,6 +1182,10 @@ if (isset($_SESSION['success'])) {
                                         $placeholderResult = $checkPlaceholder->get_result();
                                         if ($placeholderResult->num_rows > 0) {
                                             $ultimoDoc = $placeholderResult->fetch_assoc();
+                                            // Si es un placeholder de Sin Movimiento, usar la fecha de declaración en lugar de fecha creación placeholder
+                                            if (!empty($ultimoDoc['fecha_sin_movimiento'])) {
+                                                $ultimoDoc['fecha_envio'] = $ultimoDoc['fecha_sin_movimiento'];
+                                            }
                                         }
                                     }
                                     
