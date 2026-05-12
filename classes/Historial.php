@@ -26,12 +26,9 @@ class Historial {
                 d.mes_carga as mes,
                 d.ano_carga as ano,
                 d.archivo,
-                d.estado,
-                osm.fecha_creacion as fecha_sin_movimiento
+                d.estado
                 FROM documentos d
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
-                LEFT JOIN observaciones_sin_movimiento osm ON osm.item_id = d.item_id
-                    AND osm.mes = d.mes_carga AND osm.ano = d.ano_carga
                 WHERE d.item_id = ?";
 
         $params = [$item_id];
@@ -52,13 +49,6 @@ class Historial {
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
-            // Para documentos placeholder de Sin Movimiento, usar la fecha de declaración
-            $fecha_movimiento = $row['fecha'];
-            if (!empty($row['titulo']) && stripos($row['titulo'], 'Sin Movimiento') === 0 
-                && !empty($row['fecha_sin_movimiento'])) {
-                $fecha_movimiento = $row['fecha_sin_movimiento'];
-            }
-            
             $descripcion = 'Documento cargado: ' . $row['titulo'];
             $detalle = 'Archivo: ' . $row['archivo'];
             
@@ -76,7 +66,7 @@ class Historial {
             $movimientos[] = [
                 'tipo' => 'documento_cargado',
                 'usuario' => $row['usuario'] ?? 'Usuario no identificado',
-                'fecha' => $fecha_movimiento,
+                'fecha' => $row['fecha'],
                 'descripcion' => $descripcion,
                 'documento_id' => $row['documento_id'],
                 'detalle' => $detalle,
