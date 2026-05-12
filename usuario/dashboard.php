@@ -654,6 +654,13 @@ if (isset($_SESSION['success'])) {
                                    
                                     
                                     // Fecha Envío con icono de cumplimiento
+                                    if ($ultimoDoc
+                                        && isset($ultimoDoc['titulo'])
+                                        && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0
+                                        && $sinMovData
+                                        && !empty($sinMovData['fecha_creacion'])) {
+                                        $ultimoDoc['fecha_envio'] = $sinMovData['fecha_creacion'];
+                                    }
                                     if ($ultimoDoc) {
                                         if ($plazoFinal) {
                                             $icoE = date('Y-m-d', strtotime($ultimoDoc['fecha_envio'])) <= $plazoFinal ? '🟢 ' : '🔴 ';
@@ -914,6 +921,7 @@ if (isset($_SESSION['success'])) {
                                     // Verificar si tiene "Sin Movimiento" registrado
                                     $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    $sinMovData = $tieneSinMovimiento ? $sinMovimientoCache[$sinMovKey] : null;
                                     
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
                                     if ($tieneSinMovimiento && !$ultimoDoc) {
@@ -952,6 +960,13 @@ if (isset($_SESSION['success'])) {
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     // Fecha Envío con icono
+                                    if ($ultimoDoc
+                                        && isset($ultimoDoc['titulo'])
+                                        && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0
+                                        && $sinMovData
+                                        && !empty($sinMovData['fecha_creacion'])) {
+                                        $ultimoDoc['fecha_envio'] = $sinMovData['fecha_creacion'];
+                                    }
                                     if ($ultimoDoc) {
                                         $icoE = ($plazoFinal && date('Y-m-d', strtotime($ultimoDoc['fecha_envio'])) <= $plazoFinal) ? '🟢 ' : ($plazoFinal ? '🔴 ' : '');
                                         $fechaEnvio = $icoE . date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio']));
@@ -1162,6 +1177,7 @@ if (isset($_SESSION['success'])) {
                                     // Verificar si tiene "Sin Movimiento" registrado
                                     $sinMovKey = $item['id'] . '_' . $mesSeleccionado . '_' . $anoSeleccionado;
                                     $tieneSinMovimiento = isset($sinMovimientoCache[$sinMovKey]);
+                                    $sinMovData = $tieneSinMovimiento ? $sinMovimientoCache[$sinMovKey] : null;
                                     
                                     // Si hay Sin Movimiento y no hay documento normal, buscar documento placeholder
                                     if ($tieneSinMovimiento && !$ultimoDoc) {
@@ -1200,6 +1216,13 @@ if (isset($_SESSION['success'])) {
                                     $plazoPublicFinal = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoSeleccionado, $mesSeleccionado, $item['periodicidad']);
                                     $cargador = $ultimoDoc ? htmlspecialchars($ultimoDoc['usuario_nombre'] ?? '—') : '—';
                                     // Fecha Envío con icono
+                                    if ($ultimoDoc
+                                        && isset($ultimoDoc['titulo'])
+                                        && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0
+                                        && $sinMovData
+                                        && !empty($sinMovData['fecha_creacion'])) {
+                                        $ultimoDoc['fecha_envio'] = $sinMovData['fecha_creacion'];
+                                    }
                                     if ($ultimoDoc) {
                                         $icoE = ($plazoFinal && date('Y-m-d', strtotime($ultimoDoc['fecha_envio'])) <= $plazoFinal) ? '🟢 ' : ($plazoFinal ? '🔴 ' : '');
                                         $fechaEnvio = $icoE . date('d/m/Y H:i', strtotime($ultimoDoc['fecha_envio']));
