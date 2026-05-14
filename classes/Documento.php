@@ -230,7 +230,7 @@ class Documento {
     public function uploadFile($file) {
         // Tipos permitidos: PDF, documentos Word, Excel, imágenes y archivos comprimidos
         $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
-        $maxSize = 100 * 1024 * 1024; // 100MB
+        $maxSize = 200 * 1024 * 1024; // 200MB
 
         $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         

@@ -1,7 +1,7 @@
 # Configuración de Límites de Carga de Archivos
 
 ## Límite Actual
-- **Tamaño máximo por archivo:** 100 MB
+- **Tamaño máximo por archivo:** 200 MB
 - Configurado en: `classes/Documento.php` línea 233
 
 ## Para Aumentar el Límite de Carga
@@ -33,25 +33,25 @@ memory_limit = 256M
 #### A. Modificar `classes/Documento.php` (línea 233):
 
 ```php
-$maxSize = 100 * 1024 * 1024; // 100MB (actualmente configurado)
+$maxSize = 200 * 1024 * 1024; // 200MB (actualmente configurado)
 ```
 
 #### B. Modificar `usuario/dashboard.php`:
 
 1. Cambiar la constante JavaScript (línea ~2530):
 ```javascript
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (actualmente configurado)
+const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB (actualmente configurado)
 ```
 
 2. Actualizar los mensajes en los formularios:
 ```html
-<small class="text-muted">✓ Tamaño máximo: <strong>100 MB</strong></small>
+<small class="text-muted">✓ Tamaño máximo: <strong>200 MB</strong></small>
 ```
 
 #### C. Modificar `usuario/modificar_sin_movimiento.php` (línea 129):
 
 ```php
-$maxSize = 100 * 1024 * 1024; // 100MB (actualmente configurado)
+$maxSize = 200 * 1024 * 1024; // 200MB (actualmente configurado)
 ```
 
 ### 3. Configuración Apache (opcional)
@@ -79,7 +79,7 @@ Buscar:
 
 ## Recomendaciones
 
-1. **Producción:** No exceder de 50-100 MB para evitar problemas de memoria
+1. **Producción:** Configurado a 200 MB - asegurar suficiente memoria y espacio en disco
 2. **Servidor:** Asegurar que el servidor tiene suficiente espacio en disco
 3. **Base de Datos:** Los archivos se guardan en sistema de archivos, no en BD
 4. **Seguridad:** Mantener validaciones de tipo de archivo activas
@@ -96,8 +96,8 @@ Buscar:
 
 | Tipo de Carga | Límite Actual |
 |---------------|---------------|
-| Documentos (cargadores) | 100 MB |
-| Verificadores (publicadores) | 100 MB |
-| Sin Movimiento (reemplazo) | 100 MB |
+| Documentos (cargadores) | 200 MB |
+| Verificadores (publicadores) | 200 MB |
+| Sin Movimiento (reemplazo) | 200 MB |
 
-**Nota:** Todos los límites han sido configurados a 100 MB para permitir archivos más grandes.
+**Nota:** Todos los límites han sido configurados a 200 MB para permitir archivos más grandes.

@@ -168,7 +168,7 @@ class Verificador {
     // Subir archivo verificador (imagen)
     public function uploadFile($file) {
         $allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'pdf'];
-        $maxSize = 5 * 1024 * 1024; // 5MB
+        $maxSize = 200 * 1024 * 1024; // 200MB
 
         $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         
