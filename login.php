@@ -18,8 +18,10 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
 if ($is_logged_in && $current_profile) {
     if ($current_profile === 'administrativo') {
         header('Location: ' . SITE_URL . 'admin/index.php');
-    } elseif ($current_profile === 'publicador') {
-        header('Location: ' . SITE_URL . 'usuario/dashboard.php');
+    } elseif ($current_profile === 'auditor') {
+        header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
+    } elseif ($current_profile === 'revisor') {
+        header('Location: ' . SITE_URL . 'usuario/dashboard_revisor.php');
     } else {
         header('Location: ' . SITE_URL . 'usuario/dashboard.php');
     }
@@ -79,10 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES ({$user['id']}, '$action', '$ip')";
             $conn->query($sql);
 
+            // Redirigir según el perfil
             if ($perfil_unico === 'administrativo') {
                 header('Location: ' . SITE_URL . 'admin/index.php');
-            } elseif ($perfil_unico === 'publicador') {
-                header('Location: ' . SITE_URL . 'usuario/dashboard.php');
+            } elseif ($perfil_unico === 'auditor') {
+                header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
+            } elseif ($perfil_unico === 'revisor') {
+                header('Location: ' . SITE_URL . 'usuario/dashboard_revisor.php');
             } else {
                 header('Location: ' . SITE_URL . 'usuario/dashboard.php');
             }
