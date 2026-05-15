@@ -34,6 +34,19 @@ if (!$revision_activada) {
     exit;
 }
 
+// Obtener años activos de configuración
+$anosActivosResult = $conn->query("SELECT ano FROM anos_configurados WHERE activo = 1 ORDER BY ano DESC");
+$anosActivos = [];
+if ($anosActivosResult) {
+    while ($row = $anosActivosResult->fetch_assoc()) {
+        $anosActivos[] = (int)$row['ano'];
+    }
+}
+// Si no hay años configurados, usar año actual como fallback
+if (empty($anosActivos)) {
+    $anosActivos[] = (int)date('Y');
+}
+
 // Parámetros de filtro
 $anoActual = (int)date('Y');
 $mesActual = (int)date('m');
@@ -42,7 +55,7 @@ $mesSeleccionado = (isset($_GET['mes']) && $_GET['mes'] !== '') ? (int)$_GET['me
 $filtroEstado = isset($_GET['estado']) ? $_GET['estado'] : 'todos'; // 'todos', 'pendientes', 'revisados'
 
 // Validaciones
-if ($anoSeleccionado !== null && ($anoSeleccionado < 2020 || $anoSeleccionado > 2050)) $anoSeleccionado = null;
+if ($anoSeleccionado !== null && !in_array($anoSeleccionado, $anosActivos)) $anoSeleccionado = null;
 if ($mesSeleccionado !== null && ($mesSeleccionado < 1 || $mesSeleccionado > 12)) $mesSeleccionado = null;
 
 $meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -153,11 +166,11 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                 <label class="form-label"><strong>Año</strong></label>
                 <select name="ano" class="form-select">
                     <option value="" <?php echo $anoSeleccionado === null ? 'selected' : ''; ?>>Todos</option>
-                    <?php for ($a = 2024; $a <= 2030; $a++): ?>
+                    <?php foreach ($anosActivos as $a): ?>
                         <option value="<?php echo $a; ?>" <?php echo $a == $anoSeleccionado ? 'selected' : ''; ?>>
                             <?php echo $a; ?>
                         </option>
-                    <?php endfor; ?>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="col-md-2">
