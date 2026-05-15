@@ -307,9 +307,12 @@ $conn = $db->getConnection();
         echo 'Documentos sin Seguimiento</h5>';
         echo '<h2 class="mb-2">' . number_format($sin_seguimiento) . ' / ' . number_format($sql_total = array_sum($estados)) . '</h2>';
         if ($sin_seguimiento > 0) {
-            echo '<p class="mb-0"><strong>Problema:</strong> Estos documentos NO aparecerán en el dashboard del revisor ';
+            echo '<p class="mb-2"><strong>Problema:</strong> Estos documentos NO aparecerán en el dashboard del revisor ';
             echo 'porque no tienen registro en <code>documento_seguimiento</code>.</p>';
-            echo '<p class="mb-0 mt-2"><strong>Causa:</strong> Error al crear el documento o migración incompleta.</p>';
+            echo '<p class="mb-2"><strong>Causa:</strong> Error al crear el documento o migración incompleta.</p>';
+            echo '<a href="reparar_seguimiento_documentos.php" class="btn btn-warning btn-sm">';
+            echo '<i class="bi bi-tools"></i> Reparar Automáticamente';
+            echo '</a>';
         } else {
             echo '<p class="mb-0">Todos los documentos tienen registro de seguimiento correcto.</p>';
         }
