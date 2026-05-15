@@ -123,8 +123,8 @@ class Revisor {
      */
     public function getDocumentosPendientes($ano = null, $mes = null) {
         $sql = "SELECT d.*, 
-                       ds.mes,
-                       ds.ano,
+                       d.mes_carga as mes,
+                       d.ano_carga as ano,
                        i.nombre as item_titulo,
                        i.numeracion as item_numeracion,
                        dir.nombre as direccion_nombre,
@@ -147,13 +147,13 @@ class Revisor {
         $types = "";
         
         if ($ano !== null) {
-            $sql .= " AND ds.ano = ?";
+            $sql .= " AND d.ano_carga = ?";
             $params[] = $ano;
             $types .= "i";
         }
         
         if ($mes !== null) {
-            $sql .= " AND ds.mes = ?";
+            $sql .= " AND d.mes_carga = ?";
             $params[] = $mes;
             $types .= "i";
         }
@@ -175,8 +175,8 @@ class Revisor {
      */
     public function getTodosDocumentos($ano = null, $mes = null) {
         $sql = "SELECT d.*, 
-                       ds.mes,
-                       ds.ano,
+                       d.mes_carga as mes,
+                       d.ano_carga as ano,
                        i.nombre as item_titulo,
                        i.numeracion as item_numeracion,
                        dir.nombre as direccion_nombre,
@@ -198,13 +198,13 @@ class Revisor {
         $types = "";
         
         if ($ano !== null) {
-            $sql .= " AND ds.ano = ?";
+            $sql .= " AND d.ano_carga = ?";
             $params[] = $ano;
             $types .= "i";
         }
         
         if ($mes !== null) {
-            $sql .= " AND ds.mes = ?";
+            $sql .= " AND d.mes_carga = ?";
             $params[] = $mes;
             $types .= "i";
         }
@@ -226,8 +226,8 @@ class Revisor {
      */
     public function getDocumentosRevisados($revisor_id, $ano = null, $mes = null) {
         $sql = "SELECT d.*, 
-                       ds.mes,
-                       ds.ano,
+                       d.mes_carga as mes,
+                       d.ano_carga as ano,
                        i.nombre as item_titulo,
                        i.numeracion as item_numeracion,
                        dir.nombre as direccion_nombre,
@@ -248,13 +248,13 @@ class Revisor {
         $types = "i";
         
         if ($ano !== null) {
-            $sql .= " AND ds.ano = ?";
+            $sql .= " AND d.ano_carga = ?";
             $params[] = $ano;
             $types .= "i";
         }
         
         if ($mes !== null) {
-            $sql .= " AND ds.mes = ?";
+            $sql .= " AND d.mes_carga = ?";
             $params[] = $mes;
             $types .= "i";
         }
@@ -324,13 +324,8 @@ class Revisor {
                     SUM(CASE WHEN rd.estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados,
                     SUM(CASE WHEN rd.estado = 'observado' THEN 1 ELSE 0 END) as observados
                 FROM revisiones_documentos rd
-                INNER JOIN documentos d ON rd.documento_id = d.id";
-        
-        if ($ano !== null) {
-            $sql .= " LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id";
-        }
-        
-        $sql .= " WHERE 1=1";
+                INNER JOIN documentos d ON rd.documento_id = d.id
+                WHERE 1=1";
         
         $params = [];
         $types = "";
@@ -342,7 +337,7 @@ class Revisor {
         }
         
         if ($ano !== null) {
-            $sql .= " AND ds.ano = ?";
+            $sql .= " AND d.ano_carga = ?";
             $params[] = $ano;
             $types .= "i";
         }
