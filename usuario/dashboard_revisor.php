@@ -51,7 +51,11 @@ $meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
 // Obtener documentos según filtro
 if ($filtroEstado === 'revisados') {
     $documentosResult = $revisorClass->getDocumentosRevisados($_SESSION['user_id'], $anoSeleccionado, $mesSeleccionado);
+} elseif ($filtroEstado === 'pendientes') {
+    // Solo documentos sin revisar o sin estado de revisión
+    $documentosResult = $revisorClass->getDocumentosPendientes($anoSeleccionado, $mesSeleccionado);
 } else {
+    // 'todos' - obtener todos los documentos (pendientes + revisados)
     $documentosResult = $revisorClass->getDocumentosPendientes($anoSeleccionado, $mesSeleccionado);
 }
 
@@ -244,7 +248,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                             <td>
                                 <small><?php echo $meses[$doc['mes']] . ' ' . $doc['ano']; ?></small>
                             </td>
-                            <td><small><?php echo date('d/m/Y H:i', strtotime($doc['fecha_carga'])); ?></small></td>
+                            <td><small><?php echo date('d/m/Y H:i', strtotime($doc['fecha_subida'])); ?></small></td>
                             <td class="text-center">
                                 <?php echo $badgeEstado; ?>
                                 <?php if ($estado_revision === 'aprobado'): ?>
