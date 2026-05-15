@@ -1,10 +1,12 @@
 -- ============================================================================
--- MIGRACIÓN: Perfil Revisor y Sistema de Revisión de Documentos
+-- MIGRACIÓN: Perfil Revisor y Sistema de Revisión de Documentos (VERSIÓN SEGURA)
 -- ============================================================================
 -- Implementa un nuevo perfil "revisor" que puede:
 -- - Revisar documentos cargados antes de la publicación
 -- - Aprobar o Observar documentos
 -- - Funcionalidad opcional (se activa/desactiva en configuración)
+--
+-- Esta versión usa procedimientos almacenados para evitar errores si los objetos ya existen
 --
 -- Fecha: 2026-05-15
 -- ============================================================================
@@ -37,18 +39,41 @@ VALUES ('activar_revision_previa', '0', 'Activar proceso de revisión previa por
 ON DUPLICATE KEY UPDATE valor = valor;
 
 -- ============================================================================
--- 3. Actualizar tabla usuarios_perfiles para incluir el perfil 'revisor'
+-- 3. Crear índice adicional en documentos de forma segura
 -- ============================================================================
--- Nota: El perfil 'revisor' se agregará dinámicamente cuando se asignen usuarios
--- No requiere cambios en la estructura, ya que usa el campo perfil VARCHAR
 
--- ============================================================================
--- 4. Crear índice adicional en documentos para mejor rendimiento
--- ============================================================================
--- Para mejorar el rendimiento de consultas de revisión
--- Nota: Si el índice ya existe, esta sentencia generará un error que puede ignorarse
-ALTER TABLE `documentos` 
-ADD INDEX `idx_item_mes_ano` (`item_id`, `mes`, `ano`);
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS agregar_indice_documentos$$
+
+CREATE PROCEDURE agregar_indice_documentos()
+BEGIN
+    DECLARE indice_existe INT DEFAULT 0;
+    
+    -- Verificar si el índice ya existe
+    SELECT COUNT(*) INTO indice_existe
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+    AND table_name = 'documentos'
+    AND index_name = 'idx_item_mes_ano';
+    
+    -- Si no existe, crearlo
+    IF indice_existe = 0 THEN
+        ALTER TABLE `documentos` 
+        ADD INDEX `idx_item_mes_ano` (`item_id`, `mes`, `ano`);
+        SELECT 'Índice idx_item_mes_ano creado exitosamente' AS Resultado;
+    ELSE
+        SELECT 'Índice idx_item_mes_ano ya existe, no se creó' AS Resultado;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Ejecutar el procedimiento
+CALL agregar_indice_documentos();
+
+-- Eliminar el procedimiento después de usarlo
+DROP PROCEDURE IF EXISTS agregar_indice_documentos;
 
 -- ============================================================================
 -- NOTAS IMPORTANTES
