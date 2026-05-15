@@ -37,8 +37,8 @@ if (!$revision_activada) {
 // Parámetros de filtro
 $anoActual = (int)date('Y');
 $mesActual = (int)date('m');
-$anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : null; // null = todos los años
-$mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : null; // null = todos los meses
+$anoSeleccionado = (isset($_GET['ano']) && $_GET['ano'] !== '') ? (int)$_GET['ano'] : null; // null = todos los años
+$mesSeleccionado = (isset($_GET['mes']) && $_GET['mes'] !== '') ? (int)$_GET['mes'] : null; // null = todos los meses
 $filtroEstado = isset($_GET['estado']) ? $_GET['estado'] : 'todos'; // 'todos', 'pendientes', 'revisados'
 
 // Validaciones
@@ -152,6 +152,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
             <div class="col-md-2">
                 <label class="form-label"><strong>Año</strong></label>
                 <select name="ano" class="form-select">
+                    <option value="" <?php echo $anoSeleccionado === null ? 'selected' : ''; ?>>Todos</option>
                     <?php for ($a = 2024; $a <= 2030; $a++): ?>
                         <option value="<?php echo $a; ?>" <?php echo $a == $anoSeleccionado ? 'selected' : ''; ?>>
                             <?php echo $a; ?>
