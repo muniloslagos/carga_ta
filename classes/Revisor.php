@@ -123,7 +123,10 @@ class Revisor {
      */
     public function getDocumentosPendientes($ano = null, $mes = null) {
         $sql = "SELECT d.*, 
-                       i.titulo as item_titulo,
+                       ds.mes,
+                       ds.ano,
+                       i.nombre as item_titulo,
+                       i.numeracion as item_numeracion,
                        dir.nombre as direccion_nombre,
                        u.nombre as cargador_nombre,
                        rd.estado as estado_revision,
@@ -131,28 +134,29 @@ class Revisor {
                        rd.fecha_revision,
                        (SELECT COUNT(*) FROM verificadores_publicador WHERE documento_id = d.id) as tiene_verificador
                 FROM documentos d
+                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
-                WHERE d.estado = 'Pendiente'";
+                WHERE d.estado IN ('pendiente', 'aprobado')";
         
         $params = [];
         $types = "";
         
         if ($ano !== null) {
-            $sql .= " AND d.ano = ?";
+            $sql .= " AND ds.ano = ?";
             $params[] = $ano;
             $types .= "i";
         }
         
         if ($mes !== null) {
-            $sql .= " AND d.mes = ?";
+            $sql .= " AND ds.mes = ?";
             $params[] = $mes;
             $types .= "i";
         }
         
-        $sql .= " ORDER BY d.fecha_carga DESC";
+        $sql .= " ORDER BY d.fecha_subida DESC";
         
         $stmt = $this->db->prepare($sql);
         
@@ -169,13 +173,17 @@ class Revisor {
      */
     public function getDocumentosRevisados($revisor_id, $ano = null, $mes = null) {
         $sql = "SELECT d.*, 
-                       i.titulo as item_titulo,
+                       ds.mes,
+                       ds.ano,
+                       i.nombre as item_titulo,
+                       i.numeracion as item_numeracion,
                        dir.nombre as direccion_nombre,
                        u.nombre as cargador_nombre,
                        rd.estado as estado_revision,
                        rd.observaciones as observaciones_revision,
                        rd.fecha_revision
                 FROM documentos d
+                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
@@ -186,13 +194,13 @@ class Revisor {
         $types = "i";
         
         if ($ano !== null) {
-            $sql .= " AND d.ano = ?";
+            $sql .= " AND ds.ano = ?";
             $params[] = $ano;
             $types .= "i";
         }
         
         if ($mes !== null) {
-            $sql .= " AND d.mes = ?";
+            $sql .= " AND ds.mes = ?";
             $params[] = $mes;
             $types .= "i";
         }
@@ -262,8 +270,13 @@ class Revisor {
                     SUM(CASE WHEN rd.estado = 'aprobado' THEN 1 ELSE 0 END) as aprobados,
                     SUM(CASE WHEN rd.estado = 'observado' THEN 1 ELSE 0 END) as observados
                 FROM revisiones_documentos rd
-                INNER JOIN documentos d ON rd.documento_id = d.id
-                WHERE 1=1";
+                INNER JOIN documentos d ON rd.documento_id = d.id";
+        
+        if ($ano !== null) {
+            $sql .= " INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id";
+        }
+        
+        $sql .= " WHERE 1=1";
         
         $params = [];
         $types = "";
@@ -275,7 +288,7 @@ class Revisor {
         }
         
         if ($ano !== null) {
-            $sql .= " AND d.ano = ?";
+            $sql .= " AND ds.ano = ?";
             $params[] = $ano;
             $types .= "i";
         }
