@@ -20,13 +20,17 @@ error_reporting(E_ALL);
 define('PROFILE_ADMIN', 'administrativo');
 define('PROFILE_DIRECTOR', 'director_revisor');
 define('PROFILE_CARGADOR', 'cargador_informacion');
+define('PROFILE_REVISOR', 'revisor');
 define('PROFILE_PUBLICADOR', 'publicador');
+define('PROFILE_AUDITOR', 'auditor');
 
 $PROFILES = [
     'administrativo' => 'Administrador',
     'director_revisor' => 'Director Revisor',
     'cargador_informacion' => 'Cargador de Información',
-    'publicador' => 'Publicador'
+    'revisor' => 'Revisor de Documentos',
+    'publicador' => 'Publicador',
+    'auditor' => 'Auditor'
 ];
 
 // Periodicidades

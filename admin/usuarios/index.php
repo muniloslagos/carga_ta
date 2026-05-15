@@ -13,6 +13,7 @@ $usuarioClass = new Usuario($db->getConnection());
 $PROFILES = [
     'administrativo' => 'Administrador',
     'cargador_informacion' => 'Cargador de Información',
+    'revisor' => 'Revisor de Documentos',
     'publicador' => 'Publicador',
     'auditor' => 'Auditor'
 ];
