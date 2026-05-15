@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['perfil_seleccionado']
 
 // Nombres amigables de perfiles
 $nombres_perfiles = [
-    'administrativo' => 'Administrativo',
+    'administrativo' => 'Administrador',
     'director_revisor' => 'Director / Revisor',
     'cargador_informacion' => 'Cargador de Información',
     'publicador' => 'Publicador',

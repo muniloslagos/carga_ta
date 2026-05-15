@@ -26,8 +26,122 @@ if (!$tabla_existe) {
 $checkTableAlcalde = $conn->query("SHOW TABLES LIKE 'configuracion_alcalde'");
 $tabla_alcalde_existe = $checkTableAlcalde && $checkTableAlcalde->num_rows > 0;
 
+// Verificar si existe la tabla configuracion_smtp
+$checkTableSmtp = $conn->query("SHOW TABLES LIKE 'configuracion_smtp'");
+$tabla_smtp_existe = $checkTableSmtp && $checkTableSmtp->num_rows > 0;
+
 // Procesar formularios
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    
+    // Configuración General
+    if (isset($_POST['guardar_general'])) {
+        $max_file_size = (int)$_POST['max_file_size'];
+        
+        if ($max_file_size < 1 || $max_file_size > 500) {
+            $error = 'El tamaño máximo debe estar entre 1 y 500 MB';
+        } else {
+            // Guardar en tabla de configuración (usaremos configuracion_alcalde por ahora o crear nueva tabla)
+            // Por simplicidad, guardaremos como configuración en archivo o tabla general
+            $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor) VALUES ('max_file_size_mb', ?) 
+                                    ON DUPLICATE KEY UPDATE valor = ?");
+            $stmt->bind_param('ss', $max_file_size, $max_file_size);
+            
+            if ($stmt->execute()) {
+                $mensaje = 'Configuración general guardada exitosamente';
+                $tipo_mensaje = 'success';
+            } else {
+                $error = 'Error al guardar la configuración general';
+            }
+            $stmt->close();
+        }
+    }
+    
+    // Configuración SMTP
+    if (isset($_POST['guardar_smtp']) && $tabla_smtp_existe) {
+        try {
+            $smtp_host = trim($_POST['smtp_host'] ?? '');
+            $smtp_port = (int)($_POST['smtp_port'] ?? 587);
+            $smtp_usuario = trim($_POST['smtp_usuario'] ?? '');
+            $smtp_password = trim($_POST['smtp_password'] ?? '');
+            $smtp_encriptacion = $_POST['smtp_encriptacion'] ?? 'tls';
+            $smtp_de_correo = trim($_POST['smtp_de_correo'] ?? '');
+            $smtp_de_nombre = trim($_POST['smtp_de_nombre'] ?? 'Sistema de Transparencia');
+            $smtp_activo = isset($_POST['smtp_activo']) ? 1 : 0;
+            
+            // Validaciones
+            if (empty($smtp_host)) {
+                throw new Exception('El servidor SMTP es obligatorio');
+            }
+            if (empty($smtp_usuario)) {
+                throw new Exception('El usuario SMTP es obligatorio');
+            }
+            if (empty($smtp_de_correo)) {
+                throw new Exception('El correo del remitente es obligatorio');
+            }
+            if (!filter_var($smtp_de_correo, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception('El correo del remitente no es válido');
+            }
+            
+            // Verificar si existe configuración
+            $config_existe = $conn->query("SELECT id FROM configuracion_smtp LIMIT 1")->fetch_assoc();
+            
+            if ($config_existe) {
+                // Actualizar
+                $stmt = $conn->prepare("UPDATE configuracion_smtp SET 
+                    smtp_host = ?, 
+                    smtp_port = ?, 
+                    smtp_usuario = ?, 
+                    smtp_password = ?, 
+                    smtp_encriptacion = ?, 
+                    smtp_de_correo = ?, 
+                    smtp_de_nombre = ?, 
+                    smtp_activo = ?,
+                    modificado_por = ?
+                    WHERE id = ?");
+                $stmt->bind_param('sissssssii', 
+                    $smtp_host, 
+                    $smtp_port, 
+                    $smtp_usuario, 
+                    $smtp_password, 
+                    $smtp_encriptacion, 
+                    $smtp_de_correo, 
+                    $smtp_de_nombre, 
+                    $smtp_activo,
+                    $_SESSION['user_id'],
+                    $config_existe['id']
+                );
+            } else {
+                // Insertar
+                $stmt = $conn->prepare("INSERT INTO configuracion_smtp 
+                    (smtp_host, smtp_port, smtp_usuario, smtp_password, smtp_encriptacion, smtp_de_correo, smtp_de_nombre, smtp_activo, modificado_por) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param('sisssssii', 
+                    $smtp_host, 
+                    $smtp_port, 
+                    $smtp_usuario, 
+                    $smtp_password, 
+                    $smtp_encriptacion, 
+                    $smtp_de_correo, 
+                    $smtp_de_nombre, 
+                    $smtp_activo,
+                    $_SESSION['user_id']
+                );
+            }
+            
+            if ($stmt->execute()) {
+                $mensaje = 'Configuración SMTP guardada exitosamente';
+                $tipo_mensaje = 'success';
+            } else {
+                throw new Exception('Error al guardar la configuración');
+            }
+            
+            $stmt->close();
+            
+        } catch (Exception $e) {
+            $error = $e->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
     
     // Configuración del Alcalde
     if (isset($_POST['guardar_alcalde']) && $tabla_alcalde_existe) {
@@ -148,6 +262,36 @@ if ($result_dir) {
         $directores[] = $row;
     }
 }
+
+// Obtener configuración SMTP
+$config_smtp = null;
+if ($tabla_smtp_existe) {
+    $result = $conn->query("SELECT * FROM configuracion_smtp ORDER BY id DESC LIMIT 1");
+    if ($result && $result->num_rows > 0) {
+        $config_smtp = $result->fetch_assoc();
+    }
+}
+
+if (!$config_smtp) {
+    $config_smtp = [
+        'smtp_host' => 'smtp.gmail.com',
+        'smtp_port' => 587,
+        'smtp_usuario' => '',
+        'smtp_password' => '',
+        'smtp_encriptacion' => 'tls',
+        'smtp_de_correo' => '',
+        'smtp_de_nombre' => 'Sistema de Transparencia Activa',
+        'smtp_activo' => 0,
+        'smtp_verificado' => 0
+    ];
+}
+
+// Obtener configuración general
+$max_file_size = 200; // Valor por defecto en MB
+$result_config = $conn->query("SELECT valor FROM configuracion WHERE clave = 'max_file_size_mb'");
+if ($result_config && $result_config->num_rows > 0) {
+    $max_file_size = (int)$result_config->fetch_assoc()['valor'];
+}
 ?>
 
 <div class="container-fluid mt-4">
@@ -177,7 +321,12 @@ if ($result_dir) {
             <!-- Tabs de configuración -->
             <ul class="nav nav-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="anos-tab" data-bs-toggle="tab" data-bs-target="#anos" type="button" role="tab">
+                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                        <i class="bi bi-gear"></i> General
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="anos-tab" data-bs-toggle="tab" data-bs-target="#anos" type="button" role="tab">
                         <i class="bi bi-calendar-range"></i> Años
                     </button>
                 </li>
@@ -186,11 +335,75 @@ if ($result_dir) {
                         <i class="bi bi-person-badge-fill"></i> Alcalde
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp" type="button" role="tab">
+                        <i class="bi bi-envelope-at"></i> SMTP
+                    </button>
+                </li>
             </ul>
 
             <div class="tab-content" id="configTabContent">
+                <!-- Tab: General -->
+                <div class="tab-pane fade show active" id="general" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-gear"></i> Configuración General del Sistema</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-header bg-primary text-white">
+                                                <strong><i class="bi bi-file-earmark-arrow-up"></i> Límites de Carga</strong>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <label for="max_file_size" class="form-label">Tamaño Máximo de Archivo <span class="text-danger">*</span></label>
+                                                    <div class="input-group">
+                                                        <input type="number" class="form-control" id="max_file_size" name="max_file_size" 
+                                                               value="<?= htmlspecialchars($max_file_size) ?>" min="1" max="500" required>
+                                                        <span class="input-group-text">MB</span>
+                                                    </div>
+                                                    <small class="text-muted">Tamaño máximo permitido para cargar archivos (1-500 MB)</small>
+                                                </div>
+                                                
+                                                <div class="alert alert-info">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    <strong>Nota:</strong> Este límite se aplica a todos los tipos de documentos cargados en el sistema.
+                                                    <br><small>Límite actual: <strong><?= $max_file_size ?> MB</strong></small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="alert alert-warning">
+                                            <h6><i class="bi bi-exclamation-triangle"></i> Configuración del Servidor</h6>
+                                            <p>Para que este límite funcione correctamente, asegúrese de configurar también:</p>
+                                            <ul class="mb-0">
+                                                <li><code>upload_max_filesize</code> en php.ini</li>
+                                                <li><code>post_max_size</code> en php.ini</li>
+                                                <li><code>max_execution_time</code> en php.ini</li>
+                                            </ul>
+                                            <hr>
+                                            <p class="mb-0"><small>Reinicie el servidor Apache después de modificar php.ini</small></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" name="guardar_general" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> Guardar Configuración General
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Tab: Años -->
-                <div class="tab-pane fade show active" id="anos" role="tabpanel">
+                <div class="tab-pane fade" id="anos" role="tabpanel">
                     <div class="card mt-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0"><i class="bi bi-calendar-year"></i> Gestión de Años Disponibles</h5>
@@ -377,6 +590,121 @@ if ($result_dir) {
                                         <strong>Última modificación:</strong> <?= date('d/m/Y H:i', strtotime($alcalde['fecha_modificacion'])) ?>
                                     </div>
                                 <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab: SMTP -->
+                <div class="tab-pane fade" id="smtp" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="bi bi-envelope-at"></i> Configuración de Correo Electrónico (SMTP)</h5>
+                        </div>
+                        <div class="card-body">
+                            <?php if (!$tabla_smtp_existe): ?>
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <strong>Tabla no encontrada:</strong> Ejecuta la migración SMTP primero.
+                                </div>
+                            <?php else: ?>
+                                <p class="text-muted">Configure el servidor SMTP para el envío de notificaciones automáticas</p>
+                                
+                                <form method="POST">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Información importante:</strong> Configure correctamente el servidor SMTP para que el sistema pueda enviar notificaciones automáticas.
+                                    </div>
+
+                                    <div class="row mb-3">
+                                        <div class="col-md-8">
+                                            <label for="smtp_host" class="form-label">Servidor SMTP <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="smtp_host" name="smtp_host" 
+                                                   value="<?= htmlspecialchars($config_smtp['smtp_host']) ?>" required
+                                                   placeholder="smtp.gmail.com">
+                                            <small class="text-muted">Ejemplo: smtp.gmail.com, smtp.office365.com</small>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="smtp_port" class="form-label">Puerto <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="smtp_port" name="smtp_port" 
+                                                   value="<?= htmlspecialchars($config_smtp['smtp_port']) ?>" required
+                                                   min="1" max="65535">
+                                            <small class="text-muted">TLS: 587 | SSL: 465</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="smtp_encriptacion" class="form-label">Tipo de Encriptación</label>
+                                        <select class="form-select" id="smtp_encriptacion" name="smtp_encriptacion">
+                                            <option value="tls" <?= $config_smtp['smtp_encriptacion'] === 'tls' ? 'selected' : '' ?>>TLS (recomendado)</option>
+                                            <option value="ssl" <?= $config_smtp['smtp_encriptacion'] === 'ssl' ? 'selected' : '' ?>>SSL</option>
+                                            <option value="none" <?= $config_smtp['smtp_encriptacion'] === 'none' ? 'selected' : '' ?>>Sin encriptación</option>
+                                        </select>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <h6 class="mb-3"><i class="bi bi-person-lock"></i> Credenciales</h6>
+
+                                    <div class="mb-3">
+                                        <label for="smtp_usuario" class="form-label">Usuario SMTP <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="smtp_usuario" name="smtp_usuario" 
+                                               value="<?= htmlspecialchars($config_smtp['smtp_usuario']) ?>" required
+                                               placeholder="correo@muniloslagos.cl">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="smtp_password" class="form-label">Contraseña SMTP <span class="text-danger">*</span></label>
+                                        <input type="password" class="form-control" id="smtp_password" name="smtp_password" 
+                                               value="<?= htmlspecialchars($config_smtp['smtp_password']) ?>"
+                                               placeholder="Contraseña o App Password">
+                                        <small class="text-muted">
+                                            <i class="bi bi-shield-lock"></i> Para Gmail, use una App Password
+                                        </small>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <h6 class="mb-3"><i class="bi bi-envelope"></i> Remitente</h6>
+
+                                    <div class="mb-3">
+                                        <label for="smtp_de_correo" class="form-label">Correo del Remitente <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="smtp_de_correo" name="smtp_de_correo" 
+                                               value="<?= htmlspecialchars($config_smtp['smtp_de_correo']) ?>" required
+                                               placeholder="transparencia@muniloslagos.cl">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="smtp_de_nombre" class="form-label">Nombre del Remitente</label>
+                                        <input type="text" class="form-control" id="smtp_de_nombre" name="smtp_de_nombre" 
+                                               value="<?= htmlspecialchars($config_smtp['smtp_de_nombre']) ?>"
+                                               placeholder="Sistema de Transparencia Activa">
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="smtp_activo" name="smtp_activo" 
+                                                   <?= $config_smtp['smtp_activo'] ? 'checked' : '' ?>>
+                                            <label class="form-check-label" for="smtp_activo">
+                                                <strong>Activar envío de correos automáticos</strong>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" name="guardar_smtp" class="btn btn-primary">
+                                            <i class="bi bi-save"></i> Guardar Configuración SMTP
+                                        </button>
+                                    </div>
+                                </form>
+                                
+                                <div class="alert alert-secondary mt-3">
+                                    <i class="bi bi-info-circle"></i>
+                                    Para más opciones de configuración y pruebas, visite: 
+                                    <a href="<?= SITE_URL ?>admin/smtp/" class="alert-link">Configuración SMTP Completa</a>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
