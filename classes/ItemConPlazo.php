@@ -99,9 +99,12 @@ class ItemConPlazo {
             $sql = "SELECT 
                     d.*,
                     d.fecha_subida as fecha_envio,
-                    u.nombre as usuario_nombre
+                    u.nombre as usuario_nombre,
+                    rd.estado as revision_estado,
+                    rd.observaciones as revision_observaciones
                     FROM documentos d
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
+                    LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                     WHERE d.item_id = ?
                     AND (
                         (d.mes_carga = ? AND d.ano_carga = ?)
@@ -118,9 +121,12 @@ class ItemConPlazo {
             $sql = "SELECT 
                     d.*,
                     d.fecha_subida as fecha_envio,
-                    u.nombre as usuario_nombre
+                    u.nombre as usuario_nombre,
+                    rd.estado as revision_estado,
+                    rd.observaciones as revision_observaciones
                     FROM documentos d
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
+                    LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                     WHERE d.item_id = ?
                     AND d.usuario_id = ?
                     AND (
@@ -154,9 +160,12 @@ class ItemConPlazo {
         $types        = str_repeat('i', count($meses));
 
         if ($usuario_id === null) {
-            $sql = "SELECT d.*, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+            $sql = "SELECT d.*, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre,
+                    rd.estado as revision_estado,
+                    rd.observaciones as revision_observaciones
                     FROM documentos d
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
+                    LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                     WHERE d.item_id = ? AND d.ano_carga = ?
                       AND d.mes_carga IN ($placeholders)
                     ORDER BY d.fecha_subida DESC LIMIT 1";
@@ -165,9 +174,12 @@ class ItemConPlazo {
             $params = array_merge([$item_id, $ano], $meses);
             $stmt->bind_param('ii' . $types, ...$params);
         } else {
-            $sql = "SELECT d.*, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre
+            $sql = "SELECT d.*, d.fecha_subida as fecha_envio, u.nombre as usuario_nombre,
+                    rd.estado as revision_estado,
+                    rd.observaciones as revision_observaciones
                     FROM documentos d
                     LEFT JOIN usuarios u ON d.usuario_id = u.id
+                    LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                     WHERE d.item_id = ? AND d.usuario_id = ? AND d.ano_carga = ?
                       AND d.mes_carga IN ($placeholders)
                     ORDER BY d.fecha_subida DESC LIMIT 1";
