@@ -159,6 +159,18 @@ if ($user_perfil === 'cargador_informacion') {
 $checkTableObs = $conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
 $tablaObsExiste = ($checkTableObs && $checkTableObs->num_rows > 0);
 
+// Verificar si existe la tabla revisiones_documentos y si está activada la revisión
+$checkTableRev = $conn->query("SHOW TABLES LIKE 'revisiones_documentos'");
+$tablaRevExiste = ($checkTableRev && $checkTableRev->num_rows > 0);
+$revisionActivada = false;
+if ($tablaRevExiste) {
+    $checkRevConfig = $conn->query("SELECT valor FROM configuracion WHERE clave = 'activar_revision_previa'");
+    if ($checkRevConfig && $checkRevConfig->num_rows > 0) {
+        $rowRev = $checkRevConfig->fetch_assoc();
+        $revisionActivada = ($rowRev['valor'] == '1');
+    }
+}
+
 // Construir query según tablas disponibles
 $selectObservaciones = $tablaObsExiste ? 
     "od.id as observacion_id,
@@ -170,9 +182,19 @@ $selectObservaciones = $tablaObsExiste ?
         NULL as fecha_observacion,
         NULL as observador_nombre";
 
+$selectRevisiones = $tablaRevExiste ?
+    "rd.estado as revision_estado,
+        rd.observaciones as revision_observaciones" :
+    "NULL as revision_estado,
+        NULL as revision_observaciones";
+
 $joinObservaciones = $tablaObsExiste ?
     "LEFT JOIN observaciones_documentos od ON d.id = od.documento_id AND od.resuelta = 0
     LEFT JOIN usuarios u_obs ON od.observado_por = u_obs.id" :
+    "";
+
+$joinRevisiones = $tablaRevExiste ?
+    "LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id" :
     "";
 
 $query = "
@@ -193,7 +215,8 @@ $query = "
         vp.id as verificador_id,
         vp.fecha_carga_portal,
         u_pub.nombre as publicador_nombre,
-        $selectObservaciones
+        $selectObservaciones,
+        $selectRevisiones
     FROM items_transparencia i
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
@@ -202,6 +225,7 @@ $query = "
     LEFT JOIN verificadores_publicador vp ON d.id = vp.documento_id
     LEFT JOIN usuarios u_pub ON vp.publicador_id = u_pub.id
     $joinObservaciones
+    $joinRevisiones
     WHERE i.activo = 1 $whereUsuario
     ORDER BY 
         FIELD(i.periodicidad, 'mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'),
@@ -763,6 +787,9 @@ if (isset($_SESSION['success'])) {
                                                     $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
                                                     ?>
                                                     <?php if (!$esPlaceholder): ?>
+                                                    <?php if ($revisionActivada && isset($ultimoDoc['revision_estado']) && $ultimoDoc['revision_estado'] === 'aprobado'): ?>
+                                                        <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
+                                                    <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
@@ -1019,6 +1046,9 @@ if (isset($_SESSION['success'])) {
                                                     $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
                                                     ?>
                                                     <?php if (!$esPlaceholder): ?>
+                                                    <?php if ($revisionActivada && isset($ultimoDoc['revision_estado']) && $ultimoDoc['revision_estado'] === 'aprobado'): ?>
+                                                        <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
+                                                    <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
@@ -1273,6 +1303,9 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
+                                                    <?php if ($revisionActivada && isset($ultimoDoc['revision_estado']) && $ultimoDoc['revision_estado'] === 'aprobado'): ?>
+                                                        <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
+                                                    <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
@@ -1526,6 +1559,9 @@ if (isset($_SESSION['success'])) {
                                                     $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
                                                     ?>
                                                     <?php if (!$esPlaceholder): ?>
+                                                    <?php if ($revisionActivada && isset($ultimoDoc['revision_estado']) && $ultimoDoc['revision_estado'] === 'aprobado'): ?>
+                                                        <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
+                                                    <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
