@@ -37,12 +37,12 @@ if (!$revision_activada) {
 // Parámetros de filtro
 $anoActual = (int)date('Y');
 $mesActual = (int)date('m');
-$anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : $anoActual;
+$anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : null; // null = todos los años
 $mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : null; // null = todos los meses
 $filtroEstado = isset($_GET['estado']) ? $_GET['estado'] : 'todos'; // 'todos', 'pendientes', 'revisados'
 
 // Validaciones
-if ($anoSeleccionado < 2020 || $anoSeleccionado > 2050) $anoSeleccionado = $anoActual;
+if ($anoSeleccionado !== null && ($anoSeleccionado < 2020 || $anoSeleccionado > 2050)) $anoSeleccionado = null;
 if ($mesSeleccionado !== null && ($mesSeleccionado < 1 || $mesSeleccionado > 12)) $mesSeleccionado = null;
 
 $meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -200,8 +200,13 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
             <?php 
                 echo $filtroEstado === 'revisados' ? 'Mis Revisiones' : 'Documentos Pendientes de Revisión';
                 echo ' - ';
-                echo $mesSeleccionado ? $meses[$mesSeleccionado] . ' ' : 'Todos los meses ';
-                echo $anoSeleccionado;
+                if ($mesSeleccionado) {
+                    echo $meses[$mesSeleccionado] . ' ';
+                    echo $anoSeleccionado ? $anoSeleccionado : 'Todos los años';
+                } else {
+                    echo 'Todos los meses ';
+                    echo $anoSeleccionado ? $anoSeleccionado : '(Todos los años)';
+                }
             ?>
         </h5>
         <span class="badge bg-light text-dark">
@@ -296,7 +301,12 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 <strong>No hay documentos para mostrar</strong><br>
                                 <small>
-                                    Filtros actuales: Año <strong><?php echo $anoSeleccionado; ?></strong>
+                                    Filtros actuales: 
+                                    <?php if ($anoSeleccionado): ?>
+                                        Año <strong><?php echo $anoSeleccionado; ?></strong>
+                                    <?php else: ?>
+                                        <strong>Todos los años</strong>
+                                    <?php endif; ?>
                                     <?php if ($mesSeleccionado): ?>
                                         - Mes <strong><?php echo $meses[$mesSeleccionado]; ?></strong>
                                     <?php else: ?>
