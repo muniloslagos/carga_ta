@@ -39,7 +39,7 @@ VALUES ('activar_revision_previa', '0', 'Activar proceso de revisión previa por
 ON DUPLICATE KEY UPDATE valor = valor;
 
 -- ============================================================================
--- 3. Crear índice adicional en documentos de forma segura
+-- 3. Crear índice adicional en documento_seguimiento de forma segura
 -- ============================================================================
 
 DELIMITER $$
@@ -54,12 +54,12 @@ BEGIN
     SELECT COUNT(*) INTO indice_existe
     FROM information_schema.statistics
     WHERE table_schema = DATABASE()
-    AND table_name = 'documentos'
+    AND table_name = 'documento_seguimiento'
     AND index_name = 'idx_item_mes_ano';
     
     -- Si no existe, crearlo
     IF indice_existe = 0 THEN
-        ALTER TABLE `documentos` 
+        ALTER TABLE `documento_seguimiento` 
         ADD INDEX `idx_item_mes_ano` (`item_id`, `mes`, `ano`);
         SELECT 'Índice idx_item_mes_ano creado exitosamente' AS Resultado;
     ELSE

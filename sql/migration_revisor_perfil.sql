@@ -43,11 +43,11 @@ ON DUPLICATE KEY UPDATE valor = valor;
 -- No requiere cambios en la estructura, ya que usa el campo perfil VARCHAR
 
 -- ============================================================================
--- 4. Crear índice adicional en documentos para mejor rendimiento
+-- 4. Crear índice adicional en documento_seguimiento para mejor rendimiento
 -- ============================================================================
 -- Para mejorar el rendimiento de consultas de revisión
 -- Nota: Si el índice ya existe, esta sentencia generará un error que puede ignorarse
-ALTER TABLE `documentos` 
+ALTER TABLE `documento_seguimiento` 
 ADD INDEX `idx_item_mes_ano` (`item_id`, `mes`, `ano`);
 
 -- ============================================================================
