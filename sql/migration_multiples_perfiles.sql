@@ -17,7 +17,7 @@
 CREATE TABLE IF NOT EXISTS `usuario_perfiles` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `usuario_id` INT(11) NOT NULL,
-  `perfil` ENUM('administrativo','director_revisor','cargador_informacion','publicador','auditor') 
+  `perfil` ENUM('administrativo','director_revisor','cargador_informacion','revisor','publicador','auditor') 
     COLLATE utf8mb4_unicode_ci NOT NULL,
   `es_principal` TINYINT(1) DEFAULT 0,
   `fecha_asignacion` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
