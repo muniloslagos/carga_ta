@@ -134,13 +134,14 @@ class Revisor {
                        rd.fecha_revision,
                        (SELECT COUNT(*) FROM verificadores_publicador WHERE documento_id = d.id) as tiene_verificador
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                 WHERE d.estado IN ('pendiente', 'aprobado')
-                AND rd.documento_id IS NULL";
+                AND rd.documento_id IS NULL
+                AND ds.documento_id IS NOT NULL";
         
         $params = [];
         $types = "";
@@ -185,12 +186,13 @@ class Revisor {
                        rd.fecha_revision,
                        (SELECT COUNT(*) FROM verificadores_publicador WHERE documento_id = d.id) as tiene_verificador
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
-                WHERE d.estado IN ('pendiente', 'aprobado')";
+                WHERE d.estado IN ('pendiente', 'aprobado')
+                AND ds.documento_id IS NOT NULL";
         
         $params = [];
         $types = "";
@@ -234,12 +236,13 @@ class Revisor {
                        rd.observaciones as observaciones_revision,
                        rd.fecha_revision
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 INNER JOIN revisiones_documentos rd ON d.id = rd.documento_id
-                WHERE rd.revisor_id = ?";
+                WHERE rd.revisor_id = ?
+                AND ds.documento_id IS NOT NULL";
         
         $params = [$revisor_id];
         $types = "i";
@@ -324,7 +327,7 @@ class Revisor {
                 INNER JOIN documentos d ON rd.documento_id = d.id";
         
         if ($ano !== null) {
-            $sql .= " INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id";
+            $sql .= " LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id";
         }
         
         $sql .= " WHERE 1=1";

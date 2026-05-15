@@ -114,8 +114,8 @@ $conn = $db->getConnection();
         
         $sql = "SELECT ds.ano, COUNT(DISTINCT d.id) as total 
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
-                WHERE d.estado IN ('pendiente', 'aprobado')
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                WHERE ds.ano IS NOT NULL
                 GROUP BY ds.ano
                 ORDER BY ds.ano DESC";
         
@@ -147,10 +147,10 @@ $conn = $db->getConnection();
         
         $sql = "SELECT ds.mes, COUNT(DISTINCT d.id) as total 
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
-                WHERE d.estado IN ('pendiente', 'aprobado')
-                AND ds.ano = ?
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                WHERE ds.ano = ?
                 GROUP BY ds.mes
+                HAVING ds.mes IS NOT NULL
                 ORDER BY ds.mes";
         
         $stmt = $conn->prepare($sql);
@@ -191,9 +191,10 @@ $conn = $db->getConnection();
                     SUM(CASE WHEN rd.estado = 'observado' THEN 1 ELSE 0 END) as observados,
                     SUM(CASE WHEN rd.documento_id IS NULL THEN 1 ELSE 0 END) as sin_revisar
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
-                WHERE d.estado IN ('pendiente', 'aprobado')";
+                WHERE d.estado IN ('pendiente', 'aprobado')
+                AND ds.documento_id IS NOT NULL";
         
         $result = $conn->query($sql);
         
@@ -202,22 +203,22 @@ $conn = $db->getConnection();
             echo '<div class="row">';
             echo '<div class="col-md-3">';
             echo '<div class="text-center p-3 bg-light rounded">';
-            echo '<h3>' . number_format($row['total_documentos']) . '</h3>';
+            echo '<h3>' . number_format((int)$row['total_documentos']) . '</h3>';
             echo '<p class="mb-0 text-muted">Total Documentos</p>';
             echo '</div></div>';
             echo '<div class="col-md-3">';
             echo '<div class="text-center p-3 bg-success bg-opacity-10 rounded">';
-            echo '<h3 class="text-success">' . number_format($row['aprobados']) . '</h3>';
+            echo '<h3 class="text-success">' . number_format((int)$row['aprobados']) . '</h3>';
             echo '<p class="mb-0 text-muted">Aprobados</p>';
             echo '</div></div>';
             echo '<div class="col-md-3">';
             echo '<div class="text-center p-3 bg-warning bg-opacity-10 rounded">';
-            echo '<h3 class="text-warning">' . number_format($row['observados']) . '</h3>';
+            echo '<h3 class="text-warning">' . number_format((int)$row['observados']) . '</h3>';
             echo '<p class="mb-0 text-muted">Observados</p>';
             echo '</div></div>';
             echo '<div class="col-md-3">';
             echo '<div class="text-center p-3 bg-secondary bg-opacity-10 rounded">';
-            echo '<h3 class="text-secondary">' . number_format($row['sin_revisar']) . '</h3>';
+            echo '<h3 class="text-secondary">' . number_format((int)$row['sin_revisar']) . '</h3>';
             echo '<p class="mb-0 text-muted">Sin Revisar</p>';
             echo '</div></div>';
             echo '</div>';
@@ -235,7 +236,7 @@ $conn = $db->getConnection();
         $sql = "SELECT d.id, d.titulo, ds.mes, ds.ano, i.nombre as item_nombre, 
                        d.estado, d.fecha_subida, rd.estado as estado_revision
                 FROM documentos d
-                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                 ORDER BY d.fecha_subida DESC
@@ -258,7 +259,7 @@ $conn = $db->getConnection();
                 echo '<td>' . $row['id'] . '</td>';
                 echo '<td><small>' . htmlspecialchars(substr($row['titulo'], 0, 40)) . '...</small></td>';
                 echo '<td><small>' . htmlspecialchars(substr($row['item_nombre'], 0, 30)) . '...</small></td>';
-                echo '<td>' . $meses[$row['mes']] . ' ' . $row['ano'] . '</td>';
+                echo '<td>' . ($row['mes'] ? $meses[$row['mes']] . ' ' . $row['ano'] : '<span class="text-danger">SIN SEGUIMIENTO</span>') . '</td>';
                 echo '<td>' . htmlspecialchars($row['estado']) . '</td>';
                 echo '<td>' . $estadoRevision . '</td>';
                 echo '<td><small>' . date('d/m/Y', strtotime($row['fecha_subida'])) . '</small></td>';
@@ -268,6 +269,91 @@ $conn = $db->getConnection();
             echo '</div>';
         } else {
             echo '<p class="text-warning"><i class="bi bi-exclamation-triangle"></i> No hay documentos recientes.</p>';
+        }
+        
+        echo '</div></div>';
+
+        // 6.5 Verificar integridad de datos
+        echo '<div class="card diagnostic-card border-danger">';
+        echo '<div class="card-header bg-danger text-white">';
+        echo '<h5 class="mb-0"><i class="bi bi-exclamation-octagon"></i> Integridad de Datos</h5>';
+        echo '</div>';
+        echo '<div class="card-body">';
+        
+        // Contar documentos sin seguimiento
+        $sql = "SELECT COUNT(*) as sin_seguimiento 
+                FROM documentos d
+                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                WHERE ds.documento_id IS NULL";
+        $result = $conn->query($sql);
+        $sin_seguimiento = $result ? $result->fetch_assoc()['sin_seguimiento'] : 0;
+        
+        // Contar documentos por estado
+        $sql = "SELECT estado, COUNT(*) as total FROM documentos GROUP BY estado";
+        $result = $conn->query($sql);
+        $estados = [];
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                $estados[$row['estado']] = $row['total'];
+            }
+        }
+        
+        echo '<div class="row">';
+        
+        // Documentos sin seguimiento
+        echo '<div class="col-md-6">';
+        echo '<div class="alert ' . ($sin_seguimiento > 0 ? 'alert-danger' : 'alert-success') . '">';
+        echo '<h5><i class="bi bi-' . ($sin_seguimiento > 0 ? 'exclamation-triangle' : 'check-circle') . '-fill"></i> ';
+        echo 'Documentos sin Seguimiento</h5>';
+        echo '<h2 class="mb-2">' . number_format($sin_seguimiento) . ' / ' . number_format($sql_total = array_sum($estados)) . '</h2>';
+        if ($sin_seguimiento > 0) {
+            echo '<p class="mb-0"><strong>Problema:</strong> Estos documentos NO aparecerán en el dashboard del revisor ';
+            echo 'porque no tienen registro en <code>documento_seguimiento</code>.</p>';
+            echo '<p class="mb-0 mt-2"><strong>Causa:</strong> Error al crear el documento o migración incompleta.</p>';
+        } else {
+            echo '<p class="mb-0">Todos los documentos tienen registro de seguimiento correcto.</p>';
+        }
+        echo '</div></div>';
+        
+        // Estados de documentos
+        echo '<div class="col-md-6">';
+        echo '<div class="alert alert-info">';
+        echo '<h5><i class="bi bi-pie-chart-fill"></i> Distribución por Estado</h5>';
+        echo '<table class="table table-sm table-borderless mb-0">';
+        foreach ($estados as $estado => $total) {
+            $badge_color = 'secondary';
+            if ($estado == 'Publicado') $badge_color = 'success';
+            elseif ($estado == 'pendiente') $badge_color = 'warning';
+            elseif ($estado == 'aprobado') $badge_color = 'info';
+            
+            echo '<tr>';
+            echo '<td><span class="badge bg-' . $badge_color . '">' . htmlspecialchars($estado) . '</span></td>';
+            echo '<td class="text-end"><strong>' . number_format($total) . '</strong></td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+        echo '</div></div>';
+        
+        echo '</div>';
+        
+        // Explicación de por qué no aparecen en revisor
+        if (isset($estados['Publicado']) && $estados['Publicado'] > 0) {
+            $pendientes = ($estados['pendiente'] ?? 0) + ($estados['aprobado'] ?? 0);
+            echo '<div class="alert alert-warning">';
+            echo '<h5><i class="bi bi-info-circle"></i> ¿Por qué no aparecen documentos en el Dashboard del Revisor?</h5>';
+            echo '<p>El dashboard del revisor <strong>solo muestra documentos con estado "pendiente" o "aprobado"</strong>.</p>';
+            echo '<ul class="mb-0">';
+            echo '<li>Documentos <strong>Publicado</strong>: ' . number_format($estados['Publicado']) . ' (ya fueron procesados, <strong>no aparecen en revisor</strong>)</li>';
+            echo '<li>Documentos <strong>Pendientes de revisión</strong>: ' . number_format($pendientes) . '</li>';
+            if ($sin_seguimiento > 0) {
+                echo '<li class="text-danger">Documentos <strong>sin seguimiento</strong>: ' . number_format($sin_seguimiento) . ' (ERROR de datos)</li>';
+            }
+            echo '</ul>';
+            if ($pendientes == 0) {
+                echo '<p class="mt-2 mb-0"><strong>✅ Conclusión:</strong> No hay documentos pendientes de revisión. ';
+                echo 'Todos los documentos ya fueron publicados.</p>';
+            }
+            echo '</div>';
         }
         
         echo '</div></div>';
