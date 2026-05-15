@@ -119,9 +119,60 @@ class Revisor {
 
     /**
      * Obtener todos los documentos pendientes de revisión para un revisor
-     * (documentos que no han sido revisados o que fueron modificados después de la última revisión)
+     * (documentos que no han sido revisados)
      */
     public function getDocumentosPendientes($ano = null, $mes = null) {
+        $sql = "SELECT d.*, 
+                       ds.mes,
+                       ds.ano,
+                       i.nombre as item_titulo,
+                       i.numeracion as item_numeracion,
+                       dir.nombre as direccion_nombre,
+                       u.nombre as cargador_nombre,
+                       rd.estado as estado_revision,
+                       rd.observaciones as observaciones_revision,
+                       rd.fecha_revision,
+                       (SELECT COUNT(*) FROM verificadores_publicador WHERE documento_id = d.id) as tiene_verificador
+                FROM documentos d
+                INNER JOIN documento_seguimiento ds ON d.id = ds.documento_id
+                INNER JOIN items_transparencia i ON d.item_id = i.id
+                LEFT JOIN direcciones dir ON i.direccion_id = dir.id
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
+                LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
+                WHERE d.estado IN ('pendiente', 'aprobado')
+                AND rd.documento_id IS NULL";
+        
+        $params = [];
+        $types = "";
+        
+        if ($ano !== null) {
+            $sql .= " AND ds.ano = ?";
+            $params[] = $ano;
+            $types .= "i";
+        }
+        
+        if ($mes !== null) {
+            $sql .= " AND ds.mes = ?";
+            $params[] = $mes;
+            $types .= "i";
+        }
+        
+        $sql .= " ORDER BY d.fecha_subida DESC";
+        
+        $stmt = $this->db->prepare($sql);
+        
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        
+        $stmt->execute();
+        return $stmt->get_result();
+    }
+
+    /**
+     * Obtener TODOS los documentos (con y sin revisión)
+     */
+    public function getTodosDocumentos($ano = null, $mes = null) {
         $sql = "SELECT d.*, 
                        ds.mes,
                        ds.ano,

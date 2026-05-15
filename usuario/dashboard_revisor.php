@@ -52,11 +52,11 @@ $meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
 if ($filtroEstado === 'revisados') {
     $documentosResult = $revisorClass->getDocumentosRevisados($_SESSION['user_id'], $anoSeleccionado, $mesSeleccionado);
 } elseif ($filtroEstado === 'pendientes') {
-    // Solo documentos sin revisar o sin estado de revisión
+    // Solo documentos sin revisar
     $documentosResult = $revisorClass->getDocumentosPendientes($anoSeleccionado, $mesSeleccionado);
 } else {
     // 'todos' - obtener todos los documentos (pendientes + revisados)
-    $documentosResult = $revisorClass->getDocumentosPendientes($anoSeleccionado, $mesSeleccionado);
+    $documentosResult = $revisorClass->getTodosDocumentos($anoSeleccionado, $mesSeleccionado);
 }
 
 // Obtener estadísticas
@@ -194,7 +194,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
 
 <!-- Tabla de documentos -->
 <div class="card">
-    <div class="card-header bg-info text-white">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
             <i class="bi bi-list-check"></i> 
             <?php 
@@ -204,6 +204,9 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                 echo $anoSeleccionado;
             ?>
         </h5>
+        <span class="badge bg-light text-dark">
+            <?php echo $documentosResult->num_rows; ?> documento(s) encontrado(s)
+        </span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -291,7 +294,19 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                         <tr>
                             <td colspan="7" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                No hay documentos para mostrar con los filtros seleccionados
+                                <strong>No hay documentos para mostrar</strong><br>
+                                <small>
+                                    Filtros actuales: Año <strong><?php echo $anoSeleccionado; ?></strong>
+                                    <?php if ($mesSeleccionado): ?>
+                                        - Mes <strong><?php echo $meses[$mesSeleccionado]; ?></strong>
+                                    <?php else: ?>
+                                        - <strong>Todos los meses</strong>
+                                    <?php endif; ?>
+                                    - Estado <strong><?php echo ucfirst($filtroEstado); ?></strong>
+                                </small><br>
+                                <small class="text-info mt-2 d-block">
+                                    💡 Intenta cambiar el año, seleccionar "Todos los meses" o cambiar el filtro de estado
+                                </small>
                             </td>
                         </tr>
                     <?php endif; ?>
