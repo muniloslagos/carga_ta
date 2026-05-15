@@ -7,7 +7,7 @@
  */
 
 require_once 'config/config.php';
-require_once 'includes/Database.php';
+require_once 'config/Database.php';
 
 $db = new Database();
 $conn = $db->getConnection();
