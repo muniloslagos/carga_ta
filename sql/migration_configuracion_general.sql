@@ -28,5 +28,10 @@ INSERT INTO `configuracion` (`clave`, `valor`, `descripcion`)
 VALUES ('max_file_size_mb', '200', 'Tamaño máximo de archivo permitido para carga (en MB)')
 ON DUPLICATE KEY UPDATE valor = valor;
 
+-- Activar proceso de revisión previa (valor por defecto: desactivado)
+INSERT INTO `configuracion` (`clave`, `valor`, `descripcion`) 
+VALUES ('activar_revision_previa', '0', 'Activar proceso de revisión previa por revisor antes de publicación (0=No, 1=Sí)')
+ON DUPLICATE KEY UPDATE valor = valor;
+
 -- Nota: El ON DUPLICATE KEY UPDATE valor = valor evita sobrescribir 
 -- el valor si ya existe la configuración

@@ -36,15 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Configuración General
     if (isset($_POST['guardar_general'])) {
         $max_file_size = (int)$_POST['max_file_size'];
+        $activar_revision = isset($_POST['activar_revision_previa']) ? 1 : 0;
         
         if ($max_file_size < 1 || $max_file_size > 500) {
             $error = 'El tamaño máximo debe estar entre 1 y 500 MB';
         } else {
-            // Guardar en tabla de configuración (usaremos configuracion_alcalde por ahora o crear nueva tabla)
-            // Por simplicidad, guardaremos como configuración en archivo o tabla general
-            $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor) VALUES ('max_file_size_mb', ?) 
-                                    ON DUPLICATE KEY UPDATE valor = ?");
-            $stmt->bind_param('ss', $max_file_size, $max_file_size);
+            // Guardar max_file_size
+            $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('max_file_size_mb', ?, ?) 
+                                    ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
+            $stmt->bind_param('sisi', $max_file_size, $_SESSION['user_id'], $max_file_size, $_SESSION['user_id']);
+            $stmt->execute();
+            $stmt->close();
+            
+            // Guardar activar_revision_previa
+            $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('activar_revision_previa', ?, ?) 
+                                    ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
+            $stmt->bind_param('iiii', $activar_revision, $_SESSION['user_id'], $activar_revision, $_SESSION['user_id']);
             
             if ($stmt->execute()) {
                 $mensaje = 'Configuración general guardada exitosamente';
@@ -372,6 +379,39 @@ if ($result_config && $result_config->num_rows > 0) {
                                                     <i class="bi bi-info-circle"></i>
                                                     <strong>Nota:</strong> Este límite se aplica a todos los tipos de documentos cargados en el sistema.
                                                     <br><small>Límite actual: <strong><?= $max_file_size ?> MB</strong></small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="card mb-3">
+                                            <div class="card-header bg-info text-white">
+                                                <strong><i class="bi bi-clipboard-check"></i> Revisión de Documentos</strong>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="form-check form-switch">
+                                                    <?php
+                                                    $result_revision = $conn->query("SELECT valor FROM configuracion WHERE clave = 'activar_revision_previa'");
+                                                    $revision_activada = 0;
+                                                    if ($result_revision && $result_revision->num_rows > 0) {
+                                                        $revision_activada = (int)$result_revision->fetch_assoc()['valor'];
+                                                    }
+                                                    ?>
+                                                    <input class="form-check-input" type="checkbox" id="activar_revision_previa" name="activar_revision_previa" value="1" <?= $revision_activada ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="activar_revision_previa">
+                                                        <strong>Activar proceso de revisión previa</strong>
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted d-block mt-2">
+                                                    Cuando está activado, los documentos pueden ser revisados por usuarios con perfil "Revisor" antes de la publicación.
+                                                </small>
+                                                <hr>
+                                                <div class="alert alert-sm alert-info mb-0">
+                                                    <strong><i class="bi bi-info-circle"></i> Cómo funciona:</strong>
+                                                    <ul class="small mb-0 mt-1">
+                                                        <li><strong>Aprobado:</strong> Publicador puede cargar verificador</li>
+                                                        <li><strong>Observado:</strong> Publicador NO puede hasta corrección</li>
+                                                        <li><strong>Sin revisar:</strong> Publicador puede cargar (opcional)</li>
+                                                    </ul>
                                                 </div>
                                             </div>
                                         </div>

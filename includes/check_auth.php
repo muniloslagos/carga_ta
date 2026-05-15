@@ -61,6 +61,8 @@ function redirect_if_logged_in() {
             header('Location: ' . SITE_URL . 'admin/index.php');
         } elseif ($current_profile === 'auditor') {
             header('Location: ' . SITE_URL . 'usuario/dashboard_auditor.php');
+        } elseif ($current_profile === 'revisor') {
+            header('Location: ' . SITE_URL . 'usuario/dashboard_revisor.php');
         } else {
             header('Location: ' . SITE_URL . 'usuario/dashboard.php');
         }

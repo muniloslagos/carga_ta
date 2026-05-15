@@ -7,6 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once dirname(dirname(__DIR__)) . '/config/config.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Verificador.php';
 require_once dirname(dirname(__DIR__)) . '/classes/Documento.php';
+require_once dirname(dirname(__DIR__)) . '/classes/Revisor.php';
 
 $publicador_id = $_SESSION['user_id'] ?? null;
 $db_conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -34,6 +35,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (!isset($_FILES['archivo_verificador'])) {
         $_SESSION['error'] = 'Debe cargar un archivo verificador';
+        header('Location: index.php');
+        exit;
+    }
+    
+    // Validar si el documento puede ser publicado (revisor)
+    $validacion = Revisor::puedePublicar($documento_id, $db_conn);
+    if (!$validacion['puede_publicar']) {
+        $_SESSION['error'] = $validacion['razon'];
         header('Location: index.php');
         exit;
     }

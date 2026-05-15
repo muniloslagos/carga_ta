@@ -20,6 +20,11 @@ $itemClass = new Item($db->getConnection());
 $usuarioClass = new Usuario($db->getConnection());
 $verificadorClass = new Verificador($db->getConnection());
 
+// Verificar si existe la tabla de revisiones
+$conn = $db->getConnection();
+$checkTableRevisiones = $conn->query("SHOW TABLES LIKE 'revisiones_documentos'");
+$tabla_revisiones_existe = $checkTableRevisiones && $checkTableRevisiones->num_rows > 0;
+
 // Obtener mes y año actual
 $mesActual = (int)date('m');
 $anoActual = (int)date('Y');
@@ -261,8 +266,23 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
         }
         
         $documento = null;
+        $estadoRevision = null;
         if ($docsResult && $docsResult->num_rows > 0) {
             $documento = $docsResult->fetch_assoc();
+            
+            // Obtener estado de revisión si existe la tabla
+            if ($tabla_revisiones_existe) {
+                $stmtRev = $conn->prepare("SELECT estado FROM revisiones_documentos WHERE documento_id = ? ORDER BY fecha_revision DESC LIMIT 1");
+                if ($stmtRev) {
+                    $stmtRev->bind_param('i', $documento['documento_id']);
+                    $stmtRev->execute();
+                    $resRev = $stmtRev->get_result();
+                    if ($resRev && $resRev->num_rows > 0) {
+                        $estadoRevision = $resRev->fetch_assoc()['estado'];
+                    }
+                    $stmtRev->close();
+                }
+            }
         }
         
         // Verificar si tiene "Sin Movimiento" registrado
@@ -300,11 +320,20 @@ foreach ($itemsPorPeriodicidad as $periodicidad => $itemsGrupo) {
                         </a>';
             } else {
                 $estadoBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Cargado</span>';
+                
+                // Agregar indicador de revisión aprobada
+                $tickAprobado = '';
+                if ($estadoRevision === 'aprobado') {
+                    $tickAprobado = ' <span class="badge bg-success" title="Documento aprobado por revisor"><i class="bi bi-check-circle-fill"></i> Aprobado</span>';
+                } elseif ($estadoRevision === 'observado') {
+                    $tickAprobado = ' <span class="badge bg-danger" title="Documento con observaciones"><i class="bi bi-exclamation-circle-fill"></i> Observado</span>';
+                }
+                
                 $botones = '<a href="#" class="btn btn-sm btn-info" data-bs-toggle="modal" 
                            data-bs-target="#modalVerDocumento" 
                            onclick="verDocumento(' . $documento['documento_id'] . ', \'' . htmlspecialchars($item['nombre']) . '\', \'' . htmlspecialchars($documento['titulo']) . '\');">
                             <i class="bi bi-eye"></i> Ver
-                        </a>
+                        </a>' . $tickAprobado . '
                         <a href="#" class="btn btn-sm btn-primary" data-bs-toggle="modal" 
                            data-bs-target="#modalCargarVerificador"
                            onclick="seleccionarDocumento(' . $documento['documento_id'] . ', ' . $item['id'] . ', ' . $documento['usuario_id'] . ', \'' . htmlspecialchars($item['nombre']) . '\');">

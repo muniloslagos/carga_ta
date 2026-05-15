@@ -95,8 +95,11 @@ $nombres_perfiles = [
     'administrativo' => 'Administrador',
     'director_revisor' => 'Director / Revisor',
     'cargador_informacion' => 'Cargador de Información',
+    'revisor' => 'Revisor de Documentos',
     'publicador' => 'Publicador',
-    'auditor' => 'Auditor'
+    '
+
+auditor' => 'Auditor'
 ];
 
 // Iconos de perfiles
@@ -104,6 +107,7 @@ $iconos_perfiles = [
     'administrativo' => 'bi-gear-fill',
     'director_revisor' => 'bi-person-check-fill',
     'cargador_informacion' => 'bi-upload',
+    'revisor' => 'bi-clipboard-check',
     'publicador' => 'bi-megaphone-fill',
     'auditor' => 'bi-shield-check'
 ];
@@ -113,6 +117,7 @@ $descripciones_perfiles = [
     'administrativo' => 'Gestión completa del sistema',
     'director_revisor' => 'Revisión y aprobación de documentos',
     'cargador_informacion' => 'Carga de documentos asignados',
+    'revisor' => 'Revisión y aprobación previa de documentos',
     'publicador' => 'Publicación en portal de transparencia',
     'auditor' => 'Auditoría y verificación de cumplimiento'
 ];
