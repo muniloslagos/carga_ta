@@ -380,7 +380,16 @@ class CorreoManager {
                 FROM usuarios u
                 INNER JOIN item_usuarios ui ON u.id = ui.usuario_id
                 INNER JOIN items_transparencia i ON ui.item_id = i.id AND i.activo = 1
-                WHERE u.perfil = 'cargador_informacion' AND u.activo = 1
+                WHERE u.activo = 1
+                  AND (
+                      u.perfil = 'cargador_informacion'
+                      OR EXISTS (
+                          SELECT 1
+                          FROM usuario_perfiles up
+                          WHERE up.usuario_id = u.id
+                            AND up.perfil = 'cargador_informacion'
+                      )
+                  )
                 ORDER BY u.nombre";
         
         $result = $this->conn->query($query);
@@ -398,9 +407,18 @@ class CorreoManager {
      * Obtener un cargador específico con sus ítems
      */
     private function obtenerCargadorConItems($usuario_id, $mes = null) {
-        $stmt = $this->conn->prepare("SELECT id, nombre, email 
-            FROM usuarios 
-            WHERE id = ? AND perfil = 'cargador_informacion' AND activo = 1");
+        $stmt = $this->conn->prepare("SELECT u.id, u.nombre, u.email 
+            FROM usuarios u
+            WHERE u.id = ? AND u.activo = 1
+              AND (
+                  u.perfil = 'cargador_informacion'
+                  OR EXISTS (
+                      SELECT 1
+                      FROM usuario_perfiles up
+                      WHERE up.usuario_id = u.id
+                        AND up.perfil = 'cargador_informacion'
+                  )
+              )");
         $stmt->bind_param('i', $usuario_id);
         $stmt->execute();
         $result = $stmt->get_result();
