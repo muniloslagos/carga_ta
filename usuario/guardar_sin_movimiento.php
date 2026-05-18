@@ -66,7 +66,71 @@ $stmt = $conn->prepare("INSERT INTO observaciones_sin_movimiento (item_id, usuar
 $stmt->bind_param('iiiis', $item_id, $user_id, $mes, $ano, $observacion);
 
 if ($stmt->execute()) {
-    echo json_encode(['success' => true, 'message' => 'Observación registrada exitosamente']);
+
+    // ─── CREAR DOCUMENTO PLACEHOLDER AUTOMÁTICAMENTE ───────────────────
+    try {
+        // Obtener nombre del item
+        $checkItem = $conn->prepare("SELECT nombre FROM items_transparencia WHERE id = ?");
+        $checkItem->bind_param('i', $item_id);
+        $checkItem->execute();
+        $itemResult = $checkItem->get_result();
+        
+        if ($itemResult->num_rows === 0) {
+            throw new Exception('Item no encontrado');
+        }
+        $itemData = $itemResult->fetch_assoc();
+        $itemNombre = $itemData['nombre'];
+        
+        // Obtener cargador_id (usuario asignado al item)
+        $checkUsuario = $conn->prepare("SELECT usuario_id FROM item_usuarios WHERE item_id = ? LIMIT 1");
+        $checkUsuario->bind_param('i', $item_id);
+        $checkUsuario->execute();
+        $usuarioResult = $checkUsuario->get_result();
+        
+        if ($usuarioResult->num_rows === 0) {
+            throw new Exception('No hay usuario asignado a este item');
+        }
+        $usuarioData = $usuarioResult->fetch_assoc();
+        $cargador_id = $usuarioData['usuario_id'];
+        
+        // Crear documento placeholder
+        $titulo = "Sin Movimiento - " . $itemNombre;
+        $descripcion = "Documento placeholder para Sin Movimiento. Observación: " . $observacion;
+        $archivo = "sin_movimiento_placeholder_" . uniqid() . ".txt";
+        
+        $insertDoc = $conn->prepare("INSERT INTO documentos (item_id, usuario_id, titulo, descripcion, archivo, mes_carga, ano_carga, estado, fecha_subida) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())");
+        if (!$insertDoc) {
+            throw new Exception("Error al preparar INSERT de documento: " . $conn->error);
+        }
+        $insertDoc->bind_param('iisssii', $item_id, $cargador_id, $titulo, $descripcion, $archivo, $mes, $ano);
+        if (!$insertDoc->execute()) {
+            throw new Exception("Error al ejecutar INSERT de documento: " . $insertDoc->error);
+        }
+        $documento_id = $conn->insert_id;
+        
+        // Crear entrada en documento_seguimiento si la tabla existe
+        $checkTableSeguimiento = $conn->query("SHOW TABLES LIKE 'documento_seguimiento'");
+        if ($checkTableSeguimiento->num_rows > 0) {
+            $insertSeg = $conn->prepare("INSERT INTO documento_seguimiento (documento_id, item_id, usuario_id, mes, ano, fecha_envio) VALUES (?, ?, ?, ?, ?, NOW())");
+            $insertSeg->bind_param('iiiii', $documento_id, $item_id, $cargador_id, $mes, $ano);
+            if (!$insertSeg->execute()) {
+                throw new Exception("Error al crear documento_seguimiento: " . $insertSeg->error);
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Observación registrada exitosamente y documento placeholder creado',
+            'documento_id' => $documento_id
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Observación registrada, pero hubo un error al crear el documento: ' . $e->getMessage(),
+            'observation_saved' => true
+        ]);
+    }
+    // ────────────────────────────────────────────────────────────────────
 } else {
     echo json_encode(['success' => false, 'error' => 'Error al guardar la observación']);
 }
