@@ -38,23 +38,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $perfiles_seleccionados = $_POST['perfiles'] ?? [];
 
         if (!empty($data['nombre']) && !empty($data['email']) && !empty($data['password']) && !empty($perfiles_seleccionados)) {
-            // Usar el primer perfil seleccionado como perfil principal en la tabla usuarios (compatibilidad)
-            $data['perfil'] = $perfiles_seleccionados[0];
-            
-            if ($usuarioClass->create($data)) {
-                // Obtener el ID del usuario recién creado
-                $nuevo_usuario_id = $db->getConnection()->insert_id;
-                
-                // Agregar todos los perfiles seleccionados
-                foreach ($perfiles_seleccionados as $index => $perfil) {
-                    $es_principal = ($index === 0) ? 1 : 0;
-                    $usuarioClass->agregarPerfil($nuevo_usuario_id, $perfil, $_SESSION['user_id'], $es_principal);
-                }
-                
-                $_SESSION['success'] = 'Usuario creado correctamente con ' . count($perfiles_seleccionados) . ' perfil(es)';
-                $redirect = true;
+            // Validar que el email no exista
+            if ($usuarioClass->emailExists($data['email'])) {
+                $error = 'El correo electrónico ya está registrado en otro usuario';
             } else {
-                $error = 'Error al crear el usuario: ' . $db->getConnection()->error;
+                // Usar el primer perfil seleccionado como perfil principal en la tabla usuarios (compatibilidad)
+                $data['perfil'] = $perfiles_seleccionados[0];
+                
+                if ($usuarioClass->create($data)) {
+                    // Obtener el ID del usuario recién creado
+                    $nuevo_usuario_id = $db->getConnection()->insert_id;
+                    
+                    // Agregar todos los perfiles seleccionados
+                    foreach ($perfiles_seleccionados as $index => $perfil) {
+                        $es_principal = ($index === 0) ? 1 : 0;
+                        $usuarioClass->agregarPerfil($nuevo_usuario_id, $perfil, $_SESSION['user_id'], $es_principal);
+                    }
+                    
+                    $_SESSION['success'] = 'Usuario creado correctamente con ' . count($perfiles_seleccionados) . ' perfil(es)';
+                    $redirect = true;
+                } else {
+                    $error = 'Error al crear el usuario. Por favor, intente de nuevo.';
+                }
             }
         } else {
             $error = 'Complete todos los campos requeridos y seleccione al menos un perfil';
@@ -75,30 +80,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $usuario_id = intval($_POST['usuario_id']);
 
         if (!empty($perfiles_seleccionados)) {
-            // Usar el primer perfil seleccionado como perfil principal
-            $data['perfil'] = $perfiles_seleccionados[0];
-            
-            if ($usuarioClass->update($usuario_id, $data)) {
-                // Obtener perfiles actuales del usuario
-                $perfiles_actuales = $usuarioClass->getPerfiles($usuario_id);
-                
-                // Eliminar perfiles que ya no están seleccionados
-                foreach ($perfiles_actuales as $perfil_actual) {
-                    if (!in_array($perfil_actual, $perfiles_seleccionados)) {
-                        $usuarioClass->eliminarPerfil($usuario_id, $perfil_actual);
-                    }
-                }
-                
-                // Agregar nuevos perfiles seleccionados
-                foreach ($perfiles_seleccionados as $index => $perfil) {
-                    $es_principal = ($index === 0) ? 1 : 0;
-                    $usuarioClass->agregarPerfil($usuario_id, $perfil, $_SESSION['user_id'], $es_principal);
-                }
-                
-                $_SESSION['success'] = 'Usuario actualizado correctamente con ' . count($perfiles_seleccionados) . ' perfil(es)';
-                $redirect = true;
+            // Validar que el email no esté duplicado (excepto para el usuario actual)
+            if ($usuarioClass->emailExists($data['email'], $usuario_id)) {
+                $error = 'El correo electrónico ya está registrado en otro usuario';
             } else {
-                $error = 'Error al actualizar el usuario';
+                // Usar el primer perfil seleccionado como perfil principal
+                $data['perfil'] = $perfiles_seleccionados[0];
+                
+                if ($usuarioClass->update($usuario_id, $data)) {
+                    // Obtener perfiles actuales del usuario
+                    $perfiles_actuales = $usuarioClass->getPerfiles($usuario_id);
+                    
+                    // Eliminar perfiles que ya no están seleccionados
+                    foreach ($perfiles_actuales as $perfil_actual) {
+                        if (!in_array($perfil_actual, $perfiles_seleccionados)) {
+                            $usuarioClass->eliminarPerfil($usuario_id, $perfil_actual);
+                        }
+                    }
+                    
+                    // Agregar nuevos perfiles seleccionados
+                    foreach ($perfiles_seleccionados as $index => $perfil) {
+                        $es_principal = ($index === 0) ? 1 : 0;
+                        $usuarioClass->agregarPerfil($usuario_id, $perfil, $_SESSION['user_id'], $es_principal);
+                    }
+                    
+                    $_SESSION['success'] = 'Usuario actualizado correctamente con ' . count($perfiles_seleccionados) . ' perfil(es)';
+                    $redirect = true;
+                } else {
+                    $error = 'Error al actualizar el usuario. Por favor, intente de nuevo.';
+                }
             }
         } else {
             $error = 'Debe seleccionar al menos un perfil';

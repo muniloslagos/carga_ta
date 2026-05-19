@@ -27,6 +27,24 @@ class Usuario {
         return $result->fetch_assoc();
     }
 
+    // Verificar si un email ya existe (excluye un usuario específico para edición)
+    public function emailExists($email, $exclude_usuario_id = null) {
+        $sql = "SELECT id FROM {$this->table} WHERE email = ?";
+        if ($exclude_usuario_id) {
+            $sql .= " AND id != ?";
+        }
+        
+        $stmt = $this->db->prepare($sql);
+        if ($exclude_usuario_id) {
+            $stmt->bind_param("si", $email, $exclude_usuario_id);
+        } else {
+            $stmt->bind_param("s", $email);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        return $result->num_rows > 0;
+    }
+
     // Autenticar usuario
     public function authenticate($email, $password) {
         $user = $this->getByEmail($email);
