@@ -690,8 +690,8 @@ class CorreoManager {
      * Muestra: documentos cargados con fecha de envío y publicación, documentos pendientes
      */
     private function obtenerResumenCargaUsuario($usuario_id, $mes, $ano) {
-        // Obtener todos los ítems asignados al usuario
-        $items = $this->obtenerItemsUsuario($usuario_id);
+        // Obtener ítems asignados al usuario filtrados por el mes/periodicidad del período
+        $items = $this->obtenerItemsUsuario($usuario_id, $mes);
         
         if (empty($items)) {
             return '<p><em>No tiene ítems asignados</em></p>';
