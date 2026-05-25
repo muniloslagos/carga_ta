@@ -11,9 +11,11 @@ header('Expires: 0');
 
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/Database.php';
+require_once __DIR__ . '/classes/ItemPlazo.php';
 
 $db = new Database();
 $conn = $db->getConnection();
+$itemPlazoClass = new ItemPlazo($conn);
 
 // Validar token
 $token = $_GET['token'] ?? '';
@@ -171,7 +173,7 @@ while ($item = $all_items->fetch_assoc()) {
     // Buscar documento (con fallback para docs sin mes_carga/ano_carga)
     $documento = null;
     if ($sinMovimiento) {
-        $stmtDoc = $conn->prepare("SELECT id, fecha_subida FROM documentos 
+        $stmtDoc = $conn->prepare("SELECT id, fecha_subida, titulo FROM documentos 
             WHERE item_id = ? 
             AND ((mes_carga = ? AND ano_carga = ?) OR (mes_carga IS NULL AND MONTH(fecha_subida) = ? AND YEAR(fecha_subida) = ?))
             AND titulo LIKE 'Sin Movimiento%'
@@ -182,7 +184,7 @@ while ($item = $all_items->fetch_assoc()) {
         $documento = $stmtDoc->get_result()->fetch_assoc();
         $stmtDoc->close();
     } else {
-        $stmtDoc = $conn->prepare("SELECT id, fecha_subida FROM documentos 
+        $stmtDoc = $conn->prepare("SELECT id, fecha_subida, titulo FROM documentos 
             WHERE item_id = ? 
             AND ((mes_carga = ? AND ano_carga = ?) OR (mes_carga IS NULL AND MONTH(fecha_subida) = ? AND YEAR(fecha_subida) = ?))
             AND (titulo NOT LIKE 'Sin Movimiento%' OR titulo IS NULL)
@@ -218,17 +220,33 @@ while ($item = $all_items->fetch_assoc()) {
         }
     }
     
+    // Calcular plazos estimados del periodo (misma regla visual que dashboard)
+    $mes_plazo = ($item['periodicidad'] === 'anual')
+        ? intval($item['mes_carga_anual'] ?? 1)
+        : $mes;
+    $plazo_envio = $itemPlazoClass->getPlazoFinal($item['id'], $ano, $mes_plazo, $item['periodicidad']);
+    $plazo_publicacion = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $ano, $mes_plazo, $item['periodicidad']);
+
     // Determinar estado
     $estado = '';
     $estado_clase = '';
     $fecha_envio = '';
     $fecha_publicacion = '';
+    $fecha_envio_raw = null;
+    $fecha_publicacion_raw = null;
     
     if ($verificador) {
         $estado = $sinMovimiento ? 'Sin Movimiento (Publicado)' : 'Publicado';
         $estado_clase = 'success';
-        $fecha_envio = date('d/m/Y', strtotime($documento['fecha_subida']));
-        $fecha_publicacion = date('d/m/Y', strtotime($verificador['fecha_carga_portal']));
+        // Para placeholders Sin Movimiento, usar fecha de declaración cuando exista
+        $fecha_envio_raw = $documento['fecha_subida'];
+        if ($sinMovimiento
+            && !empty($documento['titulo'])
+            && strpos($documento['titulo'], 'Sin Movimiento') === 0
+            && !empty($sinMovFecha)) {
+            $fecha_envio_raw = $sinMovFecha;
+        }
+        $fecha_publicacion_raw = $verificador['fecha_carga_portal'];
         $totales['publicados']++;
         $items_por_direccion[$dir_id]['totales']['publicados']++;
     } elseif ($documento) {
@@ -239,14 +257,21 @@ while ($item = $all_items->fetch_assoc()) {
             $estado = $sinMovimiento ? 'Sin Movimiento (Sin Publicar)' : 'Cargado (Sin Publicar)';
             $estado_clase = 'warning';
         }
-        $fecha_envio = date('d/m/Y', strtotime($documento['fecha_subida']));
+        // Para placeholders Sin Movimiento, usar fecha de declaración cuando exista
+        $fecha_envio_raw = $documento['fecha_subida'];
+        if ($sinMovimiento
+            && !empty($documento['titulo'])
+            && strpos($documento['titulo'], 'Sin Movimiento') === 0
+            && !empty($sinMovFecha)) {
+            $fecha_envio_raw = $sinMovFecha;
+        }
         $fecha_publicacion = 'Pendiente';
         $totales['cargados']++;
         $items_por_direccion[$dir_id]['totales']['cargados']++;
     } elseif ($sinMovimiento) {
         $estado = 'Sin Movimiento (Sin Publicar)';
         $estado_clase = 'warning';
-        $fecha_envio = $sinMovFecha ? date('d/m/Y', strtotime($sinMovFecha)) : '-';
+        $fecha_envio_raw = $sinMovFecha ?: null;
         $fecha_publicacion = 'Pendiente';
         $totales['cargados']++;
         $items_por_direccion[$dir_id]['totales']['cargados']++;
@@ -257,6 +282,25 @@ while ($item = $all_items->fetch_assoc()) {
         $fecha_publicacion = '-';
         $totales['pendientes']++;
         $items_por_direccion[$dir_id]['totales']['pendientes']++;
+    }
+
+    // Semáforos de cumplimiento de plazos (verde: en plazo, rojo: fuera de plazo)
+    if ($fecha_envio_raw) {
+        $cumple_envio = $plazo_envio
+            ? (date('Y-m-d', strtotime($fecha_envio_raw)) <= $plazo_envio)
+            : true;
+        $ico_envio = $cumple_envio ? '<span class="text-success">🟢</span> ' : '<span class="text-danger">🔴</span> ';
+        $fecha_envio = $ico_envio . date('d/m/Y', strtotime($fecha_envio_raw));
+    } elseif (empty($fecha_envio)) {
+        $fecha_envio = '-';
+    }
+
+    if ($fecha_publicacion_raw) {
+        $cumple_publicacion = $plazo_publicacion
+            ? (date('Y-m-d', strtotime($fecha_publicacion_raw)) <= $plazo_publicacion)
+            : true;
+        $ico_publicacion = $cumple_publicacion ? '<span class="text-success">🟢</span> ' : '<span class="text-danger">🔴</span> ';
+        $fecha_publicacion = $ico_publicacion . date('d/m/Y', strtotime($fecha_publicacion_raw));
     }
     
     $totales['total']++;
@@ -452,8 +496,8 @@ while ($d = $direcciones->fetch_assoc()) {
                                 <th>Ítem</th>
                                 <th>Periodicidad</th>
                                 <th>Estado</th>
-                                <th>Fecha Carga</th>
-                                <th>Fecha Publicación</th>
+                                <th>Fecha Envío</th>
+                                <th>Fecha Carga Portal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -484,8 +528,8 @@ while ($d = $direcciones->fetch_assoc()) {
                                             </span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?php echo htmlspecialchars($item['fecha_envio']); ?></td>
-                                    <td><?php echo htmlspecialchars($item['fecha_publicacion']); ?></td>
+                                    <td><?php echo $item['fecha_envio']; ?></td>
+                                    <td><?php echo $item['fecha_publicacion']; ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
