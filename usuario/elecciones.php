@@ -225,11 +225,103 @@ function normalize_time_for_form($value)
     return $value;
 }
 
+function ensure_elections_numbering_table($conn)
+{
+    $sql = "CREATE TABLE IF NOT EXISTS elecciones_numeracion (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ano INT NOT NULL,
+                row_index INT NOT NULL,
+                numero_eleccion INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_ano_row (ano, row_index),
+                UNIQUE KEY uniq_ano_numero (ano, numero_eleccion)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+    return (bool)$conn->query($sql);
+}
+
+function rebuild_elections_numbering_for_year($conn, $year, $rows)
+{
+    if (!ensure_elections_numbering_table($conn)) {
+        return false;
+    }
+
+    $maxRetries = 2;
+    for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+        $conn->begin_transaction();
+
+        try {
+            $stmtDelete = $conn->prepare('DELETE FROM elecciones_numeracion WHERE ano = ?');
+            if ($stmtDelete === false) {
+                throw new Exception('No se pudo preparar borrado de numeración.');
+            }
+
+            $stmtDelete->bind_param('i', $year);
+            if (!$stmtDelete->execute()) {
+                $stmtDelete->close();
+                throw new Exception('No se pudo borrar numeración anterior.');
+            }
+            $stmtDelete->close();
+
+            if (!empty($rows)) {
+                $stmtInsert = $conn->prepare('INSERT INTO elecciones_numeracion (ano, row_index, numero_eleccion) VALUES (?, ?, ?)');
+                if ($stmtInsert === false) {
+                    throw new Exception('No se pudo preparar inserción de numeración.');
+                }
+
+                foreach ($rows as $index => $row) {
+                    $rowIndex = (int)$index;
+                    $numero = $rowIndex + 1;
+                    $stmtInsert->bind_param('iii', $year, $rowIndex, $numero);
+                    if (!$stmtInsert->execute()) {
+                        $stmtInsert->close();
+                        throw new Exception('No se pudo insertar numeración correlativa.');
+                    }
+                }
+                $stmtInsert->close();
+            }
+
+            $conn->commit();
+            return true;
+        } catch (Throwable $e) {
+            $conn->rollback();
+            if ($attempt === $maxRetries) {
+                return false;
+            }
+        }
+    }
+
+    return false;
+}
+
+function get_elections_numbering_for_year($conn, $year)
+{
+    if (!ensure_elections_numbering_table($conn)) {
+        return [];
+    }
+
+    $numbers = [];
+    $stmt = $conn->prepare('SELECT row_index, numero_eleccion FROM elecciones_numeracion WHERE ano = ? ORDER BY row_index ASC');
+    $stmt->bind_param('i', $year);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $numbers[(int)$row['row_index']] = (int)$row['numero_eleccion'];
+    }
+
+    $stmt->close();
+    return $numbers;
+}
+
 $nombreItemEspecial = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
 if ($selectedYear < 2000) {
     $selectedYear = date('Y');
 }
+
+$conn = $db->getConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $year = isset($_POST['year']) ? (int)$_POST['year'] : date('Y');
@@ -295,6 +387,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if (!write_elections_rows($path, $rows)) {
             $_SESSION['error'] = 'No se pudo guardar el archivo CSV.';
+        } elseif (!rebuild_elections_numbering_for_year($conn, $year, $rows)) {
+            $_SESSION['error'] = 'No se pudo actualizar la numeración correlativa.';
         }
 
         $saveMode = trim((string)($_POST['save_mode'] ?? 'stay'));
@@ -307,18 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'delete') {
-        $rowIndex = isset($_POST['row_index']) ? (int)$_POST['row_index'] : -1;
-        $path = ensure_elections_csv($year);
-        $rows = read_elections_rows($path);
-
-        if ($rowIndex >= 0 && $rowIndex < count($rows)) {
-            array_splice($rows, $rowIndex, 1);
-            write_elections_rows($path, $rows);
-            $_SESSION['success'] = 'Fila eliminada correctamente.';
-        } else {
-            $_SESSION['error'] = 'No se encontró la fila para eliminar.';
-        }
-
+        $_SESSION['error'] = 'No se permite eliminar elecciones una vez creadas.';
         header('Location: elecciones.php?year=' . $year);
         exit;
     }
@@ -336,6 +419,9 @@ require_once '../includes/header.php';
 
 $csvPath = ensure_elections_csv($selectedYear);
 $rows = read_elections_rows($csvPath);
+rebuild_elections_numbering_for_year($conn, $selectedYear, $rows);
+$numberingByRow = get_elections_numbering_for_year($conn, $selectedYear);
+$nextNumeroEleccion = count($rows) + 1;
 $availableYears = [];
 $baseDir = dirname(__DIR__) . '/uploads/elecciones';
 if (is_dir($baseDir)) {
@@ -393,6 +479,13 @@ if ($editRow !== null) {
     min-width: 90px;
     max-width: 90px;
     width: 90px;
+}
+
+.elecciones-col-numero {
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    text-align: center;
 }
 
 .elecciones-link-icon {
@@ -504,6 +597,10 @@ if ($editRow !== null) {
             <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
             <input type="hidden" name="row_index" value="<?php echo $editRow === null ? '-1' : (int)$_GET['edit']; ?>">
             <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">N° Elección</label>
+                    <input class="form-control" type="text" value="<?php echo (int)($editRow !== null ? ($numberingByRow[(int)$_GET['edit']] ?? ((int)$_GET['edit'] + 1)) : $nextNumeroEleccion); ?>" readonly>
+                </div>
                 <div class="col-md-4">
                     <label class="form-label">Tipo de organización comunal</label>
                     <select class="form-select" name="tipo_organizacion" required>
@@ -512,7 +609,7 @@ if ($editRow !== null) {
                         <option value="Organización comunitaria funcional" <?php echo ($editRow !== null && ($editRow[0] ?? '') === 'Organización comunitaria funcional') ? 'selected' : ''; ?>>Organización comunitaria funcional</option>
                     </select>
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-6">
                     <label class="form-label">Nombre</label>
                     <input class="form-control" type="text" name="nombre" value="<?php echo htmlspecialchars($editRow !== null ? ($editRow[1] ?? '') : ''); ?>" required>
                 </div>
@@ -627,6 +724,7 @@ if ($editRow !== null) {
                 <table class="table table-sm table-hover align-middle elecciones-table">
                     <thead class="table-light">
                         <tr>
+                            <th class="elecciones-col-numero">N°</th>
                             <th>Tipo</th>
                             <th class="elecciones-col-nombre">Nombre</th>
                             <th>Fecha</th>
@@ -643,6 +741,7 @@ if ($editRow !== null) {
                     <tbody>
                         <?php foreach ($rows as $index => $row): ?>
                             <tr>
+                                <td class="elecciones-col-numero"><?php echo (int)($numberingByRow[$index] ?? ($index + 1)); ?></td>
                                 <td><?php echo htmlspecialchars($row[0] ?? ''); ?></td>
                                 <td class="elecciones-col-nombre text-truncate" title="<?php echo htmlspecialchars($row[1] ?? ''); ?>"><?php echo htmlspecialchars($row[1] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row[2] ?? ''); ?></td>
@@ -694,14 +793,8 @@ if ($editRow !== null) {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="d-flex gap-2">
                                         <a class="btn btn-outline-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&edit=<?php echo (int)$index; ?>"><i class="bi bi-pencil"></i></a>
-                                        <form method="POST" class="d-inline" onsubmit="return confirm('¿Desea eliminar esta fila?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                                            <input type="hidden" name="row_index" value="<?php echo (int)$index; ?>">
-                                            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
-                                        </form>
                                     </div>
                                 </td>
                             </tr>
