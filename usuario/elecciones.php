@@ -446,13 +446,14 @@ if (is_dir($baseDir)) {
             $availableYears[] = (int)$yearName;
         }
     }
-    sort($availableYears);
 }
 
 if (!in_array($selectedYear, $availableYears, true)) {
     $availableYears[] = $selectedYear;
-    sort($availableYears);
 }
+
+$availableYears = array_values(array_unique($availableYears));
+sort($availableYears);
 
 $editRow = null;
 if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
