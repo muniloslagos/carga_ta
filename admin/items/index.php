@@ -338,6 +338,9 @@ if (!isset($PERIODICIDADES)) {
         'anual' => 'Anual',
         'ocurrencia' => 'Ocurrencia'
     ];
+} elseif (!isset($PERIODICIDADES['ocurrencia'])) {
+    // Compatibilidad con entornos que aun tengan config antigua sin ocurrencia.
+    $PERIODICIDADES['ocurrencia'] = 'Ocurrencia';
 }
 ?>
 
