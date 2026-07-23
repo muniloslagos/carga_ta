@@ -557,10 +557,6 @@ if ($editRow !== null) {
                     </select>
                 </form>
 
-                <button type="button" class="btn btn-outline-danger" onclick="window.print()">
-                    <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                </button>
-
                 <form method="POST" class="d-inline">
                     <input type="hidden" name="action" value="export">
                     <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">

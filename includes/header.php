@@ -35,11 +35,32 @@ $current_profile = $is_logged_in && isset($_SESSION['profile']) ? $_SESSION['pro
 // Obtener perfiles múltiples del usuario si está autenticado
 $user_perfiles = [];
 $tiene_multiples_perfiles = false;
+$mostrarEnlaceElecciones = false;
+$conn = $db->getConnection();
 if ($is_logged_in && $current_user) {
     require_once dirname(__DIR__) . '/classes/Usuario.php';
     $usuarioClass = new Usuario($db->getConnection());
     $user_perfiles = $usuarioClass->getPerfiles($current_user['id']);
     $tiene_multiples_perfiles = count($user_perfiles) > 1;
+
+    if ($current_profile === 'administrativo') {
+        $mostrarEnlaceElecciones = true;
+    } else {
+        $nombreItemEspecial = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
+        $stmtElecciones = $conn->prepare(
+            "SELECT i.id
+            FROM items_transparencia i
+            INNER JOIN item_usuarios iu ON iu.item_id = i.id
+            WHERE i.activo = 1
+              AND i.nombre = ?
+              AND iu.usuario_id = ?
+            LIMIT 1"
+        );
+        $stmtElecciones->bind_param('si', $nombreItemEspecial, $current_user['id']);
+        $stmtElecciones->execute();
+        $mostrarEnlaceElecciones = (bool)$stmtElecciones->get_result()->fetch_assoc();
+        $stmtElecciones->close();
+    }
 }
 
 // Para todos los usuarios: obtener o generar token del resumen público
@@ -130,6 +151,13 @@ if ($is_logged_in) {
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
                                 <i class="bi bi-house"></i> Mi Panel
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                    <?php if ($is_logged_in && $mostrarEnlaceElecciones): ?>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" href="<?php echo SITE_URL; ?>usuario/elecciones.php">
+                                <i class="bi bi-person-check"></i> Elecciones
                             </a>
                         </li>
                     <?php endif; ?>
