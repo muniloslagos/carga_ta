@@ -344,6 +344,13 @@ if (!isset($PERIODICIDADES)) {
 }
 ?>
 
+<style>
+.tooltip.periodicidad-tooltip .tooltip-inner {
+    max-width: 420px;
+    text-align: left;
+}
+</style>
+
 <div class="page-header">
     <div class="row align-items-center">
         <div class="col">
@@ -603,7 +610,7 @@ if (!isset($PERIODICIDADES)) {
                     <div class="mb-3">
                         <label for="periodicidad" class="form-label d-flex align-items-center gap-2">
                             <span>Periodicidad</span>
-                            <span class="text-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-html="true"
+                            <span class="text-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-html="true" data-bs-custom-class="periodicidad-tooltip"
                                   title="<strong>Ayuda memoria:</strong><br>Mensual: se carga cada mes.<br>Trimestral: se carga al cierre de cada trimestre.<br>Semestral: se carga al cierre de junio y diciembre.<br>Anual: se carga una vez al ano, en el mes configurado.<br>Ocurrencia: se carga en cualquier momento, cuando se genere documentacion.">
                                 <i class="bi bi-question-circle-fill"></i>
                             </span>
@@ -616,6 +623,8 @@ if (!isset($PERIODICIDADES)) {
                         </select>
                         <small class="text-primary d-block mt-1">Para el item de Elecciones la periodicidad correcta es Ocurrencia.</small>
                     </div>
+
+                    <div id="itemModalValidationError" class="alert alert-danger d-none" role="alert"></div>
 
                     <div class="mb-3" id="mesCargaAnualContainer" style="display:none;">
                         <label for="mes_carga_anual" class="form-label">Mes de Carga (Anual)</label>
@@ -821,8 +830,46 @@ function updateBulkAssignModal() {
 
 // Actualizar cuando se cambie un checkbox individual
 document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        new bootstrap.Tooltip(el);
+    });
+
     document.querySelectorAll('.item-checkbox').forEach(cb => {
         cb.addEventListener('change', updateBulkAssignModal);
+    });
+
+    // Validacion dentro del modal de item
+    const itemForm = document.getElementById('itemForm');
+    const modalError = document.getElementById('itemModalValidationError');
+    const direccionSelect = document.getElementById('direccion_id');
+    const periodicidadSelect = document.getElementById('periodicidad');
+    const nombreInput = document.getElementById('nombre');
+    const numeracionInput = document.getElementById('numeracion');
+
+    function limpiarErrorModal() {
+        modalError.classList.add('d-none');
+        modalError.innerHTML = '';
+    }
+
+    [direccionSelect, periodicidadSelect, nombreInput, numeracionInput].forEach(function(el) {
+        el.addEventListener('change', limpiarErrorModal);
+        el.addEventListener('input', limpiarErrorModal);
+    });
+
+    itemForm.addEventListener('submit', function(e) {
+        const errores = [];
+
+        if (!numeracionInput.value.trim()) errores.push('Debe ingresar la numeracion del item.');
+        if (!nombreInput.value.trim()) errores.push('Debe ingresar el nombre del item.');
+        if (direccionSelect.value === '0' || direccionSelect.value === '') errores.push('Debe seleccionar una direccion responsable.');
+        if (!periodicidadSelect.value) errores.push('Debe seleccionar una periodicidad.');
+
+        if (errores.length > 0) {
+            e.preventDefault();
+            modalError.innerHTML = '<strong>Complete todos los campos requeridos:</strong><ul class="mb-0 mt-2"><li>' + errores.join('</li><li>') + '</li></ul>';
+            modalError.classList.remove('d-none');
+        }
     });
     
     // Cargar usuarios según perfil seleccionado
@@ -1121,6 +1168,8 @@ document.getElementById('itemModal').addEventListener('hide.bs.modal', function(
     document.getElementById('predefined_item_key').value = '';
     document.getElementById('predefined_item_selector').value = '';
     document.getElementById('mesCargaAnualContainer').style.display = 'none';
+    document.getElementById('itemModalValidationError').classList.add('d-none');
+    document.getElementById('itemModalValidationError').innerHTML = '';
 });
 
 // Actualizar items seleccionados cuando se abre el modal de asignación masiva
