@@ -308,6 +308,32 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
 }
 ?>
 
+<style>
+.elecciones-table {
+    font-size: 0.78rem;
+}
+
+.elecciones-table th,
+.elecciones-table td {
+    padding: 0.35rem 0.45rem;
+    vertical-align: top;
+}
+
+.elecciones-col-nombre {
+    max-width: 210px;
+    width: 210px;
+}
+
+.elecciones-col-lugar {
+    max-width: 180px;
+    width: 180px;
+}
+
+.elecciones-col-link {
+    min-width: 140px;
+}
+</style>
+
 <div class="page-header mb-3">
     <div class="d-flex justify-content-between align-items-center">
         <div>
@@ -472,15 +498,19 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
             </div>
         <?php else: ?>
             <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle">
+                <table class="table table-sm table-hover align-middle elecciones-table">
                     <thead class="table-light">
                         <tr>
                             <th>Tipo</th>
-                            <th>Nombre</th>
+                            <th class="elecciones-col-nombre">Nombre</th>
                             <th>Fecha</th>
                             <th>Hora</th>
-                            <th>Lugar</th>
-                            <th>Adjuntos</th>
+                            <th class="elecciones-col-lugar">Lugar</th>
+                            <th class="elecciones-col-link">Comunicación fecha de la elección</th>
+                            <th class="elecciones-col-link">Resultado elección</th>
+                            <th class="elecciones-col-link">Rol reclamación</th>
+                            <th class="elecciones-col-link">Reclamación</th>
+                            <th class="elecciones-col-link">Fallo de la reclamación</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -488,30 +518,53 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                         <?php foreach ($rows as $index => $row): ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($row[0] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row[1] ?? ''); ?></td>
+                                <td class="elecciones-col-nombre text-truncate" title="<?php echo htmlspecialchars($row[1] ?? ''); ?>"><?php echo htmlspecialchars($row[1] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row[2] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row[3] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row[4] ?? ''); ?></td>
+                                <td class="elecciones-col-lugar text-truncate" title="<?php echo htmlspecialchars($row[4] ?? ''); ?>"><?php echo htmlspecialchars($row[4] ?? ''); ?></td>
                                 <td>
-                                    <?php
-                                    $adjuntos = [];
-                                    for ($j = 5; $j <= 9; $j++) {
-                                        $value = trim((string)($row[$j] ?? ''));
-                                        if ($value !== '') {
-                                            $adjuntos[] = $value;
-                                        }
-                                    }
-                                    ?>
-                                    <?php if (empty($adjuntos)): ?>
-                                        <small class="text-muted">Sin adjuntos</small>
+                                    <?php if (!empty(trim((string)($row[5] ?? '')))): ?>
+                                        <a href="<?php echo htmlspecialchars($row[5]); ?>" target="_blank" rel="noopener" class="small">
+                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        </a>
                                     <?php else: ?>
-                                        <div class="d-flex flex-column gap-1">
-                                            <?php foreach ($adjuntos as $adjunto): ?>
-                                                <a href="<?php echo htmlspecialchars($adjunto); ?>" target="_blank" rel="noopener" class="small">
-                                                    <i class="bi bi-paperclip"></i> Ver archivo
-                                                </a>
-                                            <?php endforeach; ?>
-                                        </div>
+                                        <small class="text-muted">-</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty(trim((string)($row[6] ?? '')))): ?>
+                                        <a href="<?php echo htmlspecialchars($row[6]); ?>" target="_blank" rel="noopener" class="small">
+                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        </a>
+                                    <?php else: ?>
+                                        <small class="text-muted">-</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty(trim((string)($row[7] ?? '')))): ?>
+                                        <a href="<?php echo htmlspecialchars($row[7]); ?>" target="_blank" rel="noopener" class="small">
+                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        </a>
+                                    <?php else: ?>
+                                        <small class="text-muted">-</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty(trim((string)($row[8] ?? '')))): ?>
+                                        <a href="<?php echo htmlspecialchars($row[8]); ?>" target="_blank" rel="noopener" class="small">
+                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        </a>
+                                    <?php else: ?>
+                                        <small class="text-muted">-</small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty(trim((string)($row[9] ?? '')))): ?>
+                                        <a href="<?php echo htmlspecialchars($row[9]); ?>" target="_blank" rel="noopener" class="small">
+                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        </a>
+                                    <?php else: ?>
+                                        <small class="text-muted">-</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
