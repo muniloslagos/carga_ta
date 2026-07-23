@@ -567,7 +567,7 @@ if (!isset($PERIODICIDADES)) {
                                 <i class="bi bi-magic"></i> Aplicar
                             </button>
                         </div>
-                        <select class="form-select" id="predefined_item_selector">
+                        <select class="form-select" id="predefined_item_selector" onchange="aplicarItemPredefinido(true)">
                             <option value="">Seleccionar item pre-definido...</option>
                             <option value="elecciones_ley_21146">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</option>
                         </select>
@@ -951,12 +951,12 @@ function toggleMesCargaAnual() {
     container.style.display = (periodicidad === 'anual') ? 'block' : 'none';
 }
 
-function aplicarItemPredefinido() {
+function aplicarItemPredefinido(autoAplicado = false) {
     const selector = document.getElementById('predefined_item_selector');
     const key = selector.value;
 
     if (!key) {
-        alert('Seleccione un item pre-definido');
+        document.getElementById('predefined_item_key').value = '';
         return;
     }
 
@@ -966,7 +966,9 @@ function aplicarItemPredefinido() {
         document.getElementById('nombre').value = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
         document.getElementById('periodicidad').value = 'ocurrencia';
         toggleMesCargaAnual();
-        alert('Item pre-definido aplicado. Seleccione la dirección y guarde.');
+        if (!autoAplicado) {
+            alert('Item pre-definido aplicado. Seleccione la dirección y guarde.');
+        }
     }
 }
 
