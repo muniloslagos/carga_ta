@@ -145,7 +145,7 @@ function write_elections_rows($path, $rows)
     return true;
 }
 
-function save_uploaded_attachment($year, $file, $defaultValue = '')
+function save_uploaded_attachment($year, $file, $defaultValue = '', $numeroEleccion = 0, $fieldName = '')
 {
     if (!is_array($file) || !isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
         return $defaultValue;
@@ -166,8 +166,27 @@ function save_uploaded_attachment($year, $file, $defaultValue = '')
         mkdir($baseDir, 0777, true);
     }
 
-    $filename = uniqid('eleccion_', true) . ($extension !== '' ? '.' . $extension : '');
+    $numeroEleccion = (int)$numeroEleccion;
+    if ($numeroEleccion < 1) {
+        $numeroEleccion = 1;
+    }
+
+    $prefixes = [
+        'file_comunicacion' => 'eleccion',
+        'file_resultado' => 'resultado',
+        'file_rol_reclamacion' => 'rol_reclamacion',
+        'file_reclamacion' => 'reclamacion',
+        'file_fallo' => 'fallo_reclamacion',
+    ];
+
+    $prefix = $prefixes[$fieldName] ?? 'archivo';
+    $filename = $prefix . '_' . $year . '_' . $numeroEleccion . ($extension !== '' ? '.' . $extension : '');
     $targetPath = $baseDir . '/' . $filename;
+
+    if (file_exists($targetPath)) {
+        @unlink($targetPath);
+    }
+
     if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
         return $defaultValue;
     }
@@ -390,6 +409,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         $rowIndex = isset($_POST['row_index']) ? (int)$_POST['row_index'] : -1;
+        $existingNumbering = get_elections_numbering_for_year($conn, $year);
+        $numeroEleccion = 1;
+        if ($rowIndex >= 0 && isset($existingNumbering[$rowIndex])) {
+            $numeroEleccion = (int)$existingNumbering[$rowIndex];
+        } elseif ($rowIndex >= 0) {
+            $numeroEleccion = $rowIndex + 1;
+        } else {
+            $numeroEleccion = count($rows) + 1;
+        }
+
         $newRow = [
             $tipo,
             $nombre,
@@ -414,7 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
 
             if (isset($_FILES[$fieldName]) && is_array($_FILES[$fieldName])) {
-                $uploadedValue = save_uploaded_attachment($year, $_FILES[$fieldName], $existingValue);
+                $uploadedValue = save_uploaded_attachment($year, $_FILES[$fieldName], $existingValue, $numeroEleccion, $fieldName);
                 $newRow[$index] = $uploadedValue;
             } else {
                 $newRow[$index] = $existingValue;
@@ -594,14 +623,47 @@ if ($editRow !== null) {
     align-items: center;
     gap: 0.35rem;
 }
+
+.elecciones-header-card {
+    background: linear-gradient(135deg, #17324f 0%, #244b72 100%);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 8px 24px rgba(23, 50, 79, 0.16);
+}
+
+.elecciones-header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    margin-right: 12px;
+    font-size: 1.2rem;
+}
+
+.elecciones-header-title {
+    color: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+}
 </style>
 
-<div class="page-header mb-3">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="mb-1"><?php echo htmlspecialchars($nombreItemEspecial); ?></h1>
+<div class="card mb-3 elecciones-header-card">
+    <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center">
+            <span class="elecciones-header-icon">
+                <i class="bi bi-person-check"></i>
+            </span>
+            <div>
+                <h1 class="elecciones-header-title"><?php echo htmlspecialchars($nombreItemEspecial); ?></h1>
+            </div>
         </div>
-        <a class="btn btn-outline-secondary" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
+        <a class="btn btn-outline-light btn-sm" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
             <i class="bi bi-arrow-left"></i> Volver al Dashboard
         </a>
     </div>
