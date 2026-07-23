@@ -150,7 +150,8 @@ while ($item = $all_items->fetch_assoc()) {
     } elseif ($item['periodicidad'] === 'trimestral') {
         $mes_busqueda = (int)(ceil($mes / 3) * 3);
     } elseif ($item['periodicidad'] === 'semestral') {
-        $mes_busqueda = $mes <= 6 ? 1 : 7;
+        // Semestral se registra por mes de cierre del periodo: junio (6) o diciembre (12)
+        $mes_busqueda = $mes <= 6 ? 6 : 12;
     }
     
     // Verificar Sin Movimiento

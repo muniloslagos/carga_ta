@@ -19,6 +19,17 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $redirect = false;
+    $predefinedItemKey = trim($_POST['predefined_item_key'] ?? '');
+
+    $predefinedData = [];
+    if ($predefinedItemKey === 'elecciones_ley_21146') {
+        $predefinedData = [
+            'numeracion' => '0',
+            'nombre' => 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146',
+            'periodicidad' => 'ocurrencia',
+            'mes_carga_anual' => null
+        ];
+    }
 
     if ($action === 'create') {
         $data = [
@@ -29,7 +40,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'mes_carga_anual' => $_POST['mes_carga_anual'] ?? null
         ];
 
-        if (!empty($data['numeracion']) && !empty($data['nombre']) && !empty($data['periodicidad'])) {
+        if (!empty($predefinedData)) {
+            $data = array_merge($data, $predefinedData);
+
+            $stmtCheckPredef = $conn->prepare("SELECT id FROM items_transparencia WHERE nombre = ? AND activo = 1 LIMIT 1");
+            $stmtCheckPredef->bind_param('s', $data['nombre']);
+            $stmtCheckPredef->execute();
+            $yaExistePredef = (bool)$stmtCheckPredef->get_result()->fetch_assoc();
+            $stmtCheckPredef->close();
+
+            if ($yaExistePredef) {
+                $error = 'El item pre-definido de Elecciones ya existe y está activo.';
+            }
+        }
+
+        if (empty($error) && !empty($data['numeracion']) && !empty($data['nombre']) && !empty($data['periodicidad'])) {
             if ($itemClass->create($data)) {
                 $_SESSION['success'] = 'Item creado correctamente';
                 $redirect = true;
@@ -47,6 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'periodicidad' => $_POST['periodicidad'] ?? '',
             'mes_carga_anual' => $_POST['mes_carga_anual'] ?? null
         ];
+
+        if (!empty($predefinedData)) {
+            $data = array_merge($data, $predefinedData);
+        }
 
         if ($itemClass->update(intval($_POST['item_id']), $data)) {
             $_SESSION['success'] = 'Item actualizado correctamente';
@@ -529,6 +558,21 @@ if (!isset($PERIODICIDADES)) {
                 <div class="modal-body">
                     <input type="hidden" name="action" value="create" id="formAction">
                     <input type="hidden" name="item_id" id="itemId">
+                    <input type="hidden" name="predefined_item_key" id="predefined_item_key" value="">
+
+                    <div class="mb-3 border rounded p-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="predefined_item_selector" class="form-label mb-0 fw-semibold">Item Pre-Definido</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="aplicarItemPredefinido()">
+                                <i class="bi bi-magic"></i> Aplicar
+                            </button>
+                        </div>
+                        <select class="form-select" id="predefined_item_selector">
+                            <option value="">Seleccionar item pre-definido...</option>
+                            <option value="elecciones_ley_21146">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</option>
+                        </select>
+                        <small class="text-muted">Completa automáticamente numeración 0 y periodicidad ocurrencia.</small>
+                    </div>
 
                     <div class="mb-3">
                         <label for="numeracion" class="form-label">Numeración</label>
@@ -888,6 +932,8 @@ function editItem(id) {
             document.getElementById('itemModalLabel').textContent = 'Editar Item';
             document.getElementById('formAction').value = 'update';
             document.getElementById('itemId').value = data.id;
+            document.getElementById('predefined_item_key').value = '';
+            document.getElementById('predefined_item_selector').value = '';
             document.getElementById('numeracion').value = data.numeracion;
             document.getElementById('nombre').value = data.nombre;
             document.getElementById('direccion_id').value = data.direccion_id || 0;
@@ -903,6 +949,25 @@ function toggleMesCargaAnual() {
     var periodicidad = document.getElementById('periodicidad').value;
     var container = document.getElementById('mesCargaAnualContainer');
     container.style.display = (periodicidad === 'anual') ? 'block' : 'none';
+}
+
+function aplicarItemPredefinido() {
+    const selector = document.getElementById('predefined_item_selector');
+    const key = selector.value;
+
+    if (!key) {
+        alert('Seleccione un item pre-definido');
+        return;
+    }
+
+    if (key === 'elecciones_ley_21146') {
+        document.getElementById('predefined_item_key').value = key;
+        document.getElementById('numeracion').value = '0';
+        document.getElementById('nombre').value = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
+        document.getElementById('periodicidad').value = 'ocurrencia';
+        toggleMesCargaAnual();
+        alert('Item pre-definido aplicado. Seleccione la dirección y guarde.');
+    }
 }
 
 function loadItemUsers(itemId) {
@@ -1041,6 +1106,8 @@ document.getElementById('itemModal').addEventListener('hide.bs.modal', function(
     document.getElementById('itemModalLabel').textContent = 'Nuevo Item';
     document.getElementById('formAction').value = 'create';
     document.getElementById('itemId').value = '';
+    document.getElementById('predefined_item_key').value = '';
+    document.getElementById('predefined_item_selector').value = '';
     document.getElementById('mesCargaAnualContainer').style.display = 'none';
 });
 

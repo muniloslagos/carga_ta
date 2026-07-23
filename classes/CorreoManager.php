@@ -1374,7 +1374,7 @@ class CorreoManager {
                 } elseif ($item['periodicidad'] === 'trimestral') {
                     $mes_busqueda = (int)(ceil($mes / 3) * 3);
                 } elseif ($item['periodicidad'] === 'semestral') {
-                    $mes_busqueda = $mes <= 6 ? 1 : 7;
+                    $mes_busqueda = $mes <= 6 ? 6 : 12;
                 }
                 
                 // Verificar Sin Movimiento
@@ -1551,7 +1551,7 @@ class CorreoManager {
                 } elseif ($item['periodicidad'] === 'trimestral') {
                     $mes_busqueda = (int)(ceil($mes / 3) * 3);
                 } elseif ($item['periodicidad'] === 'semestral') {
-                    $mes_busqueda = $mes <= 6 ? 1 : 7;
+                    $mes_busqueda = $mes <= 6 ? 6 : 12;
                 }
                 
                 // Verificar Sin Movimiento

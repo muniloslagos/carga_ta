@@ -255,14 +255,16 @@ $itemsPorPeriodicidad = [
     'mensual' => [],
     'trimestral' => [],
     'semestral' => [],
-    'anual' => []
+    'anual' => [],
+    'ocurrencia' => []
 ];
 
 $contadores = [
     'mensual' => 0,
     'trimestral' => 0,
     'semestral' => 0,
-    'anual' => 0
+    'anual' => 0,
+    'ocurrencia' => 0
 ];
 
 $itemsCache = [];
@@ -346,6 +348,28 @@ function obtenerObservacionDocumento($conn, $documento_id) {
     }
     $checkObs->close();
     return $observacion;
+}
+
+// Función helper para construir alerta de observación del revisor
+function construirObservacionRevisorHtml($ultimoDoc, $revisionActivada) {
+    if (!$revisionActivada || !$ultimoDoc) {
+        return '';
+    }
+
+    $revisionEstado = $ultimoDoc['revision_estado'] ?? null;
+    $revisionObs = trim((string)($ultimoDoc['revision_observaciones'] ?? ''));
+
+    if ($revisionEstado !== 'observado' || $revisionObs === '') {
+        return '';
+    }
+
+    $html = '<span class="badge bg-danger">OBSERVADO</span>';
+    $html .= '<div class="alert alert-danger mt-2 mb-0 py-2 px-3" style="font-size:0.85rem;">';
+    $html .= '<strong><i class="bi bi-exclamation-triangle"></i> Observación del Revisor:</strong><br>';
+    $html .= '<small>' . nl2br(htmlspecialchars($revisionObs)) . '</small>';
+    $html .= '</div>';
+
+    return $html;
 }
 
 // Calcular documentos pendientes por periodicidad
@@ -500,7 +524,7 @@ if (isset($_SESSION['success'])) {
         <?php
         // Determinar qué pestaña debe estar activa (la primera disponible)
         $primeraActiva = '';
-        foreach (['mensual', 'trimestral', 'semestral', 'anual'] as $per) {
+        foreach (['mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'] as $per) {
             if (count($itemsPorPeriodicidad[$per]) > 0) {
                 $primeraActiva = $per;
                 break;
@@ -548,6 +572,14 @@ if (isset($_SESSION['success'])) {
                     <?php if ($documentosPendientes['anual'] > 0): ?>
                         <span class="badge bg-danger ms-2"><?php echo $documentosPendientes['anual']; ?></span>
                     <?php endif; ?>
+                </button>
+            </li>
+            <?php endif; ?>
+
+            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?php echo ($primeraActiva === 'ocurrencia') ? 'active' : ''; ?>" id="tab-ocurrencia" data-bs-toggle="tab" data-bs-target="#ocurrencia" type="button" role="tab">
+                    <i class="bi bi-person-check"></i> Elecciones
                 </button>
             </li>
             <?php endif; ?>
@@ -772,6 +804,12 @@ if (isset($_SESSION['success'])) {
                                             <?php if ($observacion): ?>
                                                 <div class="mt-2">
                                                     <?php echo $estadoBadge; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
+                                            <?php if (!empty($observacionRevisorHtml)): ?>
+                                                <div class="mt-2">
+                                                    <?php echo $observacionRevisorHtml; ?>
                                                 </div>
                                             <?php endif; ?>
                                         </td>
@@ -1034,7 +1072,15 @@ if (isset($_SESSION['success'])) {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
+                                            <?php if (!empty($observacionRevisorHtml)): ?>
+                                                <div class="mt-2">
+                                                    <?php echo $observacionRevisorHtml; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
@@ -1296,7 +1342,15 @@ if (isset($_SESSION['success'])) {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
+                                            <?php if (!empty($observacionRevisorHtml)): ?>
+                                                <div class="mt-2">
+                                                    <?php echo $observacionRevisorHtml; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
@@ -1547,7 +1601,15 @@ if (isset($_SESSION['success'])) {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+                                        <td>
+                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
+                                            <?php if (!empty($observacionRevisorHtml)): ?>
+                                                <div class="mt-2">
+                                                    <?php echo $observacionRevisorHtml; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><small><?php echo $cargador; ?></small></td>
                                         <td><?php echo $fechaEnvio; ?></td>
                                         <td><?php echo $cargaPortal; ?></td>
@@ -1663,6 +1725,22 @@ if (isset($_SESSION['success'])) {
                             ?>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
+            <div class="tab-pane fade <?php echo ($primeraActiva === 'ocurrencia') ? 'show active' : ''; ?>" id="ocurrencia" role="tabpanel">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <h5 class="mb-3"><i class="bi bi-person-check"></i> Módulo Especial de Elecciones</h5>
+                        <p class="text-muted mb-3">
+                            Los items de tipo ocurrencia para elecciones se trabajan en una página separada, sin plazos mensuales/trimestrales.
+                        </p>
+                        <a class="btn btn-primary" href="<?php echo SITE_URL; ?>usuario/elecciones.php">
+                            <i class="bi bi-box-arrow-up-right"></i> Ir a pestaña Elecciones
+                        </a>
+                    </div>
                 </div>
             </div>
             <?php endif; ?>
@@ -2715,6 +2793,10 @@ function verObservaciones(itemId, itemNombre, mes, ano) {
                         } else {
                             detalleExtra = `<div class="mt-2"><span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Pendiente - Cargador: ${obs.cargador}</span></div>`;
                         }
+                    } else if (obs.tipo === 'revision_observada') {
+                        badge = '<i class="bi bi-eye-slash"></i> Observación del Revisor';
+                        badgeClass = 'bg-danger';
+                        detalleExtra = `<div class="mt-2"><span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Pendiente de corrección</span></div>`;
                     }
                     
                     html += `
