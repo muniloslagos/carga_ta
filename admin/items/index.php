@@ -54,7 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if (empty($error) && !empty($data['numeracion']) && !empty($data['nombre']) && !empty($data['periodicidad'])) {
+        if (
+            empty($error)
+            && trim((string)$data['numeracion']) !== ''
+            && trim((string)$data['nombre']) !== ''
+            && trim((string)$data['periodicidad']) !== ''
+        ) {
             if ($itemClass->create($data)) {
                 $_SESSION['success'] = 'Item creado correctamente';
                 $redirect = true;
