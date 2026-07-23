@@ -540,11 +540,6 @@ if ($editRow !== null) {
     </div>
 <?php endif; ?>
 
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Administre las elecciones en formato CSV, subiendo archivos adjuntos y exportando la información del año seleccionado.
-</div>
-
 <div class="card mb-4">
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -554,7 +549,7 @@ if ($editRow !== null) {
                 </button>
 
                 <form method="GET" class="d-flex align-items-center gap-2">
-                    <label class="form-label mb-0 small">Año</label>
+                    <label class="form-label mb-0 small">Filtro año</label>
                     <select class="form-select form-select-sm" name="year" onchange="this.form.submit()" style="width: 95px;">
                         <?php foreach ($availableYears as $yearOption): ?>
                             <option value="<?php echo (int)$yearOption; ?>" <?php echo $yearOption === $selectedYear ? 'selected' : ''; ?>><?php echo (int)$yearOption; ?></option>
@@ -562,43 +557,29 @@ if ($editRow !== null) {
                     </select>
                 </form>
 
-                <span class="badge bg-light text-dark border">Archivo: <?php echo htmlspecialchars(basename($csvPath)); ?></span>
+                <button type="button" class="btn btn-outline-danger" onclick="window.print()">
+                    <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                </button>
+
+                <form method="POST" class="d-inline">
+                    <input type="hidden" name="action" value="export">
+                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
+                    <button type="submit" class="btn btn-success">Exportar CSV</button>
+                </form>
             </div>
 
-            <form method="POST" class="d-inline">
-                <input type="hidden" name="action" value="export">
-                <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                <button type="submit" class="btn btn-success">Exportar CSV</button>
-            </form>
+            <div>
+                <?php if ($showForm): ?>
+                    <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
+                        <i class="bi bi-x-circle"></i> Cerrar formulario
+                    </a>
+                <?php else: ?>
+                    <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
+                        <i class="bi bi-plus-circle"></i> Agregar elección
+                    </a>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-body d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-            <form method="GET" class="d-flex align-items-center gap-2">
-                <label class="form-label mb-0 small">Filtro año</label>
-                <select class="form-select form-select-sm" name="year" onchange="this.form.submit()" style="width: 95px;">
-                    <?php foreach ($availableYears as $yearOption): ?>
-                        <option value="<?php echo (int)$yearOption; ?>" <?php echo $yearOption === $selectedYear ? 'selected' : ''; ?>><?php echo (int)$yearOption; ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
-        </div>
-        <div>
-            <strong>Agregar elección</strong>
-            <div class="text-muted small">Se guardará en el archivo del año <?php echo (int)$selectedYear; ?></div>
-        </div>
-        <?php if ($showForm): ?>
-            <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
-                <i class="bi bi-x-circle"></i> Cerrar formulario
-            </a>
-        <?php else: ?>
-            <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
-                <i class="bi bi-plus-circle"></i> Agregar elección
-            </a>
-        <?php endif; ?>
     </div>
 </div>
 
