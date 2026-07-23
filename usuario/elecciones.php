@@ -163,7 +163,9 @@ function save_uploaded_attachment($year, $file, $defaultValue = '', $numeroElecc
 
     $baseDir = dirname(__DIR__) . '/uploads/elecciones/' . $year . '/archivos';
     if (!is_dir($baseDir)) {
-        mkdir($baseDir, 0777, true);
+        if (!mkdir($baseDir, 0777, true) && !is_dir($baseDir)) {
+            return $defaultValue;
+        }
     }
 
     $numeroEleccion = (int)$numeroEleccion;
@@ -444,6 +446,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if (isset($_FILES[$fieldName]) && is_array($_FILES[$fieldName])) {
                 $uploadedValue = save_uploaded_attachment($year, $_FILES[$fieldName], $existingValue, $numeroEleccion, $fieldName);
+                if ($uploadedValue === $existingValue && !empty($_FILES[$fieldName]['name'])) {
+                    $_SESSION['error'] = 'No se pudo subir el archivo adjunto. Revise permisos de carpeta o el tipo de archivo.';
+                    header('Location: elecciones.php?year=' . $year . '&edit=' . $rowIndex);
+                    exit;
+                }
                 $newRow[$index] = $uploadedValue;
             } else {
                 $newRow[$index] = $existingValue;
