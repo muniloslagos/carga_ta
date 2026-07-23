@@ -203,6 +203,28 @@ function normalize_date_for_form($value)
     return $value;
 }
 
+function normalize_time_for_form($value)
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^(\d{1,2}):(\d{2})/', $value, $matches)) {
+        $hours = (int)$matches[1];
+        $minutes = (int)$matches[2];
+        if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
+            return sprintf('%02d:%02d', $hours, $minutes);
+        }
+    }
+
+    if (preg_match('/^(\d{1,2})\s*horas?/i', $value, $matches)) {
+        return sprintf('%02d:00', (int)$matches[1]);
+    }
+
+    return $value;
+}
+
 $nombreItemEspecial = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
 if ($selectedYear < 2000) {
@@ -500,7 +522,7 @@ if ($editRow !== null) {
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Hora elección</label>
-                    <input class="form-control" type="time" name="hora_eleccion" value="<?php echo htmlspecialchars($editRow !== null ? ($editRow[3] ?? '') : ''); ?>" required>
+                    <input class="form-control" type="time" name="hora_eleccion" value="<?php echo htmlspecialchars($editRow !== null ? normalize_time_for_form($editRow[3] ?? '') : ''); ?>" required>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Lugar elección</label>
@@ -508,37 +530,72 @@ if ($editRow !== null) {
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Comunicación fecha de la elección</label>
-                    <input class="form-control" type="file" name="file_comunicacion">
                     <?php if ($editRow !== null && !empty($editRow[5] ?? '')): ?>
-                        <small class="text-muted d-block mt-1">Actual: <?php echo htmlspecialchars($editRow[5]); ?></small>
+                        <div class="border rounded p-2 d-flex align-items-center justify-content-between bg-light">
+                            <span class="text-success"><i class="bi bi-file-earmark-pdf-fill"></i> Cargado</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento pdf existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                        <input class="form-control mt-2" type="file" name="file_comunicacion" style="display:none;">
+                    <?php else: ?>
+                        <input class="form-control" type="file" name="file_comunicacion">
                     <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Resultado elección</label>
-                    <input class="form-control" type="file" name="file_resultado">
                     <?php if ($editRow !== null && !empty($editRow[6] ?? '')): ?>
-                        <small class="text-muted d-block mt-1">Actual: <?php echo htmlspecialchars($editRow[6]); ?></small>
+                        <div class="border rounded p-2 d-flex align-items-center justify-content-between bg-light">
+                            <span class="text-success"><i class="bi bi-file-earmark-pdf-fill"></i> Cargado</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento pdf existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                        <input class="form-control mt-2" type="file" name="file_resultado" style="display:none;">
+                    <?php else: ?>
+                        <input class="form-control" type="file" name="file_resultado">
                     <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Rol reclamación</label>
-                    <input class="form-control" type="file" name="file_rol_reclamacion">
                     <?php if ($editRow !== null && !empty($editRow[7] ?? '')): ?>
-                        <small class="text-muted d-block mt-1">Actual: <?php echo htmlspecialchars($editRow[7]); ?></small>
+                        <div class="border rounded p-2 d-flex align-items-center justify-content-between bg-light">
+                            <span class="text-success"><i class="bi bi-file-earmark-pdf-fill"></i> Cargado</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento pdf existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                        <input class="form-control mt-2" type="file" name="file_rol_reclamacion" style="display:none;">
+                    <?php else: ?>
+                        <input class="form-control" type="file" name="file_rol_reclamacion">
                     <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Reclamación</label>
-                    <input class="form-control" type="file" name="file_reclamacion">
                     <?php if ($editRow !== null && !empty($editRow[8] ?? '')): ?>
-                        <small class="text-muted d-block mt-1">Actual: <?php echo htmlspecialchars($editRow[8]); ?></small>
+                        <div class="border rounded p-2 d-flex align-items-center justify-content-between bg-light">
+                            <span class="text-success"><i class="bi bi-file-earmark-pdf-fill"></i> Cargado</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento pdf existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                        <input class="form-control mt-2" type="file" name="file_reclamacion" style="display:none;">
+                    <?php else: ?>
+                        <input class="form-control" type="file" name="file_reclamacion">
                     <?php endif; ?>
                 </div>
                 <div class="col-md-12">
                     <label class="form-label">Fallo de la reclamación</label>
-                    <input class="form-control" type="file" name="file_fallo">
                     <?php if ($editRow !== null && !empty($editRow[9] ?? '')): ?>
-                        <small class="text-muted d-block mt-1">Actual: <?php echo htmlspecialchars($editRow[9]); ?></small>
+                        <div class="border rounded p-2 d-flex align-items-center justify-content-between bg-light">
+                            <span class="text-success"><i class="bi bi-file-earmark-pdf-fill"></i> Cargado</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento pdf existente" onclick="this.closest('.col-md-12').querySelector('input[type=file]').click()">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                        <input class="form-control mt-2" type="file" name="file_fallo" style="display:none;">
+                    <?php else: ?>
+                        <input class="form-control" type="file" name="file_fallo">
                     <?php endif; ?>
                 </div>
             </div>
