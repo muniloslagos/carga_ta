@@ -329,6 +329,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $year = date('Y');
     }
 
+    if ($_POST['action'] === 'create_year') {
+        $newYear = isset($_POST['new_year']) ? (int)$_POST['new_year'] : 0;
+        if ($newYear < 2000) {
+            $_SESSION['error'] = 'Debe ingresar un año válido.';
+            header('Location: elecciones.php?year=' . $selectedYear);
+            exit;
+        }
+
+        ensure_elections_csv($newYear);
+        $_SESSION['success'] = 'Año ' . $newYear . ' creado correctamente.';
+        header('Location: elecciones.php?year=' . $newYear);
+        exit;
+    }
+
     if ($_POST['action'] === 'save') {
         $path = ensure_elections_csv($year);
         $rows = read_elections_rows($path);
@@ -493,6 +507,10 @@ if ($editRow !== null) {
     font-size: 1.1rem;
     line-height: 1;
 }
+
+.elecciones-texto-ayuda {
+    color: #9aa0a6;
+}
 </style>
 
 <div class="page-header mb-3">
@@ -528,42 +546,45 @@ if ($editRow !== null) {
 
 <div class="card mb-4">
     <div class="card-body">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <form method="GET">
-                    <label class="form-label">Año</label>
-                    <select class="form-select" name="year" onchange="this.form.submit()">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarAno">
+                    <i class="bi bi-calendar-plus"></i> Agregar año
+                </button>
+
+                <form method="GET" class="d-flex align-items-center gap-2">
+                    <label class="form-label mb-0 small">Año</label>
+                    <select class="form-select form-select-sm" name="year" onchange="this.form.submit()" style="width: 95px;">
                         <?php foreach ($availableYears as $yearOption): ?>
                             <option value="<?php echo (int)$yearOption; ?>" <?php echo $yearOption === $selectedYear ? 'selected' : ''; ?>><?php echo (int)$yearOption; ?></option>
                         <?php endforeach; ?>
                     </select>
                 </form>
+
+                <span class="badge bg-light text-dark border">Archivo: <?php echo htmlspecialchars(basename($csvPath)); ?></span>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Archivo activo</label>
-                <div class="form-control bg-light"><?php echo htmlspecialchars(basename($csvPath)); ?></div>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Crear nuevo año</label>
-                <form method="GET" class="d-flex gap-2">
-                    <input class="form-control" type="number" name="year" min="2000" step="1" placeholder="2027">
-                    <button type="submit" class="btn btn-outline-primary">Crear</button>
-                </form>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Acciones</label>
-                <form method="POST" class="d-inline">
-                    <input type="hidden" name="action" value="export">
-                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                    <button type="submit" class="btn btn-success">Exportar CSV</button>
-                </form>
-            </div>
+
+            <form method="POST" class="d-inline">
+                <input type="hidden" name="action" value="export">
+                <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
+                <button type="submit" class="btn btn-success">Exportar CSV</button>
+            </form>
         </div>
     </div>
 </div>
 
 <div class="card mb-4">
     <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0 small">Filtro año</label>
+                <select class="form-select form-select-sm" name="year" onchange="this.form.submit()" style="width: 95px;">
+                    <?php foreach ($availableYears as $yearOption): ?>
+                        <option value="<?php echo (int)$yearOption; ?>" <?php echo $yearOption === $selectedYear ? 'selected' : ''; ?>><?php echo (int)$yearOption; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+        </div>
         <div>
             <strong>Agregar elección</strong>
             <div class="text-muted small">Se guardará en el archivo del año <?php echo (int)$selectedYear; ?></div>
@@ -585,7 +606,7 @@ if ($editRow !== null) {
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <div>
             <strong><?php echo $editRow === null ? 'Formulario de nueva elección' : 'Editar elección'; ?></strong>
-            <div class="text-muted small">Complete los datos y adjunte archivos si corresponde.</div>
+            <div class="small elecciones-texto-ayuda">Complete los datos y adjunte archivos si corresponde.</div>
         </div>
         <?php if ($editRow !== null): ?>
             <a class="btn btn-outline-secondary btn-sm" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">Cancelar edición</a>
@@ -803,6 +824,31 @@ if ($editRow !== null) {
                 </table>
             </div>
         <?php endif; ?>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAgregarAno" tabindex="-1" aria-labelledby="modalAgregarAnoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAgregarAnoLabel">Agregar año</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="create_year">
+                    <div class="mb-2">
+                        <label class="form-label">Año a crear</label>
+                        <input class="form-control" type="number" name="new_year" min="2000" step="1" placeholder="2027" required>
+                        <small class="text-muted">Se creará carpeta y CSV si no existen.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear año</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
