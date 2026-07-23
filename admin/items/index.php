@@ -605,6 +605,15 @@ if (!isset($PERIODICIDADES)) {
                                 <option value="<?php echo $key; ?>"><?php echo $value; ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <div class="form-text mt-2">
+                            <strong>Ayuda memoria:</strong><br>
+                            Mensual: se carga cada mes.<br>
+                            Trimestral: se carga al cierre de cada trimestre.<br>
+                            Semestral: se carga al cierre de junio y diciembre.<br>
+                            Anual: se carga una vez al ano, en el mes configurado.<br>
+                            Ocurrencia: se carga en cualquier momento, cuando se genere documentacion.
+                        </div>
+                        <small class="text-primary d-block mt-1">Para el item de Elecciones la periodicidad correcta es Ocurrencia.</small>
                     </div>
 
                     <div class="mb-3" id="mesCargaAnualContainer" style="display:none;">
