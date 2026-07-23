@@ -598,21 +598,19 @@ if (!isset($PERIODICIDADES)) {
                     </div>
 
                     <div class="mb-3">
-                        <label for="periodicidad" class="form-label">Periodicidad</label>
+                        <label for="periodicidad" class="form-label d-flex align-items-center gap-2">
+                            <span>Periodicidad</span>
+                            <span class="text-primary" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-html="true"
+                                  title="<strong>Ayuda memoria:</strong><br>Mensual: se carga cada mes.<br>Trimestral: se carga al cierre de cada trimestre.<br>Semestral: se carga al cierre de junio y diciembre.<br>Anual: se carga una vez al ano, en el mes configurado.<br>Ocurrencia: se carga en cualquier momento, cuando se genere documentacion.">
+                                <i class="bi bi-question-circle-fill"></i>
+                            </span>
+                        </label>
                         <select class="form-select" id="periodicidad" name="periodicidad" required onchange="toggleMesCargaAnual()">
                             <option value="">Seleccionar periodicidad</option>
                             <?php foreach ($PERIODICIDADES as $key => $value): ?>
                                 <option value="<?php echo $key; ?>"><?php echo $value; ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div class="form-text mt-2">
-                            <strong>Ayuda memoria:</strong><br>
-                            Mensual: se carga cada mes.<br>
-                            Trimestral: se carga al cierre de cada trimestre.<br>
-                            Semestral: se carga al cierre de junio y diciembre.<br>
-                            Anual: se carga una vez al ano, en el mes configurado.<br>
-                            Ocurrencia: se carga en cualquier momento, cuando se genere documentacion.
-                        </div>
                         <small class="text-primary d-block mt-1">Para el item de Elecciones la periodicidad correcta es Ocurrencia.</small>
                     </div>
 
