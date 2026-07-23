@@ -77,11 +77,39 @@ function read_elections_rows($path)
         if (!is_array($row)) {
             continue;
         }
+        foreach ($row as $k => $value) {
+            $row[$k] = normalize_csv_text($value);
+        }
         $rows[] = $row;
     }
 
     fclose($handle);
     return $rows;
+}
+
+function normalize_csv_text($value)
+{
+    $value = (string)$value;
+    if ($value === '') {
+        return '';
+    }
+
+    if (!function_exists('mb_detect_encoding') || !function_exists('mb_convert_encoding')) {
+        return $value;
+    }
+
+    $encoding = mb_detect_encoding($value, ['UTF-8', 'ISO-8859-1', 'Windows-1252'], true);
+    if ($encoding === false) {
+        $converted = @mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+        return $converted !== false ? $converted : $value;
+    }
+
+    if ($encoding !== 'UTF-8') {
+        $converted = @mb_convert_encoding($value, 'UTF-8', $encoding);
+        return $converted !== false ? $converted : $value;
+    }
+
+    return $value;
 }
 
 function write_elections_rows($path, $rows)
@@ -247,7 +275,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['error'] = 'No se pudo guardar el archivo CSV.';
         }
 
-        header('Location: elecciones.php?year=' . $year);
+        $saveMode = trim((string)($_POST['save_mode'] ?? 'stay'));
+        if ($saveMode === 'back') {
+            header('Location: elecciones.php?year=' . $year);
+        } else {
+            header('Location: elecciones.php?year=' . $year . '&show_form=1');
+        }
         exit;
     }
 
@@ -306,6 +339,11 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
         $editRow = $rows[$editIndex];
     }
 }
+
+$showForm = isset($_GET['show_form']) && $_GET['show_form'] === '1';
+if ($editRow !== null) {
+    $showForm = true;
+}
 ?>
 
 <style>
@@ -330,7 +368,15 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
 }
 
 .elecciones-col-link {
-    min-width: 140px;
+    min-width: 90px;
+    max-width: 90px;
+    width: 90px;
+}
+
+.elecciones-link-icon {
+    color: #dc3545;
+    font-size: 1.1rem;
+    line-height: 1;
 }
 </style>
 
@@ -402,13 +448,32 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
 </div>
 
 <div class="card mb-4">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <div class="card-body d-flex justify-content-between align-items-center">
         <div>
-            <strong><?php echo $editRow === null ? 'Agregar elección' : 'Editar elección'; ?></strong>
+            <strong>Agregar elección</strong>
             <div class="text-muted small">Se guardará en el archivo del año <?php echo (int)$selectedYear; ?></div>
         </div>
+        <?php if ($showForm): ?>
+            <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
+                <i class="bi bi-x-circle"></i> Cerrar formulario
+            </a>
+        <?php else: ?>
+            <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
+                <i class="bi bi-plus-circle"></i> Agregar elección
+            </a>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php if ($showForm): ?>
+<div class="card mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <div>
+            <strong><?php echo $editRow === null ? 'Formulario de nueva elección' : 'Editar elección'; ?></strong>
+            <div class="text-muted small">Complete los datos y adjunte archivos si corresponde.</div>
+        </div>
         <?php if ($editRow !== null): ?>
-            <a class="btn btn-outline-secondary btn-sm" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">Cancelar edición</a>
+            <a class="btn btn-outline-secondary btn-sm" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">Cancelar edición</a>
         <?php endif; ?>
     </div>
     <div class="card-body">
@@ -478,13 +543,17 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                 </div>
             </div>
             <div class="mt-4 d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-floppy"></i> <?php echo $editRow === null ? 'Agregar elección' : 'Guardar cambios'; ?>
+                <button type="submit" name="save_mode" value="stay" class="btn btn-primary">
+                    <i class="bi bi-floppy"></i> Guardar
+                </button>
+                <button type="submit" name="save_mode" value="back" class="btn btn-success">
+                    <i class="bi bi-check2-circle"></i> Guardar y volver
                 </button>
             </div>
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <div class="card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -524,8 +593,8 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                                 <td class="elecciones-col-lugar text-truncate" title="<?php echo htmlspecialchars($row[4] ?? ''); ?>"><?php echo htmlspecialchars($row[4] ?? ''); ?></td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[5] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[5]); ?>" target="_blank" rel="noopener" class="small">
-                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        <a href="<?php echo htmlspecialchars($row[5]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Comunicación fecha de la elección">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
                                         </a>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
@@ -533,8 +602,8 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[6] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[6]); ?>" target="_blank" rel="noopener" class="small">
-                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        <a href="<?php echo htmlspecialchars($row[6]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Resultado elección">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
                                         </a>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
@@ -542,8 +611,8 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[7] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[7]); ?>" target="_blank" rel="noopener" class="small">
-                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        <a href="<?php echo htmlspecialchars($row[7]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Rol reclamación">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
                                         </a>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
@@ -551,8 +620,8 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[8] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[8]); ?>" target="_blank" rel="noopener" class="small">
-                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        <a href="<?php echo htmlspecialchars($row[8]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Reclamación">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
                                         </a>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
@@ -560,8 +629,8 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[9] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[9]); ?>" target="_blank" rel="noopener" class="small">
-                                            <i class="bi bi-paperclip"></i> Ver archivo
+                                        <a href="<?php echo htmlspecialchars($row[9]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Fallo de la reclamación">
+                                            <i class="bi bi-file-earmark-pdf-fill"></i>
                                         </a>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
