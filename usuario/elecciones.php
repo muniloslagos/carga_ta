@@ -719,7 +719,11 @@ $availableYears = array_values(array_unique($availableYears));
 sort($availableYears);
 
 $yearWarningMessage = '';
-if (isset($_GET['year']) && is_numeric($_GET['year']) && $selectedYear !== $currentYear) {
+if (
+    isset($_GET['year']) && is_numeric($_GET['year'])
+    && isset($_GET['from_year_selector']) && $_GET['from_year_selector'] === '1'
+    && $selectedYear !== $currentYear
+) {
     $yearWarningMessage = 'Ha cambiado de año: verá y podrá gestionar las elecciones del año ' . $selectedYear . '. Si desea gestionar las elecciones del año en curso, vuelva a seleccionar el año actual.';
 }
 
@@ -882,6 +886,7 @@ usort($displayRows, function ($left, $right) use ($sortOrder) {
                 </button>
 
                 <form method="GET" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="from_year_selector" value="1">
                     <label class="form-label mb-0 small">Filtro año</label>
                     <select class="form-select form-select-sm" name="year" onchange="this.form.submit()" style="width: 95px;">
                         <?php foreach ($availableYears as $yearOption): ?>
