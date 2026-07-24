@@ -767,50 +767,17 @@ if ($editRow !== null) {
     gap: 0.35rem;
 }
 
-.elecciones-header-card {
-    background: #ffffff;
-    color: #0b4f8a;
-    border: 1px solid #d9e4f0;
-    box-shadow: none;
-    margin-bottom: 0.75rem;
-}
-
-.elecciones-header-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: #0b4f8a;
-    color: #ffffff;
-    margin-right: 10px;
-    font-size: 1rem;
-}
-
-.elecciones-header-title {
+.elecciones-page-title {
     color: #0b4f8a;
     font-size: 0.95rem;
     font-weight: 700;
-    margin: 0;
-    line-height: 1.15;
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
 }
 </style>
 
-<div class="card mb-2 elecciones-header-card">
-    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="d-flex align-items-center">
-            <span class="elecciones-header-icon">
-                <i class="bi bi-person-check"></i>
-            </span>
-            <div>
-                <h1 class="elecciones-header-title"><?php echo htmlspecialchars($nombreItemEspecial); ?></h1>
-            </div>
-        </div>
-        <a class="btn btn-sm" style="background:#0b4f8a;color:#ffffff;border-color:#0b4f8a;" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
-            <i class="bi bi-arrow-left"></i> Volver al Dashboard
-        </a>
-    </div>
+<div class="mb-3">
+    <h2 class="elecciones-page-title">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</h2>
 </div>
 
 <?php if (isset($_SESSION['success'])): ?>
