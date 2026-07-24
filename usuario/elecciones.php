@@ -1,4 +1,5 @@
 <?php
+// Sync marker: force update to ensure remote receives latest changes (2026-07-24)
 require_once '../includes/check_auth.php';
 require_login();
 
