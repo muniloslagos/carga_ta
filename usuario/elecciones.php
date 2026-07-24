@@ -374,6 +374,50 @@ if ($selectedYear < 2000) {
 
 $conn = $db->getConnection();
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'delete_attachment') {
+    $year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
+    if ($year < 2000) {
+        $year = date('Y');
+    }
+
+    $path = ensure_elections_csv($year);
+    $rows = read_elections_rows($path);
+    $rowIndex = isset($_GET['row_index']) ? (int)$_GET['row_index'] : -1;
+    $columnIndex = isset($_GET['column_index']) ? (int)$_GET['column_index'] : -1;
+    $allowedColumns = [5, 6, 7, 8, 9];
+
+    if ($rowIndex < 0 || $rowIndex >= count($rows) || !in_array($columnIndex, $allowedColumns, true)) {
+        $_SESSION['error'] = 'No se pudo identificar el documento a eliminar.';
+        header('Location: elecciones.php?year=' . $year);
+        exit;
+    }
+
+    $existingValue = trim((string)($rows[$rowIndex][$columnIndex] ?? ''));
+    if ($existingValue === '') {
+        $_SESSION['error'] = 'El documento seleccionado ya no existe.';
+        header('Location: elecciones.php?year=' . $year . '&edit=' . $rowIndex);
+        exit;
+    }
+
+    $localPath = get_local_elections_attachment_path($year, $existingValue);
+    $localFileDeleted = false;
+    if ($localPath !== null && is_file($localPath)) {
+        $localFileDeleted = delete_local_elections_attachment($year, $existingValue);
+    }
+
+    $rows[$rowIndex][$columnIndex] = '';
+    if (!write_elections_rows($path, $rows)) {
+        $_SESSION['error'] = 'No se pudo actualizar el archivo CSV al eliminar el documento.';
+    } else {
+        $_SESSION['success'] = $localPath !== null && !$localFileDeleted
+            ? 'Se quitó la referencia del documento, pero no fue posible borrar el archivo del servidor.'
+            : 'Documento eliminado correctamente.';
+    }
+
+    header('Location: elecciones.php?year=' . $year . '&edit=' . $rowIndex);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $year = isset($_POST['year']) ? (int)$_POST['year'] : date('Y');
     if ($year < 2000) {
@@ -741,7 +785,7 @@ if ($editRow !== null) {
         <?php endif; ?>
     </div>
     <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="eleccionesForm">
             <input type="hidden" name="action" value="save">
             <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
             <input type="hidden" name="row_index" value="<?php echo $editRow === null ? '-1' : (int)$_GET['edit']; ?>">
@@ -783,15 +827,9 @@ if ($editRow !== null) {
                                 <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Deseas eliminar este documento?');">
-                                    <input type="hidden" name="action" value="delete_attachment">
-                                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                                    <input type="hidden" name="row_index" value="<?php echo (int)$_GET['edit']; ?>">
-                                    <input type="hidden" name="column_index" value="5">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar documento">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <a href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&action=delete_attachment&row_index=<?php echo (int)$_GET['edit']; ?>&column_index=5" class="btn btn-outline-danger btn-sm" title="Eliminar documento" onclick="return confirm('¿Deseas eliminar este documento?');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </div>
                         </div>
                         <input class="form-control mt-2" type="file" name="file_comunicacion" style="display:none;">
@@ -808,15 +846,9 @@ if ($editRow !== null) {
                                 <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Deseas eliminar este documento?');">
-                                    <input type="hidden" name="action" value="delete_attachment">
-                                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                                    <input type="hidden" name="row_index" value="<?php echo (int)$_GET['edit']; ?>">
-                                    <input type="hidden" name="column_index" value="6">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar documento">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <a href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&action=delete_attachment&row_index=<?php echo (int)$_GET['edit']; ?>&column_index=6" class="btn btn-outline-danger btn-sm" title="Eliminar documento" onclick="return confirm('¿Deseas eliminar este documento?');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </div>
                         </div>
                         <input class="form-control mt-2" type="file" name="file_resultado" style="display:none;">
@@ -833,15 +865,9 @@ if ($editRow !== null) {
                                 <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Deseas eliminar este documento?');">
-                                    <input type="hidden" name="action" value="delete_attachment">
-                                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                                    <input type="hidden" name="row_index" value="<?php echo (int)$_GET['edit']; ?>">
-                                    <input type="hidden" name="column_index" value="7">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar documento">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <a href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&action=delete_attachment&row_index=<?php echo (int)$_GET['edit']; ?>&column_index=7" class="btn btn-outline-danger btn-sm" title="Eliminar documento" onclick="return confirm('¿Deseas eliminar este documento?');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </div>
                         </div>
                         <input class="form-control mt-2" type="file" name="file_rol_reclamacion" style="display:none;">
@@ -858,15 +884,9 @@ if ($editRow !== null) {
                                 <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento existente" onclick="this.closest('.col-md-6').querySelector('input[type=file]').click()">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Deseas eliminar este documento?');">
-                                    <input type="hidden" name="action" value="delete_attachment">
-                                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                                    <input type="hidden" name="row_index" value="<?php echo (int)$_GET['edit']; ?>">
-                                    <input type="hidden" name="column_index" value="8">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar documento">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <a href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&action=delete_attachment&row_index=<?php echo (int)$_GET['edit']; ?>&column_index=8" class="btn btn-outline-danger btn-sm" title="Eliminar documento" onclick="return confirm('¿Deseas eliminar este documento?');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </div>
                         </div>
                         <input class="form-control mt-2" type="file" name="file_reclamacion" style="display:none;">
@@ -883,15 +903,9 @@ if ($editRow !== null) {
                                 <button type="button" class="btn btn-outline-secondary btn-sm" title="Reemplazar documento existente" onclick="this.closest('.col-md-12').querySelector('input[type=file]').click()">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" class="d-inline" onsubmit="return confirm('¿Deseas eliminar este documento?');">
-                                    <input type="hidden" name="action" value="delete_attachment">
-                                    <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
-                                    <input type="hidden" name="row_index" value="<?php echo (int)$_GET['edit']; ?>">
-                                    <input type="hidden" name="column_index" value="9">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar documento">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
+                                <a href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&action=delete_attachment&row_index=<?php echo (int)$_GET['edit']; ?>&column_index=9" class="btn btn-outline-danger btn-sm" title="Eliminar documento" onclick="return confirm('¿Deseas eliminar este documento?');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </div>
                         </div>
                         <input class="form-control mt-2" type="file" name="file_fallo" style="display:none;">
