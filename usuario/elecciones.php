@@ -254,23 +254,81 @@ function normalize_date_for_form($value)
     return $value;
 }
 
-function normalize_time_for_form($value)
+function normalize_time_for_storage($value)
 {
     $value = trim((string)$value);
     if ($value === '') {
         return '';
     }
 
-    if (preg_match('/^(\d{1,2}):(\d{2})/', $value, $matches)) {
+    $normalized = strtolower($value);
+
+    if (preg_match('/^(\d{1,2}):(\d{2})\s*(am|pm)$/i', $value, $matches)) {
         $hours = (int)$matches[1];
         $minutes = (int)$matches[2];
+        $period = strtolower($matches[3]);
+        if ($period === 'pm' && $hours < 12) {
+            $hours += 12;
+        } elseif ($period === 'am' && $hours === 12) {
+            $hours = 0;
+        }
         if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
             return sprintf('%02d:%02d', $hours, $minutes);
         }
     }
 
+    if (preg_match('/^(\d{1,2})\s*(am|pm)$/i', $value, $matches)) {
+        $hours = (int)$matches[1];
+        $period = strtolower($matches[2]);
+        if ($period === 'pm' && $hours < 12) {
+            $hours += 12;
+        } elseif ($period === 'am' && $hours === 12) {
+            $hours = 0;
+        }
+        if ($hours >= 0 && $hours <= 23) {
+            return sprintf('%02d:00', $hours);
+        }
+    }
+
+    if (preg_match('/^(\d{1,2}):(\d{2})$/', $value, $matches)) {
+        $hours = (int)$matches[1];
+        $minutes = (int)$matches[2];
+        if ($hours === 24 && $minutes === 0) {
+            return '24:00';
+        }
+        if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
+            return sprintf('%02d:%02d', $hours, $minutes);
+        }
+    }
+
+    if (preg_match('/^(24)\s*:\s*(00)$/', $normalized, $matches)) {
+        return '24:00';
+    }
+
     if (preg_match('/^(\d{1,2})\s*horas?/i', $value, $matches)) {
         return sprintf('%02d:00', (int)$matches[1]);
+    }
+
+    return $value;
+}
+
+function normalize_time_for_form($value)
+{
+    $value = normalize_time_for_storage($value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^24:00$/', $value)) {
+        return '24:00';
+    }
+
+    if (preg_match('/^(\d{1,2}):(\d{2})$/', $value, $matches)) {
+        $hours = (int)$matches[1];
+        $minutes = (int)$matches[2];
+        if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
+            return sprintf('%02d:%02d', $hours, $minutes);
+        }
     }
 
     return $value;
@@ -445,7 +503,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $tipo = trim((string)($_POST['tipo_organizacion'] ?? ''));
         $nombre = trim((string)($_POST['nombre'] ?? ''));
         $fecha = trim((string)($_POST['fecha_eleccion'] ?? ''));
-        $hora = trim((string)($_POST['hora_eleccion'] ?? ''));
+        $hora = normalize_time_for_storage($_POST['hora_eleccion'] ?? '');
         $lugar = trim((string)($_POST['lugar_eleccion'] ?? ''));
 
         if ($nombre === '' || $fecha === '' || $hora === '' || $lugar === '' || $tipo === '') {
@@ -828,7 +886,8 @@ if ($editRow !== null) {
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Hora elección</label>
-                    <input class="form-control" type="time" name="hora_eleccion" value="<?php echo htmlspecialchars($editRow !== null ? normalize_time_for_form($editRow[3] ?? '') : ''); ?>" required>
+                    <input class="form-control" type="text" name="hora_eleccion" inputmode="numeric" pattern="^(?:[01]\d|2[0-3]):[0-5]\d$|^24:00$" maxlength="5" placeholder="00:00" value="<?php echo htmlspecialchars($editRow !== null ? normalize_time_for_form($editRow[3] ?? '') : ''); ?>" required>
+                    <small class="text-muted">Ingrese la hora en formato 24 horas, por ejemplo 08:00 o 24:00.</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Lugar elección</label>
