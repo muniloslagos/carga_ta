@@ -45,8 +45,9 @@ function ensure_elections_csv($year)
             'Reclamación',
             'Fallo de la reclamación'
         ];
-        $handle = fopen($path, 'w');
+        $handle = fopen($path, 'wb');
         if ($handle !== false) {
+            fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, $header, ';');
             fclose($handle);
         }
@@ -62,7 +63,7 @@ function read_elections_rows($path)
     }
 
     $rows = [];
-    $handle = fopen($path, 'r');
+    $handle = fopen($path, 'rb');
     if ($handle === false) {
         return $rows;
     }
@@ -71,6 +72,10 @@ function read_elections_rows($path)
     if ($header === false) {
         fclose($handle);
         return $rows;
+    }
+
+    if (isset($header[0]) && strpos($header[0], "\xEF\xBB\xBF") === 0) {
+        $header[0] = substr($header[0], 3);
     }
 
     while (($row = fgetcsv($handle, 0, ';')) !== false) {
@@ -127,16 +132,17 @@ function write_elections_rows($path, $rows)
         'Fallo de la reclamación'
     ];
 
-    $handle = fopen($path, 'w');
+    $handle = fopen($path, 'wb');
     if ($handle === false) {
         return false;
     }
 
+    fwrite($handle, "\xEF\xBB\xBF");
     fputcsv($handle, $header, ';');
     foreach ($rows as $row) {
         $values = [];
         for ($i = 0; $i < 10; $i++) {
-            $values[] = isset($row[$i]) ? $row[$i] : '';
+            $values[] = normalize_csv_text(isset($row[$i]) ? $row[$i] : '');
         }
         fputcsv($handle, $values, ';');
     }
