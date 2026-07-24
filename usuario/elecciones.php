@@ -301,6 +301,24 @@ function normalize_time_for_storage($value)
         }
     }
 
+    if (preg_match('/^(\d{3,4})$/', $value, $matches)) {
+        $digits = $matches[1];
+        $length = strlen($digits);
+        if ($length === 3) {
+            $hours = (int)substr($digits, 0, 1);
+            $minutes = (int)substr($digits, 1, 2);
+        } else {
+            $hours = (int)substr($digits, 0, 2);
+            $minutes = (int)substr($digits, 2, 2);
+        }
+        if ($hours === 24 && $minutes === 0) {
+            return '24:00';
+        }
+        if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
+            return sprintf('%02d:%02d', $hours, $minutes);
+        }
+    }
+
     if (preg_match('/^(24)\s*:\s*(00)$/', $normalized, $matches)) {
         return '24:00';
     }
@@ -887,8 +905,8 @@ if ($editRow !== null) {
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Hora elección</label>
-                    <input class="form-control" type="text" name="hora_eleccion" inputmode="numeric" pattern="^(?:[01]\d|2[0-3]):[0-5]\d$|^24:00$" maxlength="5" placeholder="00:00" value="<?php echo htmlspecialchars($editRow !== null ? normalize_time_for_form($editRow[3] ?? '') : ''); ?>" required>
-                    <small class="text-muted">Ingrese la hora en formato 24 horas, por ejemplo 08:00 o 24:00.</small>
+                    <input class="form-control" type="text" name="hora_eleccion" id="horaEleccion" inputmode="numeric" pattern="^(?:[01]\d|2[0-3]):[0-5]\d$|^24:00$|^\d{3,4}$" maxlength="5" placeholder="00:00" value="<?php echo htmlspecialchars($editRow !== null ? normalize_time_for_form($editRow[3] ?? '') : ''); ?>" required>
+                    <small class="text-muted">Ingrese la hora en formato 24 horas, por ejemplo 08:00, 1900 o 24:00.</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Lugar elección</label>
@@ -1148,6 +1166,38 @@ document.addEventListener('DOMContentLoaded', function () {
     const frame = document.getElementById('pdfPreviewFrame');
     const title = document.getElementById('modalVistaPdfLabel');
     const openNewTab = document.getElementById('pdfOpenNewTab');
+    const horaInput = document.getElementById('horaEleccion');
+
+    if (horaInput) {
+        const formatHourValue = function (value) {
+            const raw = String(value || '').trim();
+            if (raw === '') {
+                return '';
+            }
+
+            const digits = raw.replace(/[^0-9]/g, '');
+            if (!/^\d{3,4}$/.test(digits)) {
+                return raw;
+            }
+
+            if (digits.length === 3) {
+                const hours = parseInt(digits.substring(0, 1), 10);
+                const minutes = parseInt(digits.substring(1), 10);
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            }
+
+            const hours = parseInt(digits.substring(0, 2), 10);
+            const minutes = parseInt(digits.substring(2), 10);
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        };
+
+        horaInput.addEventListener('blur', function () {
+            const formatted = formatHourValue(this.value);
+            if (formatted !== this.value) {
+                this.value = formatted;
+            }
+        });
+    }
 
     if (!modalElement || !frame || !title || !openNewTab) {
         return;
