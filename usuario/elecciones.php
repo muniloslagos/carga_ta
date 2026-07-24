@@ -664,6 +664,21 @@ if ($editRow !== null) {
     color: #dc3545;
     font-size: 1.1rem;
     line-height: 1;
+    border: 0;
+    background: transparent;
+    padding: 0;
+}
+
+.elecciones-link-icon:hover {
+    color: #b02a37;
+}
+
+.elecciones-modal-frame {
+    width: 100%;
+    min-height: 70vh;
+    border: 0;
+    border-radius: 8px;
+    background: #ffffff;
 }
 
 .elecciones-texto-ayuda {
@@ -968,45 +983,45 @@ if ($editRow !== null) {
                                 <td class="elecciones-col-lugar text-truncate" title="<?php echo htmlspecialchars($row[4] ?? ''); ?>"><?php echo htmlspecialchars($row[4] ?? ''); ?></td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[5] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[5]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Comunicación fecha de la elección">
+                                        <button type="button" class="elecciones-link-icon" data-pdf-url="<?php echo htmlspecialchars($row[5], ENT_QUOTES, 'UTF-8'); ?>" data-pdf-title="Comunicación fecha de la elección" title="Ver PDF en el sitio">
                                             <i class="bi bi-file-earmark-pdf-fill"></i>
-                                        </a>
+                                        </button>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[6] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[6]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Resultado elección">
+                                        <button type="button" class="elecciones-link-icon" data-pdf-url="<?php echo htmlspecialchars($row[6], ENT_QUOTES, 'UTF-8'); ?>" data-pdf-title="Resultado elección" title="Ver PDF en el sitio">
                                             <i class="bi bi-file-earmark-pdf-fill"></i>
-                                        </a>
+                                        </button>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[7] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[7]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Rol reclamación">
+                                        <button type="button" class="elecciones-link-icon" data-pdf-url="<?php echo htmlspecialchars($row[7], ENT_QUOTES, 'UTF-8'); ?>" data-pdf-title="Rol reclamación" title="Ver PDF en el sitio">
                                             <i class="bi bi-file-earmark-pdf-fill"></i>
-                                        </a>
+                                        </button>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[8] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[8]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Reclamación">
+                                        <button type="button" class="elecciones-link-icon" data-pdf-url="<?php echo htmlspecialchars($row[8], ENT_QUOTES, 'UTF-8'); ?>" data-pdf-title="Reclamación" title="Ver PDF en el sitio">
                                             <i class="bi bi-file-earmark-pdf-fill"></i>
-                                        </a>
+                                        </button>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (!empty(trim((string)($row[9] ?? '')))): ?>
-                                        <a href="<?php echo htmlspecialchars($row[9]); ?>" target="_blank" rel="noopener" class="elecciones-link-icon" title="Fallo de la reclamación">
+                                        <button type="button" class="elecciones-link-icon" data-pdf-url="<?php echo htmlspecialchars($row[9], ENT_QUOTES, 'UTF-8'); ?>" data-pdf-title="Fallo de la reclamación" title="Ver PDF en el sitio">
                                             <i class="bi bi-file-earmark-pdf-fill"></i>
-                                        </a>
+                                        </button>
                                     <?php else: ?>
                                         <small class="text-muted">-</small>
                                     <?php endif; ?>
@@ -1049,5 +1064,50 @@ if ($editRow !== null) {
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalVistaPdf" tabindex="-1" aria-labelledby="modalVistaPdfLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalVistaPdfLabel">Vista previa PDF</h5>
+                <div class="d-flex gap-2">
+                    <a id="pdfOpenNewTab" class="btn btn-outline-secondary btn-sm" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="pdfPreviewFrame" class="elecciones-modal-frame" src="about:blank" title="Vista previa del PDF"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalElement = document.getElementById('modalVistaPdf');
+    const frame = document.getElementById('pdfPreviewFrame');
+    const title = document.getElementById('modalVistaPdfLabel');
+    const openNewTab = document.getElementById('pdfOpenNewTab');
+
+    if (!modalElement || !frame || !title || !openNewTab) {
+        return;
+    }
+
+    document.querySelectorAll('[data-pdf-url]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const url = button.getAttribute('data-pdf-url') || '';
+            const label = button.getAttribute('data-pdf-title') || 'Vista previa PDF';
+            title.textContent = label;
+            frame.src = url;
+            openNewTab.href = url;
+
+            if (window.bootstrap && typeof window.bootstrap.Modal !== 'undefined') {
+                const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+                modal.show();
+            }
+        });
+    });
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>
