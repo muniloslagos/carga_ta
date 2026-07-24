@@ -273,7 +273,7 @@ function normalize_time_for_storage($value)
             $hours = 0;
         }
         if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
-            return sprintf('%02d:%02d', $hours, $minutes);
+            return sprintf('%02d:%02d HORAS', $hours, $minutes);
         }
     }
 
@@ -286,7 +286,7 @@ function normalize_time_for_storage($value)
             $hours = 0;
         }
         if ($hours >= 0 && $hours <= 23) {
-            return sprintf('%02d:00', $hours);
+            return sprintf('%02d:00 HORAS', $hours);
         }
     }
 
@@ -294,10 +294,10 @@ function normalize_time_for_storage($value)
         $hours = (int)$matches[1];
         $minutes = (int)$matches[2];
         if ($hours === 24 && $minutes === 0) {
-            return '24:00';
+            return '24:00 HORAS';
         }
         if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
-            return sprintf('%02d:%02d', $hours, $minutes);
+            return sprintf('%02d:%02d HORAS', $hours, $minutes);
         }
     }
 
@@ -312,19 +312,19 @@ function normalize_time_for_storage($value)
             $minutes = (int)substr($digits, 2, 2);
         }
         if ($hours === 24 && $minutes === 0) {
-            return '24:00';
+            return '24:00 HORAS';
         }
         if ($hours >= 0 && $hours <= 23 && $minutes >= 0 && $minutes <= 59) {
-            return sprintf('%02d:%02d', $hours, $minutes);
+            return sprintf('%02d:%02d HORAS', $hours, $minutes);
         }
     }
 
     if (preg_match('/^(24)\s*:\s*(00)$/', $normalized, $matches)) {
-        return '24:00';
+        return '24:00 HORAS';
     }
 
     if (preg_match('/^(\d{1,2})\s*horas?/i', $value, $matches)) {
-        return sprintf('%02d:00', (int)$matches[1]);
+        return sprintf('%02d:00 HORAS', (int)$matches[1]);
     }
 
     return $value;
@@ -336,6 +336,8 @@ function normalize_time_for_form($value)
     if ($value === '') {
         return '';
     }
+
+    $value = preg_replace('/\s*HORAS$/i', '', $value);
 
     if (preg_match('/^24:00$/', $value)) {
         return '24:00';
@@ -443,9 +445,32 @@ function get_elections_numbering_for_year($conn, $year)
 }
 
 $nombreItemEspecial = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
-$selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
+$currentYear = date('Y');
+$availableYears = [];
+$baseDir = dirname(__DIR__) . '/uploads/elecciones';
+if (is_dir($baseDir)) {
+    $yearDirectories = glob($baseDir . '/*', GLOB_ONLYDIR);
+    foreach ($yearDirectories as $dir) {
+        $yearName = basename($dir);
+        if (ctype_digit($yearName)) {
+            $availableYears[] = (int)$yearName;
+        }
+    }
+}
+sort($availableYears);
+
+if (isset($_GET['year']) && is_numeric($_GET['year'])) {
+    $selectedYear = (int)$_GET['year'];
+} else {
+    if (in_array($currentYear, $availableYears, true) || empty($availableYears)) {
+        $selectedYear = $currentYear;
+    } else {
+        $selectedYear = max($availableYears);
+    }
+}
+
 if ($selectedYear < 2000) {
-    $selectedYear = date('Y');
+    $selectedYear = $currentYear;
 }
 
 $conn = $db->getConnection();
@@ -662,24 +687,17 @@ $rows = read_elections_rows($csvPath);
 rebuild_elections_numbering_for_year($conn, $selectedYear, $rows);
 $numberingByRow = get_elections_numbering_for_year($conn, $selectedYear);
 $nextNumeroEleccion = count($rows) + 1;
-$availableYears = [];
-$baseDir = dirname(__DIR__) . '/uploads/elecciones';
-if (is_dir($baseDir)) {
-    $yearDirectories = glob($baseDir . '/*', GLOB_ONLYDIR);
-    foreach ($yearDirectories as $dir) {
-        $yearName = basename($dir);
-        if (ctype_digit($yearName)) {
-            $availableYears[] = (int)$yearName;
-        }
-    }
-}
-
 if (!in_array($selectedYear, $availableYears, true)) {
     $availableYears[] = $selectedYear;
 }
 
 $availableYears = array_values(array_unique($availableYears));
 sort($availableYears);
+
+$yearWarningMessage = '';
+if (isset($_GET['year']) && is_numeric($_GET['year']) && $selectedYear !== $currentYear) {
+    $yearWarningMessage = 'Ha cambiado de año: verá y podrá gestionar las elecciones del año ' . $selectedYear . '. Si desea gestionar las elecciones del año en curso, vuelva a seleccionar el año actual.';
+}
 
 $editRow = null;
 if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
@@ -771,18 +789,21 @@ if ($editRow !== null) {
     color: #0b4f8a;
     font-size: 0.95rem;
     font-weight: 700;
-    margin: 0 0 0.5rem;
+    margin: 0;
     line-height: 1.2;
 }
 </style>
 
-<div class="mb-3">
-    <h2 class="elecciones-page-title">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</h2>
-</div>
-
 <?php if (isset($_SESSION['success'])): ?>
     <div class="alert alert-success alert-dismissible fade show">
         <i class="bi bi-check-circle"></i> <?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($yearWarningMessage)): ?>
+    <div class="alert alert-info alert-dismissible fade show">
+        <i class="bi bi-info-circle"></i> <?php echo htmlspecialchars($yearWarningMessage); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
@@ -796,7 +817,9 @@ if ($editRow !== null) {
 
 <div class="card mb-4">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <h2 class="elecciones-page-title">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</h2>
+
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarAno">
                     <i class="bi bi-calendar-plus"></i> Agregar año
@@ -816,18 +839,18 @@ if ($editRow !== null) {
                     <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
                     <button type="submit" class="btn btn-success">Exportar CSV</button>
                 </form>
-            </div>
 
-            <div>
-                <?php if ($showForm): ?>
-                    <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
-                        <i class="bi bi-x-circle"></i> Cerrar formulario
-                    </a>
-                <?php else: ?>
-                    <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
-                        <i class="bi bi-plus-circle"></i> Agregar elección
-                    </a>
-                <?php endif; ?>
+                <div>
+                    <?php if ($showForm): ?>
+                        <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
+                            <i class="bi bi-x-circle"></i> Cerrar formulario
+                        </a>
+                    <?php else: ?>
+                        <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
+                            <i class="bi bi-plus-circle"></i> Agregar elección
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
