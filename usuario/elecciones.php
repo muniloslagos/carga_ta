@@ -826,13 +826,6 @@ usort($displayRows, function ($left, $right) use ($sortOrder) {
     </div>
 <?php endif; ?>
 
-<?php if (!empty($yearWarningMessage)): ?>
-    <div class="alert alert-info alert-dismissible fade show">
-        <i class="bi bi-info-circle"></i> <?php echo htmlspecialchars($yearWarningMessage); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
-
 <?php if (isset($_SESSION['error'])): ?>
     <div class="alert alert-danger alert-dismissible fade show">
         <i class="bi bi-exclamation-triangle"></i> <?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
@@ -843,7 +836,21 @@ usort($displayRows, function ($left, $right) use ($sortOrder) {
 <div class="card mb-4">
     <div class="card-body">
         <div class="d-flex flex-column gap-2">
-            <h2 class="elecciones-page-title">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</h2>
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <h2 class="elecciones-page-title">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</h2>
+
+                <div class="ms-auto">
+                    <?php if ($showForm): ?>
+                        <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
+                            <i class="bi bi-x-circle"></i> Cerrar formulario
+                        </a>
+                    <?php else: ?>
+                        <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
+                            <i class="bi bi-plus-circle"></i> Agregar elección
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
 
             <div class="d-flex align-items-center gap-2 flex-wrap justify-content-start">
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarAno">
@@ -864,18 +871,6 @@ usort($displayRows, function ($left, $right) use ($sortOrder) {
                     <input type="hidden" name="year" value="<?php echo (int)$selectedYear; ?>">
                     <button type="submit" class="btn btn-success">Exportar CSV</button>
                 </form>
-
-                <div>
-                    <?php if ($showForm): ?>
-                        <a class="btn btn-outline-secondary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">
-                            <i class="bi bi-x-circle"></i> Cerrar formulario
-                        </a>
-                    <?php else: ?>
-                        <a class="btn btn-primary" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">
-                            <i class="bi bi-plus-circle"></i> Agregar elección
-                        </a>
-                    <?php endif; ?>
-                </div>
             </div>
         </div>
     </div>
@@ -1139,6 +1134,25 @@ usort($displayRows, function ($left, $right) use ($sortOrder) {
     </div>
 </div>
 
+<div class="modal fade" id="modalCambioAno" tabindex="-1" aria-labelledby="modalCambioAnoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCambioAnoLabel">Cambio de año</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="modalCambioAnoMessage" class="mb-0">
+                    <?php echo htmlspecialchars($yearWarningMessage); ?>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalAgregarAno" tabindex="-1" aria-labelledby="modalAgregarAnoLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -1188,6 +1202,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const title = document.getElementById('modalVistaPdfLabel');
     const openNewTab = document.getElementById('pdfOpenNewTab');
     const horaInput = document.getElementById('horaEleccion');
+    const changeYearModalElement = document.getElementById('modalCambioAno');
+
+    if (changeYearModalElement && changeYearModalElement.querySelector('#modalCambioAnoMessage') && changeYearModalElement.querySelector('#modalCambioAnoMessage').textContent.trim()) {
+        const changeYearModal = window.bootstrap && typeof window.bootstrap.Modal !== 'undefined'
+            ? window.bootstrap.Modal.getOrCreateInstance(changeYearModalElement)
+            : null;
+        if (changeYearModal) {
+            changeYearModal.show();
+        }
+    }
 
     if (horaInput) {
         const formatHourValue = function (value) {
