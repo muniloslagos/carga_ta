@@ -750,10 +750,11 @@ if ($editRow !== null) {
 }
 
 .elecciones-header-card {
-    background: #e9ecef;
-    color: #0d6efd;
-    border: 1px solid #d0d7de;
+    background: #ffffff;
+    color: #0b4f8a;
+    border: 1px solid #d9e4f0;
     box-shadow: none;
+    margin-bottom: 0.75rem;
 }
 
 .elecciones-header-icon {
@@ -763,23 +764,23 @@ if ($editRow !== null) {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    background: #0d6efd;
+    background: #0b4f8a;
     color: #ffffff;
     margin-right: 10px;
     font-size: 1rem;
 }
 
 .elecciones-header-title {
-    color: #0d6efd;
-    font-size: 1rem;
+    color: #0b4f8a;
+    font-size: 0.95rem;
     font-weight: 700;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1.15;
 }
 </style>
 
-<div class="card mb-3 elecciones-header-card">
-    <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+<div class="card mb-2 elecciones-header-card">
+    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div class="d-flex align-items-center">
             <span class="elecciones-header-icon">
                 <i class="bi bi-person-check"></i>
@@ -788,7 +789,7 @@ if ($editRow !== null) {
                 <h1 class="elecciones-header-title"><?php echo htmlspecialchars($nombreItemEspecial); ?></h1>
             </div>
         </div>
-        <a class="btn btn-outline-light btn-sm" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
+        <a class="btn btn-sm" style="background:#0b4f8a;color:#ffffff;border-color:#0b4f8a;" href="<?php echo SITE_URL; ?>usuario/dashboard.php">
             <i class="bi bi-arrow-left"></i> Volver al Dashboard
         </a>
     </div>
