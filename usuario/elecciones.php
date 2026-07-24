@@ -750,28 +750,28 @@ if ($editRow !== null) {
 }
 
 .elecciones-header-card {
-    background: linear-gradient(135deg, #17324f 0%, #244b72 100%);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 8px 24px rgba(23, 50, 79, 0.16);
+    background: #e9ecef;
+    color: #0d6efd;
+    border: 1px solid #d0d7de;
+    box-shadow: none;
 }
 
 .elecciones-header-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.16);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #0d6efd;
     color: #ffffff;
-    margin-right: 12px;
-    font-size: 1.2rem;
+    margin-right: 10px;
+    font-size: 1rem;
 }
 
 .elecciones-header-title {
-    color: #ffffff;
-    font-size: 1.35rem;
+    color: #0d6efd;
+    font-size: 1rem;
     font-weight: 700;
     margin: 0;
     line-height: 1.2;
