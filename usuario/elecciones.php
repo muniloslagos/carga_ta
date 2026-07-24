@@ -699,6 +699,9 @@ if (isset($_GET['year']) && is_numeric($_GET['year']) && $selectedYear !== $curr
     $yearWarningMessage = 'Ha cambiado de año: verá y podrá gestionar las elecciones del año ' . $selectedYear . '. Si desea gestionar las elecciones del año en curso, vuelva a seleccionar el año actual.';
 }
 
+$sortOrder = isset($_GET['order']) && $_GET['order'] === 'asc' ? 'asc' : 'desc';
+$sortToggleOrder = $sortOrder === 'asc' ? 'desc' : 'asc';
+
 $editRow = null;
 if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
     $editIndex = (int)$_GET['edit'];
@@ -711,6 +714,28 @@ $showForm = isset($_GET['show_form']) && $_GET['show_form'] === '1';
 if ($editRow !== null) {
     $showForm = true;
 }
+
+$displayRows = [];
+foreach ($rows as $index => $row) {
+    $displayRows[] = [
+        'index' => $index,
+        'row' => $row,
+        'numero' => (int)($numberingByRow[$index] ?? ($index + 1)),
+    ];
+}
+
+usort($displayRows, function ($left, $right) use ($sortOrder) {
+    $leftNumero = (int)$left['numero'];
+    $rightNumero = (int)$right['numero'];
+
+    if ($leftNumero === $rightNumero) {
+        return ((int)$left['index'] <=> (int)$right['index']);
+    }
+
+    return $sortOrder === 'asc'
+        ? ($leftNumero <=> $rightNumero)
+        : ($rightNumero <=> $leftNumero);
+});
 ?>
 
 <style>
@@ -817,10 +842,10 @@ if ($editRow !== null) {
 
 <div class="card mb-4">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div class="d-flex flex-column gap-2">
             <h2 class="elecciones-page-title">Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146</h2>
 
-            <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-start">
                 <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarAno">
                     <i class="bi bi-calendar-plus"></i> Agregar año
                 </button>
@@ -1026,7 +1051,12 @@ if ($editRow !== null) {
                 <table class="table table-sm table-hover align-middle elecciones-table">
                     <thead class="table-light">
                         <tr>
-                            <th class="elecciones-col-numero">N°</th>
+                            <th class="elecciones-col-numero">
+                                <a class="text-decoration-none text-dark d-inline-flex align-items-center gap-1" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&order=<?php echo htmlspecialchars($sortToggleOrder, ENT_QUOTES, 'UTF-8'); ?><?php echo $showForm ? '&show_form=1' : ''; ?><?php echo $editRow !== null ? '&edit=' . (int)$_GET['edit'] : ''; ?>">
+                                    N°
+                                    <i class="bi bi-arrow-<?php echo $sortOrder === 'asc' ? 'up' : 'down'; ?>"></i>
+                                </a>
+                            </th>
                             <th class="elecciones-col-tipo">Tipo</th>
                             <th class="elecciones-col-nombre">Nombre</th>
                             <th>Fecha</th>
@@ -1041,9 +1071,10 @@ if ($editRow !== null) {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($rows as $index => $row): ?>
+                        <?php foreach ($displayRows as $displayRow): ?>
+                            <?php $index = (int)$displayRow['index']; $row = $displayRow['row']; ?>
                             <tr>
-                                <td class="elecciones-col-numero"><?php echo (int)($numberingByRow[$index] ?? ($index + 1)); ?></td>
+                                <td class="elecciones-col-numero"><?php echo (int)$displayRow['numero']; ?></td>
                                 <td class="elecciones-col-tipo"><?php echo htmlspecialchars($row[0] ?? ''); ?></td>
                                 <td class="elecciones-col-nombre text-truncate" title="<?php echo htmlspecialchars($row[1] ?? ''); ?>"><?php echo htmlspecialchars($row[1] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row[2] ?? ''); ?></td>
