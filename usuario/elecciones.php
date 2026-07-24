@@ -46,6 +46,8 @@ function ensure_elections_csv($year)
             'Reclamación',
             'Fallo de la reclamación'
         ];
+        // Ensure header fields are UTF-8 encoded
+        $header = array_map('normalize_csv_text', $header);
         $handle = fopen($path, 'wb');
         if ($handle !== false) {
             fwrite($handle, "\xEF\xBB\xBF");
@@ -682,6 +684,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $path = ensure_elections_csv($year);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="elecciones_' . $year . '.csv"');
+        // If file doesn't start with BOM, output BOM before file contents
+        $hasBom = false;
+        if (is_readable($path)) {
+            $fhCheck = fopen($path, 'rb');
+            if ($fhCheck !== false) {
+                $first3 = fread($fhCheck, 3);
+                fclose($fhCheck);
+                if ($first3 === "\xEF\xBB\xBF") {
+                    $hasBom = true;
+                }
+            }
+        }
+        if (!$hasBom) {
+            echo "\xEF\xBB\xBF";
+        }
         readfile($path);
         exit;
     }
