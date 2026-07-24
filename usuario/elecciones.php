@@ -516,10 +516,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         $saveMode = trim((string)($_POST['save_mode'] ?? 'stay'));
+        $redirectRowIndex = $rowIndex >= 0 ? $rowIndex : max(0, count($rows) - 1);
         if ($saveMode === 'back') {
             header('Location: elecciones.php?year=' . $year);
         } else {
-            header('Location: elecciones.php?year=' . $year . '&show_form=1');
+            header('Location: elecciones.php?year=' . $year . '&edit=' . $redirectRowIndex);
         }
         exit;
     }
@@ -781,7 +782,7 @@ if ($editRow !== null) {
             <div class="small elecciones-texto-ayuda">Complete los datos y adjunte archivos si corresponde.</div>
         </div>
         <?php if ($editRow !== null): ?>
-            <a class="btn btn-outline-secondary btn-sm" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>&show_form=1">Cancelar edición</a>
+            <a class="btn btn-outline-secondary btn-sm" href="elecciones.php?year=<?php echo (int)$selectedYear; ?>">Cancelar edición</a>
         <?php endif; ?>
     </div>
     <div class="card-body">
