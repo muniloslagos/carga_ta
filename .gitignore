@@ -59,3 +59,6 @@ api/
 git-push.ps1
 git-setup.ps1
 install.php
+
+# Datos locales de Transparencia Pasiva (contienen información personal)
+/t_pasiva/*.csv
