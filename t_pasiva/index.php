@@ -8,15 +8,7 @@ $solicitudesPasivas = [];
 $solicitudesFiltradas = [];
 $errorSolicitudesPasivas = null;
 $solicitudesInformacionPendientes = 0;
-$estadosDisponibles = [];
-$estadosActualesDisponibles = [];
-
-$filtroEstado = isset($_GET['estado'])
-    ? trim((string)$_GET['estado'])
-    : 'En Proceso';
-$filtroEstadoActual = isset($_GET['estado_actual'])
-    ? trim((string)$_GET['estado_actual'])
-    : 'SOLICITUD INTERNA';
+$vistaRespondidas = isset($_GET['vista']) && $_GET['vista'] === 'respondidas';
 
 try {
     $solicitudesPasivas = tp_obtener_solicitudes(__DIR__);
@@ -24,28 +16,17 @@ try {
         if ($solicitudPasiva['estado'] === 'En Proceso') {
             $solicitudesInformacionPendientes++;
         }
-
-        if ($solicitudPasiva['estado'] !== '') {
-            $estadosDisponibles[$solicitudPasiva['estado']] = true;
-        }
-        if ($solicitudPasiva['estado_actual'] !== '') {
-            $estadosActualesDisponibles[$solicitudPasiva['estado_actual']] = true;
-        }
     }
-
-    $estadosDisponibles = array_keys($estadosDisponibles);
-    $estadosActualesDisponibles = array_keys($estadosActualesDisponibles);
-    sort($estadosDisponibles, SORT_NATURAL | SORT_FLAG_CASE);
-    sort($estadosActualesDisponibles, SORT_NATURAL | SORT_FLAG_CASE);
 
     $solicitudesFiltradas = array_values(array_filter(
         $solicitudesPasivas,
-        static function (array $solicitud) use ($filtroEstado, $filtroEstadoActual): bool {
-            $coincideEstado = $filtroEstado === '' || $solicitud['estado'] === $filtroEstado;
-            $coincideEstadoActual = $filtroEstadoActual === ''
-                || $solicitud['estado_actual'] === $filtroEstadoActual;
+        static function (array $solicitud) use ($vistaRespondidas): bool {
+            if ($vistaRespondidas) {
+                return $solicitud['estado_actual'] === 'RESPUESTA ENTREGADA';
+            }
 
-            return $coincideEstado && $coincideEstadoActual;
+            return $solicitud['estado'] === 'En Proceso'
+                && $solicitud['estado_actual'] === 'SOLICITUD INTERNA';
         }
     ));
 } catch (Throwable $error) {
@@ -135,18 +116,6 @@ require_once dirname(__DIR__) . '/includes/header.php';
         background-color: #ffe69c;
     }
 
-    .tp-filter-card {
-        border: 1px solid #dce4ea;
-        border-radius: 0.85rem;
-        background: #f8fafb;
-    }
-
-    .tp-filter-card .form-label {
-        color: #34495e;
-        font-size: 0.82rem;
-        font-weight: 600;
-    }
-
     .tp-legend {
         display: flex;
         flex-wrap: wrap;
@@ -215,11 +184,26 @@ require_once dirname(__DIR__) . '/includes/header.php';
 </style>
 
 <main class="tp-page">
-    <div class="tp-header mb-4">
-        <h1 class="h3 mb-1">Solicitudes de Información</h1>
-        <p class="text-muted mb-0">
-            Solicitudes internas de Transparencia Pasiva y su estado actual.
-        </p>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div class="tp-header">
+            <h1 class="h3 mb-1">Solicitudes de Información</h1>
+            <p class="text-muted mb-0">
+                <?php echo $vistaRespondidas
+                    ? 'Solicitudes de acceso a la información respondidas.'
+                    : 'Solicitudes internas en proceso.'; ?>
+            </p>
+        </div>
+        <div class="flex-shrink-0">
+            <?php if ($vistaRespondidas): ?>
+                <a href="<?php echo SITE_URL; ?>t_pasiva/" class="btn btn-outline-primary">
+                    <i class="bi bi-hourglass-split me-1"></i> Ver SAI en proceso
+                </a>
+            <?php else: ?>
+                <a href="<?php echo SITE_URL; ?>t_pasiva/?vista=respondidas" class="btn btn-success">
+                    <i class="bi bi-check-circle me-1"></i> Ver SAI respondidas
+                </a>
+            <?php endif; ?>
+        </div>
     </div>
 
     <?php if ($errorSolicitudesPasivas !== null): ?>
@@ -228,50 +212,13 @@ require_once dirname(__DIR__) . '/includes/header.php';
             No fue posible cargar las solicitudes. <?php echo htmlspecialchars($errorSolicitudesPasivas, ENT_QUOTES, 'UTF-8'); ?>
         </div>
     <?php else: ?>
-        <form method="get" action="<?php echo SITE_URL; ?>t_pasiva/" class="tp-filter-card p-3 mb-3">
-            <div class="row g-3 align-items-end">
-                <div class="col-12 col-md-4">
-                    <label for="filtroEstado" class="form-label">Estado</label>
-                    <select class="form-select" id="filtroEstado" name="estado">
-                        <option value="" <?php echo $filtroEstado === '' ? 'selected' : ''; ?>>Todos</option>
-                        <?php foreach ($estadosDisponibles as $estadoDisponible): ?>
-                            <option
-                                value="<?php echo htmlspecialchars($estadoDisponible, ENT_QUOTES, 'UTF-8'); ?>"
-                                <?php echo $filtroEstado === $estadoDisponible ? 'selected' : ''; ?>
-                            >
-                                <?php echo htmlspecialchars($estadoDisponible, ENT_QUOTES, 'UTF-8'); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-12 col-md-4">
-                    <label for="filtroEstadoActual" class="form-label">Estado actual</label>
-                    <select class="form-select" id="filtroEstadoActual" name="estado_actual">
-                        <option value="" <?php echo $filtroEstadoActual === '' ? 'selected' : ''; ?>>Todos</option>
-                        <?php foreach ($estadosActualesDisponibles as $estadoActualDisponible): ?>
-                            <option
-                                value="<?php echo htmlspecialchars($estadoActualDisponible, ENT_QUOTES, 'UTF-8'); ?>"
-                                <?php echo $filtroEstadoActual === $estadoActualDisponible ? 'selected' : ''; ?>
-                            >
-                                <?php echo htmlspecialchars($estadoActualDisponible, ENT_QUOTES, 'UTF-8'); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-12 col-md-4 d-flex flex-wrap gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-funnel me-1"></i> Filtrar
-                    </button>
-                    <a href="<?php echo SITE_URL; ?>t_pasiva/" class="btn btn-outline-secondary">
-                        Vista inicial
-                    </a>
-                </div>
-            </div>
-        </form>
-
         <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 mb-3">
             <div class="text-muted small">
-                Mostrando <?php echo count($solicitudesFiltradas); ?> de <?php echo count($solicitudesPasivas); ?> asignaciones.
+                <?php if ($vistaRespondidas): ?>
+                    Mostrando <?php echo count($solicitudesFiltradas); ?> SAI respondidas.
+                <?php else: ?>
+                    Mostrando <?php echo count($solicitudesFiltradas); ?> SAI en proceso.
+                <?php endif; ?>
             </div>
             <div class="tp-legend" aria-label="Significado de los colores">
                 <span class="tp-legend-item">
@@ -308,7 +255,9 @@ require_once dirname(__DIR__) . '/includes/header.php';
                         <?php if ($solicitudesFiltradas === []): ?>
                             <tr>
                                 <td colspan="8" class="text-center text-muted py-5">
-                                    No hay solicitudes que coincidan con los filtros seleccionados.
+                                    <?php echo $vistaRespondidas
+                                        ? 'No hay SAI respondidas para mostrar.'
+                                        : 'No hay solicitudes internas en proceso.'; ?>
                                 </td>
                             </tr>
                         <?php else: ?>
