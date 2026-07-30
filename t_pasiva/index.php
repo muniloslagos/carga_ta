@@ -13,7 +13,10 @@ $vistaRespondidas = isset($_GET['vista']) && $_GET['vista'] === 'respondidas';
 try {
     $solicitudesPasivas = tp_obtener_solicitudes(__DIR__);
     foreach ($solicitudesPasivas as $solicitudPasiva) {
-        if ($solicitudPasiva['estado'] === 'En Proceso') {
+        if (
+            $solicitudPasiva['estado'] === 'En Proceso'
+            && $solicitudPasiva['estado_actual'] === 'SOLICITUD INTERNA'
+        ) {
             $solicitudesInformacionPendientes++;
         }
     }
@@ -190,7 +193,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
             <p class="text-muted mb-0">
                 <?php echo $vistaRespondidas
                     ? 'Solicitudes de acceso a la información respondidas.'
-                    : 'Solicitudes internas en proceso.'; ?>
+                    : 'Solicitudes realizadas a las direcciones que están pendientes de respuesta.'; ?>
             </p>
         </div>
         <div class="flex-shrink-0">

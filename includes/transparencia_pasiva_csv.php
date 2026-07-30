@@ -97,12 +97,14 @@ function tp_obtener_solicitudes(string $directorioCsv): array
 
 function tp_contar_solicitudes_en_proceso(string $directorioCsv): int
 {
-    $rutaInternas = $directorioCsv . DIRECTORY_SEPARATOR . 'Listado Solicitudes internas.csv';
-    $solicitudesInternas = tp_leer_csv_asociativo($rutaInternas);
+    $solicitudes = tp_obtener_solicitudes($directorioCsv);
     $pendientes = 0;
 
-    foreach ($solicitudesInternas as $solicitud) {
-        if (trim((string)($solicitud['Estado'] ?? '')) === 'En Proceso') {
+    foreach ($solicitudes as $solicitud) {
+        if (
+            trim((string)$solicitud['estado']) === 'En Proceso'
+            && trim((string)$solicitud['estado_actual']) === 'SOLICITUD INTERNA'
+        ) {
             $pendientes++;
         }
     }
