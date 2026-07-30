@@ -7,7 +7,7 @@ if ($current_profile !== 'administrativo') {
     exit;
 }
 
-require_once dirname(dirname(__DIR__)) . '/includes/header.php';
+require_once dirname(dirname(__DIR__)) . '/includes/transparencia_pasiva_csv.php';
 
 $conn = $db->getConnection();
 $mensaje = '';
@@ -35,31 +35,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Configuración General
     if (isset($_POST['guardar_general'])) {
-        $max_file_size = (int)$_POST['max_file_size'];
+        $max_file_size = (int)($_POST['max_file_size'] ?? 200);
         $activar_revision = isset($_POST['activar_revision_previa']) ? 1 : 0;
+        $activar_transparencia_pasiva = isset($_POST['transparencia_pasiva_activa']) ? 1 : 0;
         
         if ($max_file_size < 1 || $max_file_size > 500) {
             $error = 'El tamaño máximo debe estar entre 1 y 500 MB';
         } else {
-            // Guardar max_file_size
-            $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('max_file_size_mb', ?, ?) 
-                                    ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
-            $stmt->bind_param('sisi', $max_file_size, $_SESSION['user_id'], $max_file_size, $_SESSION['user_id']);
-            $stmt->execute();
-            $stmt->close();
-            
-            // Guardar activar_revision_previa
-            $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('activar_revision_previa', ?, ?) 
-                                    ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
-            $stmt->bind_param('iiii', $activar_revision, $_SESSION['user_id'], $activar_revision, $_SESSION['user_id']);
-            
-            if ($stmt->execute()) {
+            try {
+                $directorioCsv = dirname(dirname(__DIR__)) . '/t_pasiva';
+                $archivosCsv = [
+                    'csv_solicitudes_internas' => [
+                        'nombre' => 'Listado Solicitudes internas.csv',
+                        'columnas' => [
+                            'Código',
+                            'Unidad',
+                            'Información solicitada',
+                            'Estado',
+                            'Fecha asignación',
+                        ],
+                    ],
+                    'csv_reporte_general' => [
+                        'nombre' => 'Listado Reporte general de solicitudes.csv',
+                        'columnas' => [
+                            'Código',
+                            'Fecha ingreso',
+                            'Estado actual',
+                            'Prórroga',
+                            'Fecha caducidad',
+                        ],
+                    ],
+                ];
+
+                $archivosParaActualizar = [];
+                foreach ($archivosCsv as $campo => $configuracionCsv) {
+                    $archivo = $_FILES[$campo] ?? null;
+                    $errorCarga = is_array($archivo)
+                        ? (int)($archivo['error'] ?? UPLOAD_ERR_NO_FILE)
+                        : UPLOAD_ERR_NO_FILE;
+
+                    if ($errorCarga === UPLOAD_ERR_NO_FILE) {
+                        continue;
+                    }
+
+                    tp_validar_csv_subido($archivo, $configuracionCsv['columnas']);
+                    $archivosParaActualizar[$campo] = $archivo;
+                }
+
+                // Guardar max_file_size
+                $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('max_file_size_mb', ?, ?)
+                                        ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
+                $stmt->bind_param('sisi', $max_file_size, $_SESSION['user_id'], $max_file_size, $_SESSION['user_id']);
+                $guardadoMaximo = $stmt->execute();
+                $stmt->close();
+                if (!$guardadoMaximo) {
+                    throw new RuntimeException('No fue posible guardar el límite de carga.');
+                }
+
+                // Guardar activar_revision_previa
+                $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('activar_revision_previa', ?, ?)
+                                        ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
+                $stmt->bind_param('iiii', $activar_revision, $_SESSION['user_id'], $activar_revision, $_SESSION['user_id']);
+                $guardadoRevision = $stmt->execute();
+                $stmt->close();
+                if (!$guardadoRevision) {
+                    throw new RuntimeException('No fue posible guardar la configuración de revisión.');
+                }
+
+                // Guardar visibilidad de Transparencia Pasiva.
+                $stmt = $conn->prepare("INSERT INTO configuracion (clave, valor, modificado_por) VALUES ('transparencia_pasiva_activa', ?, ?)
+                                        ON DUPLICATE KEY UPDATE valor = ?, modificado_por = ?");
+                $stmt->bind_param(
+                    'iiii',
+                    $activar_transparencia_pasiva,
+                    $_SESSION['user_id'],
+                    $activar_transparencia_pasiva,
+                    $_SESSION['user_id']
+                );
+                $guardadoTransparenciaPasiva = $stmt->execute();
+                $stmt->close();
+                if (!$guardadoTransparenciaPasiva) {
+                    throw new RuntimeException('No fue posible guardar la visibilidad de Transparencia Pasiva.');
+                }
+
+                $nombresActualizados = [];
+                foreach ($archivosParaActualizar as $campo => $archivo) {
+                    $nombreDestino = $archivosCsv[$campo]['nombre'];
+                    tp_reemplazar_csv_subido(
+                        $archivo,
+                        $directorioCsv . DIRECTORY_SEPARATOR . $nombreDestino
+                    );
+                    $nombresActualizados[] = $nombreDestino;
+                }
+
                 $mensaje = 'Configuración general guardada exitosamente';
+                if ($nombresActualizados !== []) {
+                    $mensaje .= '. CSV actualizados: ' . implode(', ', $nombresActualizados);
+                }
                 $tipo_mensaje = 'success';
-            } else {
-                $error = 'Error al guardar la configuración general';
+            } catch (Throwable $errorConfiguracionGeneral) {
+                $error = $errorConfiguracionGeneral->getMessage();
+                $tipo_mensaje = 'danger';
             }
-            $stmt->close();
         }
     }
     
@@ -299,6 +376,24 @@ $result_config = $conn->query("SELECT valor FROM configuracion WHERE clave = 'ma
 if ($result_config && $result_config->num_rows > 0) {
     $max_file_size = (int)$result_config->fetch_assoc()['valor'];
 }
+
+$transparencia_pasiva_activa = tp_esta_habilitada($conn);
+$directorioCsvTransparenciaPasiva = dirname(dirname(__DIR__)) . '/t_pasiva';
+$estadoArchivosTransparenciaPasiva = [];
+foreach (
+    [
+        'Listado Solicitudes internas.csv',
+        'Listado Reporte general de solicitudes.csv',
+    ] as $nombreArchivoCsv
+) {
+    $rutaArchivoCsv = $directorioCsvTransparenciaPasiva . DIRECTORY_SEPARATOR . $nombreArchivoCsv;
+    $estadoArchivosTransparenciaPasiva[$nombreArchivoCsv] = [
+        'existe' => is_file($rutaArchivoCsv),
+        'fecha' => is_file($rutaArchivoCsv) ? date('d/m/Y H:i', filemtime($rutaArchivoCsv)) : null,
+    ];
+}
+
+require_once dirname(dirname(__DIR__)) . '/includes/header.php';
 ?>
 
 <div class="container-fluid mt-4">
@@ -357,7 +452,7 @@ if ($result_config && $result_config->num_rows > 0) {
                             <h5 class="mb-0"><i class="bi bi-gear"></i> Configuración General del Sistema</h5>
                         </div>
                         <div class="card-body">
-                            <form method="POST">
+                            <form method="POST" enctype="multipart/form-data">
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="card mb-3">
@@ -416,8 +511,79 @@ if ($result_config && $result_config->num_rows > 0) {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-header bg-success text-white">
+                                                <strong><i class="bi bi-file-earmark-spreadsheet"></i> Solicitudes de Información</strong>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="checkbox"
+                                                        id="transparencia_pasiva_activa"
+                                                        name="transparencia_pasiva_activa"
+                                                        value="1"
+                                                        <?= $transparencia_pasiva_activa ? 'checked' : '' ?>
+                                                    >
+                                                    <label class="form-check-label" for="transparencia_pasiva_activa">
+                                                        <strong>Mostrar Solicitudes de Información</strong>
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted d-block mb-3">
+                                                    Controla el acceso del header y la disponibilidad de la sección para todos los usuarios.
+                                                </small>
+
+                                                <div class="mb-3">
+                                                    <label for="csv_solicitudes_internas" class="form-label">
+                                                        Listado Solicitudes internas.csv
+                                                    </label>
+                                                    <input
+                                                        class="form-control"
+                                                        type="file"
+                                                        id="csv_solicitudes_internas"
+                                                        name="csv_solicitudes_internas"
+                                                        accept=".csv,text/csv"
+                                                    >
+                                                    <?php $estadoCsvInternas = $estadoArchivosTransparenciaPasiva['Listado Solicitudes internas.csv']; ?>
+                                                    <small class="<?= $estadoCsvInternas['existe'] ? 'text-success' : 'text-danger' ?>">
+                                                        <?php if ($estadoCsvInternas['existe']): ?>
+                                                            Archivo disponible · actualizado <?= htmlspecialchars($estadoCsvInternas['fecha']) ?>
+                                                        <?php else: ?>
+                                                            Archivo no disponible
+                                                        <?php endif; ?>
+                                                    </small>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label for="csv_reporte_general" class="form-label">
+                                                        Listado Reporte general de solicitudes.csv
+                                                    </label>
+                                                    <input
+                                                        class="form-control"
+                                                        type="file"
+                                                        id="csv_reporte_general"
+                                                        name="csv_reporte_general"
+                                                        accept=".csv,text/csv"
+                                                    >
+                                                    <?php $estadoCsvGeneral = $estadoArchivosTransparenciaPasiva['Listado Reporte general de solicitudes.csv']; ?>
+                                                    <small class="<?= $estadoCsvGeneral['existe'] ? 'text-success' : 'text-danger' ?>">
+                                                        <?php if ($estadoCsvGeneral['existe']): ?>
+                                                            Archivo disponible · actualizado <?= htmlspecialchars($estadoCsvGeneral['fecha']) ?>
+                                                        <?php else: ?>
+                                                            Archivo no disponible
+                                                        <?php endif; ?>
+                                                    </small>
+                                                </div>
+
+                                                <div class="alert alert-info small mb-0">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    Puede actualizar uno o ambos CSV. Deben usar separador <code>;</code>, codificación UTF-8 y pesar como máximo 20 MB.
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div class="alert alert-warning">
                                             <h6><i class="bi bi-exclamation-triangle"></i> Configuración del Servidor</h6>
                                             <p>Para que este límite funcione correctamente, asegúrese de configurar también:</p>

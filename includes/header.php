@@ -98,13 +98,18 @@ if ($is_logged_in) {
 // Contador de asignaciones pendientes leído directamente desde el CSV.
 $solicitudesInformacionPendientes = $solicitudesInformacionPendientes ?? 0;
 $contadorSolicitudesInformacionPreparado = $contadorSolicitudesInformacionPreparado ?? false;
-if ($is_logged_in && !$contadorSolicitudesInformacionPreparado) {
+$transparenciaPasivaActiva = false;
+if ($is_logged_in) {
     try {
         require_once __DIR__ . '/transparencia_pasiva_csv.php';
-        $solicitudesInformacionPendientes = tp_contar_solicitudes_en_proceso(
-            dirname(__DIR__) . '/t_pasiva'
-        );
+        $transparenciaPasivaActiva = tp_esta_habilitada($conn);
+        if ($transparenciaPasivaActiva && !$contadorSolicitudesInformacionPreparado) {
+            $solicitudesInformacionPendientes = tp_contar_solicitudes_en_proceso(
+                dirname(__DIR__) . '/t_pasiva'
+            );
+        }
     } catch (Throwable $errorTransparenciaPasiva) {
+        $transparenciaPasivaActiva = false;
         $solicitudesInformacionPendientes = 0;
     }
 }
@@ -185,6 +190,7 @@ if ($is_logged_in && !$contadorSolicitudesInformacionPreparado) {
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center gap-2">
                     <?php if ($is_logged_in && $current_user): ?>
+                        <?php if ($transparenciaPasivaActiva): ?>
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>t_pasiva/">
                                 <i class="bi bi-info-circle" style="color: #5dade2;"></i>
@@ -192,6 +198,7 @@ if ($is_logged_in && !$contadorSolicitudesInformacionPreparado) {
                                 <span class="badge rounded-pill text-bg-warning ms-1">(<?php echo $solicitudesInformacionPendientes; ?>)</span>
                             </a>
                         </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <span class="nav-link text-light" style="cursor: default; font-size: 0.9rem;">
                                 <i class="bi bi-person-circle" style="color: #3498db;"></i>

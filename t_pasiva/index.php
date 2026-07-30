@@ -4,6 +4,11 @@ require_login();
 
 require_once dirname(__DIR__) . '/includes/transparencia_pasiva_csv.php';
 
+if (!tp_esta_habilitada($db->getConnection())) {
+    header('Location: ' . SITE_URL);
+    exit;
+}
+
 $solicitudesPasivas = [];
 $solicitudesFiltradas = [];
 $errorSolicitudesPasivas = null;
