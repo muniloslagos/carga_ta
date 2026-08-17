@@ -31,21 +31,68 @@ if ($mesCarga < 1) { $mesCarga = 12; $anoCarga--; }
 
 $mesSeleccionado = isset($_GET['mes']) ? (int)$_GET['mes'] : $mesCarga;
 $anoSeleccionado = isset($_GET['ano']) ? (int)$_GET['ano'] : $anoCarga;
+$direccionFueIndicada = array_key_exists('direccion', $_GET);
+$direccionSeleccionada = isset($_GET['direccion']) ? (int)$_GET['direccion'] : 0;
 if ($mesSeleccionado < 1 || $mesSeleccionado > 12) $mesSeleccionado = $mesCarga;
 if ($anoSeleccionado < 2000 || $anoSeleccionado > 2100) $anoSeleccionado = $anoCarga;
 
 $meses = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
           'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+// Direcciones disponibles para el filtro superior.
+$direcciones = [];
+$direccionesResult = $conn->query("SELECT id, nombre FROM direcciones WHERE activa = 1 ORDER BY nombre");
+if ($direccionesResult) {
+    while ($direccion = $direccionesResult->fetch_assoc()) {
+        $direcciones[] = $direccion;
+    }
+}
+
+// En la primera entrada, seleccionar la dirección asignada al auditor.
+// Si la URL trae "direccion" (incluso 0), respetar la elección manual.
+if (!$direccionFueIndicada) {
+    $usuarioId = (int)($_SESSION['user_id'] ?? 0);
+    if ($usuarioId > 0) {
+        $stmtDireccionUsuario = $conn->prepare("SELECT direccion_id FROM usuarios WHERE id = ? LIMIT 1");
+        if ($stmtDireccionUsuario) {
+            $stmtDireccionUsuario->bind_param('i', $usuarioId);
+            $stmtDireccionUsuario->execute();
+            $direccionUsuario = $stmtDireccionUsuario->get_result()->fetch_assoc();
+            $direccionSeleccionada = (int)($direccionUsuario['direccion_id'] ?? 0);
+            $stmtDireccionUsuario->close();
+        }
+    }
+}
+
+// Si llega una dirección inexistente o inactiva, volver a la vista general.
+if ($direccionSeleccionada > 0) {
+    $direccionValida = false;
+    foreach ($direcciones as $direccion) {
+        if ((int)$direccion['id'] === $direccionSeleccionada) {
+            $direccionValida = true;
+            break;
+        }
+    }
+    if (!$direccionValida) $direccionSeleccionada = 0;
+}
+
+$filtroDireccionSql = $direccionSeleccionada > 0
+    ? ' AND i.direccion_id = ' . $direccionSeleccionada
+    : '';
+
 // Obtener TODOS los items activos con los responsables asignados
 $query = "
     SELECT
         i.id, i.numeracion, i.nombre, i.periodicidad, i.mes_carga_anual,
+        d.nombre AS direccion_nombre,
+        CONCAT_WS(' ', dir.nombres, dir.apellidos) AS director_nombre,
         GROUP_CONCAT(DISTINCT u_asig.nombre ORDER BY u_asig.nombre SEPARATOR ', ') as responsables
     FROM items_transparencia i
+    LEFT JOIN direcciones d ON i.direccion_id = d.id
+    LEFT JOIN directores dir ON d.director_id = dir.id AND dir.activo = 1
     LEFT JOIN item_usuarios iu ON i.id = iu.item_id
     LEFT JOIN usuarios u_asig ON iu.usuario_id = u_asig.id
-    WHERE i.activo = 1
+    WHERE i.activo = 1 {$filtroDireccionSql}
     GROUP BY i.id
     ORDER BY FIELD(i.periodicidad,'mensual','trimestral','semestral','anual'), i.numeracion";
 
@@ -97,7 +144,7 @@ $estadosAnual      = contarEstados($itemsPorPeriodicidad['anual'],     $document
 // Función para renderizar la tabla de items de auditor
 function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPlazoClass, $mesS, $anoS, $periodicidad, $meses) {
     if (empty($items)) {
-        echo '<tr><td colspan="8" class="text-center text-muted">No hay items</td></tr>';
+        echo '<tr><td colspan="9" class="text-center text-muted">No hay items para los filtros seleccionados</td></tr>';
         return;
     }
     foreach ($items as $item) {
@@ -142,18 +189,39 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
         } else {
             $fechaPortal = '<span class="text-muted">—</span>';
         }
-        $responsables = $item['responsables'] ? htmlspecialchars($item['responsables']) : '<span class="text-muted">Sin asignar</span>';
+        $directorNombre = trim($item['director_nombre'] ?? '') ?: 'Sin director asignado';
+        $responsablesNombres = trim($item['responsables'] ?? '');
         ?>
         <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
             <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
             <td><?php echo htmlspecialchars($item['nombre']); ?></td>
-            <td><small><?php echo $responsables; ?></small></td>
+            <td><small><?php echo htmlspecialchars($item['direccion_nombre'] ?? 'Sin dirección'); ?></small></td>
+            <td>
+                <button type="button" class="btn btn-sm btn-link p-0"
+                        data-bs-toggle="modal" data-bs-target="#modalResponsablesAuditor"
+                        data-item="<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>"
+                        data-director="<?php echo htmlspecialchars($directorNombre, ENT_QUOTES); ?>"
+                        data-responsables="<?php echo htmlspecialchars($responsablesNombres, ENT_QUOTES); ?>"
+                        onclick="verResponsablesAuditor(this)">
+                    <i class="bi bi-people"></i> Ver responsables
+                </button>
+            </td>
             <td><small><?php echo $cargador; ?></small></td>
             <td><small><?php echo $publicador; ?></small></td>
             <td><small><?php echo $fechaEnvio; ?></small></td>
             <td><small><?php echo $fechaPortal; ?></small></td>
             <td>
                 <div class="d-flex gap-1 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="modal" data-bs-target="#modalHistorialAuditor"
+                            data-item-id="<?php echo (int)$item['id']; ?>"
+                            data-item-nombre="<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>"
+                            data-mes="<?php echo (int)$mesS; ?>"
+                            data-ano="<?php echo (int)$anoS; ?>"
+                            onclick="mostrarHistorialAuditor(this)"
+                            title="Ver bitácora e historial de movimientos">
+                        <i class="bi bi-clock-history"></i> Historial
+                    </button>
                     <?php if ($doc): ?>
                         <a href="descargar_documento.php?doc_id=<?php echo $doc['id']; ?>"
                            class="btn btn-sm btn-outline-primary" title="Ver documento" style="white-space:nowrap;">
@@ -209,6 +277,15 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
                 <?php for ($a=$anoActual-2;$a<=$anoActual+1;$a++): ?>
                     <option value="<?php echo $a; ?>" <?php echo $a==$anoSeleccionado?'selected':''; ?>><?php echo $a; ?></option>
                 <?php endfor; ?>
+            </select>
+            <label class="fw-bold mb-0 ms-md-2"><i class="bi bi-building"></i> Dirección:</label>
+            <select name="direccion" class="form-select form-select-sm" style="min-width:260px;" onchange="this.form.submit()">
+                <option value="0">Todas las direcciones</option>
+                <?php foreach ($direcciones as $direccion): ?>
+                    <option value="<?php echo (int)$direccion['id']; ?>" <?php echo (int)$direccion['id'] === $direccionSeleccionada ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($direccion['nombre']); ?>
+                    </option>
+                <?php endforeach; ?>
             </select>
             <span class="text-muted ms-2"><?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></span>
         </form>
@@ -290,6 +367,7 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
                 <form method="GET" class="d-flex gap-2 align-items-center">
                     <input type="hidden" name="mes" value="<?php echo $mesSeleccionado; ?>">
                     <input type="hidden" name="ano" value="<?php echo $anoSeleccionado; ?>">
+                    <input type="hidden" name="direccion" value="<?php echo $direccionSeleccionada; ?>">
                     <!-- Filtros de estado -->
                     <div class="btn-group btn-group-sm ms-2" id="filtroEstado">
                         <button type="button" class="btn btn-outline-secondary active" data-estado="todos" onclick="filtrarAuditor('todos',this)">Todos</button>
@@ -303,7 +381,7 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         <div class="table-responsive">
             <table class="table table-hover table-sm" id="tablaMensualAud">
                 <thead class="table-light"><tr>
-                    <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
+                    <th>Num.</th><th>Nombre Item</th><th>Dirección</th><th>Responsable(s)</th>
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
@@ -336,7 +414,7 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
-                    <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
+                    <th>Num.</th><th>Nombre Item</th><th>Dirección</th><th>Responsable(s)</th>
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
@@ -369,7 +447,7 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
-                    <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
+                    <th>Num.</th><th>Nombre Item</th><th>Dirección</th><th>Responsable(s)</th>
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
@@ -403,7 +481,7 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         <div class="table-responsive">
             <table class="table table-hover table-sm">
                 <thead class="table-light"><tr>
-                    <th>Num.</th><th>Nombre Item</th><th>Responsable(s)</th>
+                    <th>Num.</th><th>Nombre Item</th><th>Dirección</th><th>Responsable(s)</th>
                     <th>Cargó</th><th>Publicó</th><th>Fecha Envío</th><th>Fecha Portal</th><th>Acciones</th>
                 </tr></thead>
                 <tbody>
@@ -414,6 +492,62 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
     </div>
     <?php endif; ?>
 
+</div>
+
+<!-- Modal de bitácora e historial (solo lectura) -->
+<div class="modal fade" id="modalHistorialAuditor" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalHistorialAuditorTitle">Historial de Movimientos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%">Tipo</th>
+                                <th width="30%">Movimiento</th>
+                                <th width="25%">Usuario</th>
+                                <th width="40%">Fecha y Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialAuditorBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de responsables del ítem -->
+<div class="modal fade" id="modalResponsablesAuditor" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-people"></i> Responsables del ítem</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="responsablesItemNombre"></p>
+                <div class="mb-3">
+                    <strong><i class="bi bi-person-badge"></i> Director/a</strong>
+                    <div id="responsablesDirector" class="mt-1"></div>
+                </div>
+                <div>
+                    <strong><i class="bi bi-person-check"></i> Usuarios asignados al ítem</strong>
+                    <ul id="responsablesUsuarios" class="mb-0 mt-2"></ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal Ver Verificador (solo lectura) -->
@@ -435,6 +569,89 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
 </div>
 
 <script>
+function escaparHtmlAuditor(valor) {
+    const elemento = document.createElement('div');
+    elemento.textContent = valor == null ? '' : String(valor);
+    return elemento.innerHTML;
+}
+
+function mostrarHistorialAuditor(button) {
+    const itemId = button.dataset.itemId;
+    const itemNombre = button.dataset.itemNombre || '';
+    const mes = button.dataset.mes;
+    const ano = button.dataset.ano;
+    const cuerpo = document.getElementById('historialAuditorBody');
+
+    document.getElementById('modalHistorialAuditorTitle').textContent = `Historial: ${itemNombre}`;
+    cuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted"><span class="spinner-border spinner-border-sm"></span> Cargando...</td></tr>';
+
+    fetch(`get_historial.php?item_id=${encodeURIComponent(itemId)}&mes=${encodeURIComponent(mes)}&ano=${encodeURIComponent(ano)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error || 'No se pudo cargar el historial');
+            if (!data.historial || data.historial.length === 0) {
+                cuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay registros de movimientos</td></tr>';
+                return;
+            }
+
+            cuerpo.innerHTML = data.historial.map(movimiento => {
+                let icono = '<i class="bi bi-question-circle"></i>';
+                let clase = 'bg-dark';
+                let tipo = movimiento.tipo || 'Movimiento';
+                if (movimiento.tipo === 'documento_cargado') {
+                    icono = '<i class="bi bi-file-earmark-text"></i>'; clase = 'bg-primary'; tipo = 'Documento Cargado';
+                } else if (movimiento.tipo === 'verificador_agregado') {
+                    icono = '<i class="bi bi-check-circle"></i>'; clase = 'bg-success'; tipo = 'Verificador Agregado';
+                } else if (movimiento.tipo === 'sin_movimiento') {
+                    icono = '<i class="bi bi-dash-circle"></i>'; clase = 'bg-secondary'; tipo = 'Sin Movimiento';
+                } else if (movimiento.tipo === 'documento_observado') {
+                    icono = '<i class="bi bi-x-circle"></i>'; clase = 'bg-danger'; tipo = 'Documento Observado';
+                }
+
+                const fechaObjeto = new Date(movimiento.fecha);
+                const fecha = Number.isNaN(fechaObjeto.getTime()) ? '—' : fechaObjeto.toLocaleString('es-CL');
+                return `<tr>
+                    <td><span class="badge ${clase}">${icono}</span></td>
+                    <td><strong>${escaparHtmlAuditor(tipo)}</strong></td>
+                    <td>${escaparHtmlAuditor(movimiento.usuario || '—')}</td>
+                    <td>${escaparHtmlAuditor(fecha)}</td>
+                </tr>
+                <tr class="table-light"><td colspan="4"><small>
+                    <strong>Descripción:</strong> ${escaparHtmlAuditor(movimiento.descripcion || '—')}<br>
+                    <strong>Detalle:</strong> ${escaparHtmlAuditor(movimiento.detalle || '—')}
+                </small></td></tr>`;
+            }).join('');
+        })
+        .catch(error => {
+            cuerpo.innerHTML = `<tr><td colspan="4" class="text-center text-danger">${escaparHtmlAuditor(error.message)}</td></tr>`;
+        });
+}
+
+function verResponsablesAuditor(button) {
+    const itemNombre = button.dataset.item || '';
+    const director = button.dataset.director || 'Sin director asignado';
+    const responsables = button.dataset.responsables || '';
+    const lista = document.getElementById('responsablesUsuarios');
+
+    document.getElementById('responsablesItemNombre').textContent = itemNombre;
+    document.getElementById('responsablesDirector').textContent = director;
+    lista.replaceChildren();
+
+    if (!responsables) {
+        const elemento = document.createElement('li');
+        elemento.className = 'text-muted';
+        elemento.textContent = 'Sin usuarios asignados';
+        lista.appendChild(elemento);
+        return;
+    }
+
+    responsables.split(', ').forEach(nombre => {
+        const elemento = document.createElement('li');
+        elemento.textContent = nombre;
+        lista.appendChild(elemento);
+    });
+}
+
 function verVerificador(verificadorId) {
     const content = document.getElementById('verificadorContent');
     content.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-success"></div></div>';

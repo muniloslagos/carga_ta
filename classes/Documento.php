@@ -102,8 +102,10 @@ class Documento {
     public function getByItemFollowUp($item_id, $mes, $ano) {
         // Filtra por mes_carga y ano_carga (columnas guardadas al subir el documento)
         // Si no hay datos en esas columnas (documentos anteriores), fallback a fecha_subida
-        $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo
+        $sql = "SELECT d.*, d.fecha_subida as fecha_envio, d.usuario_id, d.titulo, d.archivo,
+                       u.nombre as usuario_nombre
                 FROM {$this->table} d
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
                 WHERE d.item_id = ?
                 AND (
                     (d.mes_carga = ? AND d.ano_carga = ?)

@@ -191,7 +191,10 @@ function save_uploaded_attachment($year, $file, $defaultValue = '', $numeroElecc
     ];
 
     $prefix = $prefixes[$fieldName] ?? 'archivo';
-    $filename = $prefix . '_' . $year . '_' . $numeroEleccion . ($extension !== '' ? '.' . $extension : '');
+    // No sobrescribir adjuntos anteriores: cada actualización debe conservar
+    // exactamente los archivos que fueron enviados a publicación.
+    $versionArchivo = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
+    $filename = $prefix . '_' . $year . '_' . $numeroEleccion . '_' . $versionArchivo . ($extension !== '' ? '.' . $extension : '');
     $targetPath = $baseDir . '/' . $filename;
 
     if (file_exists($targetPath)) {
@@ -230,6 +233,13 @@ function delete_local_elections_attachment($year, $value)
     $path = get_local_elections_attachment_path($year, $value);
     if ($path === null || !is_file($path)) {
         return false;
+    }
+
+    // Los adjuntos versionados pueden estar referenciados desde una versión
+    // ya enviada al publicador. Se quita su referencia del CSV vigente, pero
+    // se conserva el archivo físico para no romper el historial.
+    if (preg_match('/_\d{8}_\d{6}_[a-f0-9]{6}\.[a-z0-9]+$/i', basename($path))) {
+        return true;
     }
 
     return @unlink($path);
@@ -453,6 +463,81 @@ function get_elections_numbering_for_year($conn, $year)
     return $numbers;
 }
 
+/**
+ * Crea una versión inmutable del CSV y la registra como documento pendiente.
+ * Cada guardado del cargador queda así disponible para un verificador propio.
+ */
+function registrar_actualizacion_elecciones_para_publicacion($conn, $year, $csvPath, $usuarioId, $numeroEleccion, $esEdicion, $nombreEleccion)
+{
+    $nombreItem = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
+    $stmtItem = $conn->prepare("SELECT id FROM items_transparencia WHERE nombre = ? AND periodicidad = 'ocurrencia' AND activo = 1 LIMIT 1");
+    if (!$stmtItem) return ['success' => false, 'error' => 'No se pudo localizar el ítem especial de Elecciones.'];
+    $stmtItem->bind_param('s', $nombreItem);
+    $stmtItem->execute();
+    $item = $stmtItem->get_result()->fetch_assoc();
+    $stmtItem->close();
+    if (!$item) return ['success' => false, 'error' => 'No existe el ítem activo de Elecciones con periodicidad ocurrencia.'];
+
+    $versionesDir = dirname(__DIR__) . '/uploads/elecciones_versiones';
+    if (!is_dir($versionesDir) && !mkdir($versionesDir, 0755, true) && !is_dir($versionesDir)) {
+        return ['success' => false, 'error' => 'No se pudo crear la carpeta de versiones de Elecciones.'];
+    }
+
+    $marca = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
+    $nombreArchivo = 'elecciones_' . (int)$year . '_eleccion_' . (int)$numeroEleccion . '_' . $marca . '.csv';
+    $rutaVersion = $versionesDir . '/' . $nombreArchivo;
+    if (!copy($csvPath, $rutaVersion)) {
+        return ['success' => false, 'error' => 'No se pudo crear la versión publicable del CSV.'];
+    }
+
+    $itemId = (int)$item['id'];
+    $mesCarga = (int)date('m');
+    $accion = $esEdicion ? 'Actualización' : 'Nueva elección';
+    $tituloCompleto = 'Elecciones - ' . $accion . ' N.º ' . (int)$numeroEleccion . ' - ' . $nombreEleccion;
+    $titulo = function_exists('mb_substr') ? mb_substr($tituloCompleto, 0, 255, 'UTF-8') : substr($tituloCompleto, 0, 255);
+    $descripcion = $accion . ' registrada en el módulo especial de Elecciones. Año ' . (int)$year . '. Cada versión requiere su propio verificador.';
+    $archivoRelativo = 'elecciones_versiones/' . $nombreArchivo;
+
+    $conn->begin_transaction();
+    try {
+        $stmtDoc = $conn->prepare("
+            INSERT INTO documentos
+                (item_id, usuario_id, titulo, descripcion, archivo, mes_carga, ano_carga, estado, fecha_subida)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())
+        ");
+        if (!$stmtDoc) throw new Exception('No se pudo preparar el registro de la actualización.');
+        $stmtDoc->bind_param('iisssii', $itemId, $usuarioId, $titulo, $descripcion, $archivoRelativo, $mesCarga, $year);
+        if (!$stmtDoc->execute()) throw new Exception('No se pudo registrar la actualización de Elecciones.');
+        $documentoId = (int)$conn->insert_id;
+        $stmtDoc->close();
+
+        $checkSeguimiento = $conn->query("SHOW TABLES LIKE 'documento_seguimiento'");
+        if ($checkSeguimiento && $checkSeguimiento->num_rows > 0) {
+            $stmtExiste = $conn->prepare('SELECT id FROM documento_seguimiento WHERE documento_id = ? LIMIT 1');
+            $stmtExiste->bind_param('i', $documentoId);
+            $stmtExiste->execute();
+            $existeSeguimiento = $stmtExiste->get_result()->num_rows > 0;
+            $stmtExiste->close();
+            if (!$existeSeguimiento) {
+                $stmtSeg = $conn->prepare("
+                    INSERT INTO documento_seguimiento (documento_id, item_id, usuario_id, mes, ano, fecha_envio)
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                ");
+                $stmtSeg->bind_param('iiiii', $documentoId, $itemId, $usuarioId, $mesCarga, $year);
+                if (!$stmtSeg->execute()) throw new Exception('No se pudo crear el seguimiento de la actualización.');
+                $stmtSeg->close();
+            }
+        }
+
+        $conn->commit();
+        return ['success' => true, 'documento_id' => $documentoId];
+    } catch (Throwable $e) {
+        $conn->rollback();
+        @unlink($rutaVersion);
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
 $nombreItemEspecial = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
 $currentYear = date('Y');
 $availableYears = [];
@@ -522,6 +607,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
         $_SESSION['success'] = $localPath !== null && !$localFileDeleted
             ? 'Se quitó la referencia del documento, pero no fue posible borrar el archivo del servidor.'
             : 'Documento eliminado correctamente.';
+        if ($perfil === 'cargador_informacion') {
+            $numeracion = get_elections_numbering_for_year($conn, $year);
+            $registroPublicacion = registrar_actualizacion_elecciones_para_publicacion(
+                $conn, $year, $path, (int)$_SESSION['user_id'],
+                (int)($numeracion[$rowIndex] ?? ($rowIndex + 1)), true,
+                (string)($rows[$rowIndex][1] ?? 'Elección')
+            );
+            if ($registroPublicacion['success']) {
+                $_SESSION['success'] .= ' La actualización quedó pendiente de verificador.';
+            } else {
+                $_SESSION['error'] = 'El adjunto fue quitado, pero no se pudo generar la tarea para el publicador: ' . $registroPublicacion['error'];
+            }
+        }
     }
 
     header('Location: elecciones.php?year=' . $year . '&edit=' . $rowIndex);
@@ -619,10 +717,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['success'] = 'Elección agregada correctamente.';
         }
 
-        if (!write_elections_rows($path, $rows)) {
+        $guardadoCsvCorrecto = write_elections_rows($path, $rows);
+        $numeracionCorrecta = false;
+        if (!$guardadoCsvCorrecto) {
             $_SESSION['error'] = 'No se pudo guardar el archivo CSV.';
-        } elseif (!rebuild_elections_numbering_for_year($conn, $year, $rows)) {
+        } else {
+            $numeracionCorrecta = rebuild_elections_numbering_for_year($conn, $year, $rows);
+        }
+        if ($guardadoCsvCorrecto && !$numeracionCorrecta) {
             $_SESSION['error'] = 'No se pudo actualizar la numeración correlativa.';
+        }
+
+        // Solo las cargas del perfil cargador generan una tarea publicable.
+        if ($guardadoCsvCorrecto && $numeracionCorrecta && $perfil === 'cargador_informacion') {
+            $registroPublicacion = registrar_actualizacion_elecciones_para_publicacion(
+                $conn,
+                $year,
+                $path,
+                (int)$_SESSION['user_id'],
+                $numeroEleccion,
+                $rowIndex >= 0,
+                $nombre
+            );
+            if ($registroPublicacion['success']) {
+                $_SESSION['success'] .= ' La actualización quedó pendiente de verificador para el publicador.';
+            } else {
+                $_SESSION['error'] = 'La elección fue guardada, pero no se pudo generar la tarea para el publicador: ' . $registroPublicacion['error'];
+            }
         }
 
         $saveMode = trim((string)($_POST['save_mode'] ?? 'stay'));
@@ -668,6 +789,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['success'] = $localPath !== null && !$localFileDeleted
                 ? 'Se quitó la referencia del documento, pero no fue posible borrar el archivo del servidor.'
                 : 'Documento eliminado correctamente.';
+            if ($perfil === 'cargador_informacion') {
+                $numeracion = get_elections_numbering_for_year($conn, $year);
+                $registroPublicacion = registrar_actualizacion_elecciones_para_publicacion(
+                    $conn, $year, $path, (int)$_SESSION['user_id'],
+                    (int)($numeracion[$rowIndex] ?? ($rowIndex + 1)), true,
+                    (string)($rows[$rowIndex][1] ?? 'Elección')
+                );
+                if ($registroPublicacion['success']) {
+                    $_SESSION['success'] .= ' La actualización quedó pendiente de verificador.';
+                } else {
+                    $_SESSION['error'] = 'El adjunto fue quitado, pero no se pudo generar la tarea para el publicador: ' . $registroPublicacion['error'];
+                }
+            }
         }
 
         header('Location: elecciones.php?year=' . $year . '&edit=' . $rowIndex);

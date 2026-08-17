@@ -303,6 +303,43 @@ $itemsPorPeriodicidad['anual'] = array_values(array_filter($itemsPorPeriodicidad
     return intval($item['mes_carga_anual'] ?? 1) === $mesSeleccionado;
 }));
 
+// Actualizaciones versionadas de ítems por ocurrencia (p. ej. Elecciones).
+// No dependen del mes del selector; se muestran por el año seleccionado.
+$documentosOcurrencia = [];
+if ($user_perfil === 'publicador' && !empty($itemsPorPeriodicidad['ocurrencia'])) {
+    $idsOcurrencia = array_map(function($item) { return (int)$item['id']; }, $itemsPorPeriodicidad['ocurrencia']);
+    $placeholdersOcurrencia = implode(',', array_fill(0, count($idsOcurrencia), '?'));
+    $tiposOcurrencia = str_repeat('i', count($idsOcurrencia));
+    $sqlOcurrencia = "
+        SELECT d.*, i.nombre AS item_nombre, u.nombre AS cargador_nombre,
+               vp.id AS verificador_id, vp.fecha_carga_portal,
+               u_pub.nombre AS publicador_nombre
+        FROM documentos d
+        INNER JOIN items_transparencia i ON i.id = d.item_id
+        LEFT JOIN usuarios u ON u.id = d.usuario_id
+        LEFT JOIN verificadores_publicador vp ON vp.documento_id = d.id
+        LEFT JOIN usuarios u_pub ON u_pub.id = vp.publicador_id
+        WHERE d.item_id IN ($placeholdersOcurrencia)
+          AND d.ano_carga = ?
+          AND d.estado != 'reemplazado'
+        ORDER BY d.fecha_subida DESC, d.id DESC
+    ";
+    $stmtOcurrencia = $conn->prepare($sqlOcurrencia);
+    if ($stmtOcurrencia) {
+        $parametrosOcurrencia = array_merge($idsOcurrencia, [$anoSeleccionado]);
+        $stmtOcurrencia->bind_param($tiposOcurrencia . 'i', ...$parametrosOcurrencia);
+        $stmtOcurrencia->execute();
+        $resultadoOcurrencia = $stmtOcurrencia->get_result();
+        while ($documentoOcurrencia = $resultadoOcurrencia->fetch_assoc()) {
+            $documentosOcurrencia[] = $documentoOcurrencia;
+            if (empty($documentoOcurrencia['verificador_id'])) {
+                $contadores['ocurrencia']++;
+            }
+        }
+        $stmtOcurrencia->close();
+    }
+}
+
 // Pre-fetch observaciones "Sin Movimiento" para todos los items del usuario
 $sinMovimientoCache = [];
 $tableCheck = $conn->query("SHOW TABLES LIKE 'observaciones_sin_movimiento'");
@@ -525,6 +562,7 @@ if (isset($_SESSION['success'])) {
         // Determinar qué pestaña debe estar activa (la primera disponible)
         $primeraActiva = '';
         foreach (['mensual', 'trimestral', 'semestral', 'anual', 'ocurrencia'] as $per) {
+            if ($per === 'ocurrencia' && $user_perfil !== 'publicador') continue;
             if (count($itemsPorPeriodicidad[$per]) > 0) {
                 $primeraActiva = $per;
                 break;
@@ -576,10 +614,13 @@ if (isset($_SESSION['success'])) {
             </li>
             <?php endif; ?>
 
-            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
+            <?php if ($user_perfil === 'publicador' && count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
             <li class="nav-item" role="presentation">
                 <button class="nav-link <?php echo ($primeraActiva === 'ocurrencia') ? 'active' : ''; ?>" id="tab-ocurrencia" data-bs-toggle="tab" data-bs-target="#ocurrencia" type="button" role="tab">
-                    <i class="bi bi-person-check"></i> Elecciones
+                    <i class="bi bi-person-check"></i> Elecciones / Ocurrencia
+                    <?php if ($contadores['ocurrencia'] > 0): ?>
+                        <span class="badge bg-danger ms-2"><?php echo $contadores['ocurrencia']; ?></span>
+                    <?php endif; ?>
                 </button>
             </li>
             <?php endif; ?>
@@ -833,6 +874,19 @@ if (isset($_SESSION['success'])) {
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && $ultimoDoc['estado'] === 'rechazado'): ?>
+                                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>"
+                                                            data-mes="<?php echo $mesSeleccionado; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
+                                                            data-corregir="1"
+                                                            title="Cargar documento para corregir la observación">
+                                                        <i class="bi bi-upload"></i> Corregir / Cargar
+                                                    </button>
+                                                    <?php endif; ?>
                                                     <?php endif; ?>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
@@ -851,7 +905,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesSeleccionado; ?>"
                                                             data-ano="<?php echo $anoSeleccionado; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1100,6 +1154,19 @@ if (isset($_SESSION['success'])) {
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && $ultimoDoc['estado'] === 'rechazado'): ?>
+                                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>"
+                                                            data-mes="<?php echo $mesSeleccionado; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
+                                                            data-corregir="1"
+                                                            title="Cargar documento para corregir la observación">
+                                                        <i class="bi bi-upload"></i> Corregir / Cargar
+                                                    </button>
+                                                    <?php endif; ?>
                                                     <?php endif; ?>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
@@ -1118,7 +1185,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesSeleccionado; ?>"
                                                             data-ano="<?php echo $anoSeleccionado; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1357,13 +1424,33 @@ if (isset($_SESSION['success'])) {
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
                                                 <?php if ($ultimoDoc): ?>
+                                                    <?php
+                                                    $esPlaceholder = isset($ultimoDoc['titulo']) && strpos($ultimoDoc['titulo'], 'Sin Movimiento') === 0;
+                                                    ?>
+                                                    <?php if (!$esPlaceholder): ?>
                                                     <?php if ($revisionActivada && isset($ultimoDoc['revision_estado']) && $ultimoDoc['revision_estado'] === 'aprobado'): ?>
                                                         <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
                                                     <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
                                                         <i class="bi bi-file-earmark-check"></i> Ver Doc
                                                     </a>
-                                                    <?php if (!$verificador && $user_perfil !== 'publicador'): ?>
+                                                    <?php else: ?>
+                                                    <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && $ultimoDoc['estado'] === 'rechazado'): ?>
+                                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>"
+                                                            data-mes="<?php echo $mesSeleccionado; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
+                                                            data-corregir="1"
+                                                            title="Cargar documento para corregir la observación">
+                                                        <i class="bi bi-upload"></i> Corregir / Cargar
+                                                    </button>
+                                                    <?php endif; ?>
+                                                    <?php endif; ?>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
                                                             data-bs-target="#modalCargar"
                                                             onclick="seleccionarItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre']); ?>', null, <?php echo $ultimoDoc['id']; ?>)"
@@ -1380,7 +1467,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesSeleccionado; ?>"
                                                             data-ano="<?php echo $anoSeleccionado; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1629,6 +1716,19 @@ if (isset($_SESSION['success'])) {
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
+                                                    <?php if (!$verificador && $user_perfil !== 'publicador' && $ultimoDoc['estado'] === 'rechazado'): ?>
+                                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                                            data-bs-target="#modalModificarSinMovimiento"
+                                                            data-item-id="<?php echo $item['id']; ?>"
+                                                            data-item-nombre="<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>"
+                                                            data-mes="<?php echo $mesAnual; ?>"
+                                                            data-ano="<?php echo $anoSeleccionado; ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
+                                                            data-corregir="1"
+                                                            title="Cargar documento para corregir la observación">
+                                                        <i class="bi bi-upload"></i> Corregir / Cargar
+                                                    </button>
+                                                    <?php endif; ?>
                                                     <?php endif; ?>
                                                     <?php if (!$verificador && $user_perfil !== 'publicador' && !$esPlaceholder): ?>
                                                     <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
@@ -1647,7 +1747,7 @@ if (isset($_SESSION['success'])) {
                                                             data-item-nombre="<?php echo htmlspecialchars($item['nombre']); ?>"
                                                             data-mes="<?php echo $mesAnual; ?>"
                                                             data-ano="<?php echo $anoSeleccionado; ?>"
-                                                            data-observacion="<?php echo htmlspecialchars($tieneSinMovimiento[0]); ?>"
+                                                            data-observacion="<?php echo htmlspecialchars($sinMovData['observacion'] ?? '', ENT_QUOTES); ?>"
                                                             style="white-space: nowrap;" title="Modificar Sin Movimiento: cambiar observación o subir documento">
                                                         <i class="bi bi-pencil"></i> Modificar
                                                     </button>
@@ -1729,17 +1829,78 @@ if (isset($_SESSION['success'])) {
             </div>
             <?php endif; ?>
 
-            <?php if (count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
+            <?php if ($user_perfil === 'publicador' && count($itemsPorPeriodicidad['ocurrencia']) > 0): ?>
             <div class="tab-pane fade <?php echo ($primeraActiva === 'ocurrencia') ? 'show active' : ''; ?>" id="ocurrencia" role="tabpanel">
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4">
-                        <h5 class="mb-3"><i class="bi bi-person-check"></i> Módulo Especial de Elecciones</h5>
-                        <p class="text-muted mb-3">
-                            Los items de tipo ocurrencia para elecciones se trabajan en una página separada, sin plazos mensuales/trimestrales.
-                        </p>
-                        <a class="btn btn-primary" href="<?php echo SITE_URL; ?>usuario/elecciones.php">
-                            <i class="bi bi-box-arrow-up-right"></i> Ir a pestaña Elecciones
-                        </a>
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <div>
+                                <h5 class="mb-1"><i class="bi bi-person-check"></i> Actualizaciones de Elecciones — <?php echo $anoSeleccionado; ?></h5>
+                                <small class="text-muted">Cada actualización del cargador requiere un verificador independiente.</small>
+                            </div>
+                            <a class="btn btn-sm btn-outline-primary" href="elecciones.php?year=<?php echo $anoSeleccionado; ?>">
+                                <i class="bi bi-box-arrow-up-right"></i> Ver módulo Elecciones
+                            </a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Actualización</th>
+                                        <th>Cargador</th>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php if (empty($documentosOcurrencia)): ?>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No hay actualizaciones de Elecciones registradas para <?php echo $anoSeleccionado; ?>.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach ($documentosOcurrencia as $documentoOcurrencia): ?>
+                                    <?php
+                                        $publicadoOcurrencia = !empty($documentoOcurrencia['verificador_id']);
+                                        $estadoOcurrencia = $publicadoOcurrencia ? 'publicado' : 'pendiente_publicar';
+                                    ?>
+                                    <tr class="<?php echo $publicadoOcurrencia ? 'table-success' : 'table-warning'; ?>" data-estado="<?php echo $estadoOcurrencia; ?>">
+                                        <td>
+                                            <strong><?php echo htmlspecialchars($documentoOcurrencia['titulo']); ?></strong>
+                                            <?php if (!empty($documentoOcurrencia['descripcion'])): ?>
+                                                <br><small class="text-muted"><?php echo htmlspecialchars($documentoOcurrencia['descripcion']); ?></small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($documentoOcurrencia['cargador_nombre'] ?? '—'); ?></td>
+                                        <td><?php echo date('d/m/Y H:i', strtotime($documentoOcurrencia['fecha_subida'])); ?></td>
+                                        <td>
+                                            <?php if ($publicadoOcurrencia): ?>
+                                                <span class="badge bg-success">Publicado</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning text-dark">Pendiente de verificador</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                <a href="descargar_documento.php?doc_id=<?php echo (int)$documentoOcurrencia['id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-download"></i> Ver versión
+                                                </a>
+                                                <?php if ($publicadoOcurrencia): ?>
+                                                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalVerVerificador" onclick="verVerificador(<?php echo (int)$documentoOcurrencia['verificador_id']; ?>)">
+                                                        <i class="bi bi-check-circle"></i> Verificador
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalSubirVerificador"
+                                                            onclick="prepararVerificador(<?php echo (int)$documentoOcurrencia['item_id']; ?>, <?php echo (int)$documentoOcurrencia['id']; ?>, <?php echo htmlspecialchars(json_encode($documentoOcurrencia['titulo']), ENT_QUOTES); ?>)">
+                                                        <i class="bi bi-upload"></i> Subir Verificador
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1820,8 +1981,10 @@ if (isset($_SESSION['success'])) {
                 <div class="modal-body">
                     <input type="hidden" name="item_id" id="itemIdInput">
                     <input type="hidden" name="mes_carga" id="mesCargaInput">
+                    <input type="hidden" id="anoCargaInput" value="<?php echo (int)$anoSeleccionado; ?>">
                     <input type="hidden" name="doc_id_reemplazar" id="docIdReemplazarInput" value="0">
 
+                    <div id="camposDocumentoCorreccion">
                     <div class="mb-3">
                         <label for="titulo" class="form-label">Título del Documento <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="titulo" name="titulo" required placeholder="Ej: Remuneraciones Enero 2024">
@@ -1839,6 +2002,7 @@ if (isset($_SESSION['success'])) {
                         <small class="text-muted d-block">✓ Tamaño máximo: <strong>200 MB</strong></small>
                         <div id="infoArchivo" class="mt-2"></div>
                     </div>
+                    </div>
                     
                     <!-- Barra de progreso de carga -->
                     <div id="progressContainerCargar" class="mb-3" style="display: none;">
@@ -1847,6 +2011,21 @@ if (isset($_SESSION['success'])) {
                         </div>
                         <div class="progress" style="height: 25px;">
                             <div id="progressBarCargar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+
+                    <div id="opcionCorregirSinMovimiento" class="mt-3 pt-3 border-top" style="display: none;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="checkCorregirSinMovimiento" onchange="alternarCorreccionSinMovimiento()">
+                            <label class="form-check-label fw-semibold" for="checkCorregirSinMovimiento">
+                                Declarar este ítem como Sin Movimiento
+                            </label>
+                        </div>
+                        <div id="detalleCorregirSinMovimiento" class="alert alert-secondary mt-3 mb-0" style="display: none;">
+                            <h6>¿La corrección corresponde a un período sin movimiento?</h6>
+                            <p class="mb-2">Puede reemplazar el documento observado por una declaración “Sin Movimiento”.</p>
+                            <label for="correccionSinMovObservacion" class="form-label">Motivo <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="correccionSinMovObservacion" rows="3" placeholder="Indique por qué el ítem no presenta movimiento en este período"></textarea>
                         </div>
                     </div>
                 </div>
@@ -2017,8 +2196,12 @@ fileInput.addEventListener('change', function() {
 });
 
 function seleccionarItem(itemId, itemNombre, mesCarga = null, docIdReemplazar = 0) {
+    const mesPeriodoSeleccionado = mesCarga || <?php echo (int)$mesSeleccionado; ?>;
+    const anoPeriodoSeleccionado = <?php echo (int)$anoSeleccionado; ?>;
     document.getElementById('itemIdInput').value = itemId;
     document.getElementById('docIdReemplazarInput').value = docIdReemplazar;
+    document.getElementById('mesCargaInput').value = mesPeriodoSeleccionado;
+    document.getElementById('anoCargaInput').value = anoPeriodoSeleccionado;
     document.getElementById('itemNombreModal').textContent = itemNombre;
     const modalTitle = document.querySelector('#modalCargar .modal-title');
     const modalHeader = document.querySelector('#modalCargar .modal-header');
@@ -2026,26 +2209,29 @@ function seleccionarItem(itemId, itemNombre, mesCarga = null, docIdReemplazar = 
         modalTitle.textContent = 'Modificar Documento';
         modalHeader.classList.add('bg-warning');
         modalHeader.classList.remove('bg-light');
+        document.getElementById('opcionCorregirSinMovimiento').style.display = 'block';
     } else {
         modalTitle.textContent = 'Cargar Documento';
         modalHeader.classList.add('bg-light');
         modalHeader.classList.remove('bg-warning');
+        document.getElementById('opcionCorregirSinMovimiento').style.display = 'none';
     }
+    document.getElementById('checkCorregirSinMovimiento').checked = false;
+    document.getElementById('correccionSinMovObservacion').value = '';
+    document.getElementById('btnEnviarDoc').disabled = false;
+    alternarCorreccionSinMovimiento();
     
     // Rellenar automáticamente el título con: Item Name + Mes
     let titulo = itemNombre;
-    if (mesCarga) {
-        const anoActual = new Date().getFullYear();
-        titulo = itemNombre + ' - ' + meses[mesCarga] + ' ' + anoActual;
+    if (mesPeriodoSeleccionado) {
+        titulo = itemNombre + ' - ' + meses[mesPeriodoSeleccionado] + ' ' + anoPeriodoSeleccionado;
     }
     document.getElementById('titulo').value = titulo;
     
     // Mostrar mes/período
     let periodoTexto = '';
-    if (mesCarga) {
-        document.getElementById('mesCargaInput').value = mesCarga;
-        const anoActual = new Date().getFullYear();
-        periodoTexto = ' para el mes de <strong>' + meses[mesCarga] + ' ' + anoActual + '</strong>';
+    if (mesPeriodoSeleccionado) {
+        periodoTexto = ' para el mes de <strong>' + meses[mesPeriodoSeleccionado] + ' ' + anoPeriodoSeleccionado + '</strong>';
     }
     
     const mesPeriodoSpan = document.getElementById('mesPeriodo');
@@ -2054,6 +2240,75 @@ function seleccionarItem(itemId, itemNombre, mesCarga = null, docIdReemplazar = 
     } else {
         mesPeriodoSpan.innerHTML = '';
     }
+}
+
+function alternarCorreccionSinMovimiento() {
+    const marcado = document.getElementById('checkCorregirSinMovimiento').checked;
+    const detalle = document.getElementById('detalleCorregirSinMovimiento');
+    const camposDocumento = document.getElementById('camposDocumentoCorreccion');
+    const titulo = document.getElementById('titulo');
+    const archivo = document.getElementById('archivo');
+    const botonPrincipal = document.getElementById('btnEnviarDoc');
+
+    detalle.style.display = marcado ? 'block' : 'none';
+    camposDocumento.style.display = marcado ? 'none' : 'block';
+    titulo.required = !marcado;
+    archivo.required = !marcado;
+    botonPrincipal.classList.toggle('btn-dark', marcado);
+    botonPrincipal.classList.toggle('btn-primary', !marcado);
+    botonPrincipal.innerHTML = marcado
+        ? '<i class="bi bi-dash-circle"></i> Declarar Sin Movimiento'
+        : '<i class="bi bi-cloud-upload"></i> Enviar Documento';
+}
+
+function corregirComoSinMovimiento() {
+    const itemId = document.getElementById('itemIdInput').value;
+    const mes = document.getElementById('mesCargaInput').value;
+    const ano = document.getElementById('anoCargaInput').value;
+    const documentoId = document.getElementById('docIdReemplazarInput').value;
+    const observacion = document.getElementById('correccionSinMovObservacion').value.trim();
+    const boton = document.getElementById('btnEnviarDoc');
+
+    if (!documentoId || parseInt(documentoId, 10) <= 0) {
+        alert('No se pudo identificar el documento que se está corrigiendo');
+        return;
+    }
+    if (!mes || parseInt(mes, 10) < 1) {
+        alert('No se pudo identificar el período del documento');
+        return;
+    }
+    if (!observacion) {
+        alert('Debe indicar el motivo de la declaración Sin Movimiento');
+        return;
+    }
+    if (!confirm('¿Confirma que desea reemplazar el documento por una declaración Sin Movimiento?')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('item_id', itemId);
+    formData.append('mes', mes);
+    formData.append('ano', ano);
+    formData.append('documento_id', documentoId);
+    formData.append('observacion', observacion);
+
+    boton.disabled = true;
+    boton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+
+    fetch('corregir_como_sin_movimiento.php', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.error || 'No se pudo registrar Sin Movimiento');
+            }
+            alert(data.message || 'Corrección registrada como Sin Movimiento');
+            window.location.reload();
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+            boton.disabled = false;
+            alternarCorreccionSinMovimiento();
+        });
 }
 
 // Función para mostrar historial
@@ -2734,6 +2989,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const mes = button.getAttribute('data-mes');
             const ano = button.getAttribute('data-ano');
             const observacion = button.getAttribute('data-observacion');
+            const esCorreccion = button.getAttribute('data-corregir') === '1';
             
             console.log('Modal abierto con datos:', {itemId, itemNombre, mes, ano, observacion});
             
@@ -2752,9 +3008,11 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modifSinMovDescripcion').value = '';
             document.getElementById('modifSinMovArchivo').value = '';
             
-            // Activar primer tab
-            const tabObservacion = new bootstrap.Tab(document.getElementById('tab-observacion'));
-            tabObservacion.show();
+            // En una observación del publicador, abrir directamente la carga
+            // del documento que reemplazará la declaración Sin Movimiento.
+            const tabInicialId = esCorreccion ? 'tab-documento' : 'tab-observacion';
+            const tabInicial = new bootstrap.Tab(document.getElementById(tabInicialId));
+            tabInicial.show();
             
             // Debug final
             console.log('Valores finales asignados:', {
@@ -2988,6 +3246,11 @@ function mostrarInfoArchivoSinMov(input) {
 // Interceptar envío del formulario de carga de documento con AJAX para progreso real
 document.querySelector('#modalCargar form').addEventListener('submit', function(e) {
     e.preventDefault(); // Prevenir envío normal del formulario
+
+    if (document.getElementById('checkCorregirSinMovimiento').checked) {
+        corregirComoSinMovimiento();
+        return false;
+    }
     
     const fileInput = document.getElementById('archivo');
     

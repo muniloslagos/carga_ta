@@ -73,11 +73,6 @@ try {
         throw new Exception('Documento no encontrado');
     }
     
-    // Validar que no sea un documento placeholder
-    if (stripos($documento['titulo'], 'Sin Movimiento') !== false) {
-        throw new Exception('No se pueden observar documentos de "Sin Movimiento"');
-    }
-    
     // Validar que el documento no esté ya rechazado/observado
     if ($documento['estado'] === 'rechazado') {
         throw new Exception('Este documento ya está observado');

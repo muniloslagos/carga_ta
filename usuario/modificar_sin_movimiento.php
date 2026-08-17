@@ -162,9 +162,9 @@ if ($accion === 'actualizar_observacion') {
         $deleteObs->bind_param('iii', $item_id, $mes, $ano);
         $deleteObs->execute();
         
-        // 2. Crear el documento
-        $insertDoc = $conn->prepare("INSERT INTO documentos (item_id, usuario_id, titulo, descripcion, archivo, estado, fecha_subida) VALUES (?, ?, ?, ?, ?, 'pendiente', NOW())");
-        $insertDoc->bind_param('iisss', $item_id, $user_id, $titulo, $descripcion, $filename);
+        // 2. Crear el documento real asociado al período corregido
+        $insertDoc = $conn->prepare("INSERT INTO documentos (item_id, usuario_id, titulo, descripcion, archivo, estado, fecha_subida, mes_carga, ano_carga) VALUES (?, ?, ?, ?, ?, 'pendiente', NOW(), ?, ?)");
+        $insertDoc->bind_param('iisssii', $item_id, $user_id, $titulo, $descripcion, $filename, $mes, $ano);
         $insertDoc->execute();
         $documento_id = $conn->insert_id;
         
@@ -174,6 +174,45 @@ if ($accion === 'actualizar_observacion') {
             $insertSeg = $conn->prepare("INSERT INTO documento_seguimiento (documento_id, item_id, usuario_id, mes, ano, fecha_envio) VALUES (?, ?, ?, ?, ?, NOW())");
             $insertSeg->bind_param('iiiii', $documento_id, $item_id, $user_id, $mes, $ano);
             $insertSeg->execute();
+        }
+
+        // 4. Resolver las observaciones pendientes del período y conservar el
+        // placeholder observado como parte del historial.
+        $checkTableObservaciones = $conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
+        if ($checkTableObservaciones && $checkTableObservaciones->num_rows > 0) {
+            $documentosObservados = [];
+            $selectObservaciones = $conn->prepare("
+                SELECT documento_id
+                FROM observaciones_documentos
+                WHERE item_id = ? AND mes = ? AND ano = ?
+                  AND cargador_id = ? AND resuelta = 0
+            ");
+            $selectObservaciones->bind_param('iiii', $item_id, $mes, $ano, $user_id);
+            $selectObservaciones->execute();
+            $resultadoObservaciones = $selectObservaciones->get_result();
+            while ($filaObservacion = $resultadoObservaciones->fetch_assoc()) {
+                $documentosObservados[] = (int)$filaObservacion['documento_id'];
+            }
+            $selectObservaciones->close();
+
+            $resolverObservaciones = $conn->prepare("
+                UPDATE observaciones_documentos
+                SET resuelta = 1, fecha_resolucion = NOW()
+                WHERE item_id = ? AND mes = ? AND ano = ?
+                  AND cargador_id = ? AND resuelta = 0
+            ");
+            $resolverObservaciones->bind_param('iiii', $item_id, $mes, $ano, $user_id);
+            $resolverObservaciones->execute();
+            $resolverObservaciones->close();
+
+            if (!empty($documentosObservados)) {
+                $marcarReemplazado = $conn->prepare("UPDATE documentos SET estado = 'reemplazado' WHERE id = ?");
+                foreach (array_unique($documentosObservados) as $documentoObservadoId) {
+                    $marcarReemplazado->bind_param('i', $documentoObservadoId);
+                    $marcarReemplazado->execute();
+                }
+                $marcarReemplazado->close();
+            }
         }
         
         $conn->commit();
