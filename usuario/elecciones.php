@@ -470,9 +470,16 @@ function get_elections_numbering_for_year($conn, $year)
 function registrar_actualizacion_elecciones_para_publicacion($conn, $year, $csvPath, $usuarioId, $numeroEleccion, $esEdicion, $nombreEleccion)
 {
     $nombreItem = 'Elecciones - Juntas de vecinos y organizaciones comunitarias - Ley 21.146';
-    $stmtItem = $conn->prepare("SELECT id FROM items_transparencia WHERE nombre = ? AND periodicidad = 'ocurrencia' AND activo = 1 LIMIT 1");
+    $stmtItem = $conn->prepare("
+        SELECT id
+        FROM items_transparencia
+        WHERE periodicidad = 'ocurrencia' AND activo = 1
+          AND (nombre = ? OR nombre LIKE 'Elecciones%Ley 21.146%')
+        ORDER BY (nombre = ?) DESC, id ASC
+        LIMIT 1
+    ");
     if (!$stmtItem) return ['success' => false, 'error' => 'No se pudo localizar el ítem especial de Elecciones.'];
-    $stmtItem->bind_param('s', $nombreItem);
+    $stmtItem->bind_param('ss', $nombreItem, $nombreItem);
     $stmtItem->execute();
     $item = $stmtItem->get_result()->fetch_assoc();
     $stmtItem->close();
@@ -607,10 +614,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
         $_SESSION['success'] = $localPath !== null && !$localFileDeleted
             ? 'Se quitó la referencia del documento, pero no fue posible borrar el archivo del servidor.'
             : 'Documento eliminado correctamente.';
-        if ($perfil === 'cargador_informacion') {
+        if ($usuarioId = (int)($_SESSION['user_id'] ?? 0)) {
             $numeracion = get_elections_numbering_for_year($conn, $year);
             $registroPublicacion = registrar_actualizacion_elecciones_para_publicacion(
-                $conn, $year, $path, (int)$_SESSION['user_id'],
+                $conn, $year, $path, $usuarioId,
                 (int)($numeracion[$rowIndex] ?? ($rowIndex + 1)), true,
                 (string)($rows[$rowIndex][1] ?? 'Elección')
             );
@@ -728,8 +735,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['error'] = 'No se pudo actualizar la numeración correlativa.';
         }
 
-        // Solo las cargas del perfil cargador generan una tarea publicable.
-        if ($guardadoCsvCorrecto && $numeracionCorrecta && $perfil === 'cargador_informacion') {
+        // Todo guardado correcto genera una versión publicable. La creación de
+        // la tarea no depende de la numeración ni del perfil activo.
+        if ($guardadoCsvCorrecto) {
             $registroPublicacion = registrar_actualizacion_elecciones_para_publicacion(
                 $conn,
                 $year,
@@ -789,10 +797,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['success'] = $localPath !== null && !$localFileDeleted
                 ? 'Se quitó la referencia del documento, pero no fue posible borrar el archivo del servidor.'
                 : 'Documento eliminado correctamente.';
-            if ($perfil === 'cargador_informacion') {
+            if ($usuarioId = (int)($_SESSION['user_id'] ?? 0)) {
                 $numeracion = get_elections_numbering_for_year($conn, $year);
                 $registroPublicacion = registrar_actualizacion_elecciones_para_publicacion(
-                    $conn, $year, $path, (int)$_SESSION['user_id'],
+                    $conn, $year, $path, $usuarioId,
                     (int)($numeracion[$rowIndex] ?? ($rowIndex + 1)), true,
                     (string)($rows[$rowIndex][1] ?? 'Elección')
                 );

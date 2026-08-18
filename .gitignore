@@ -60,5 +60,11 @@ git-push.ps1
 git-setup.ps1
 install.php
 
+# Archivos operativos cargados en producción.
+# Nunca deben entrar en commits, stash -u ni despliegues nuevos.
+/uploads/**
+!/uploads/.gitkeep
+!/uploads/.htaccess
+
 # Datos locales de Transparencia Pasiva (contienen información personal)
 /t_pasiva/*.csv
