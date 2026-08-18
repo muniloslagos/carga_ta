@@ -303,6 +303,35 @@ $itemsPorPeriodicidad['anual'] = array_values(array_filter($itemsPorPeriodicidad
     return intval($item['mes_carga_anual'] ?? 1) === $mesSeleccionado;
 }));
 
+// Las tareas por ocurrencia son solicitudes concretas de publicacion y deben
+// estar disponibles para el perfil publicador aunque el item no forme parte
+// de sus asignaciones periodicas o no este activado "ver todos".
+if ($user_perfil === 'publicador') {
+    $itemsPorPeriodicidad['ocurrencia'] = [];
+    $stmtItemsOcurrencia = $conn->prepare("
+        SELECT id, numeracion, nombre, periodicidad, descripcion, mes_carga_anual
+        FROM items_transparencia
+        WHERE activo = 1 AND periodicidad = 'ocurrencia'
+        ORDER BY numeracion, nombre
+    ");
+    if ($stmtItemsOcurrencia) {
+        $stmtItemsOcurrencia->execute();
+        $resultadoItemsOcurrencia = $stmtItemsOcurrencia->get_result();
+        while ($itemOcurrencia = $resultadoItemsOcurrencia->fetch_assoc()) {
+            $itemsPorPeriodicidad['ocurrencia'][] = [
+                'id' => (int)$itemOcurrencia['id'],
+                'numeracion' => $itemOcurrencia['numeracion'],
+                'nombre' => $itemOcurrencia['nombre'],
+                'periodicidad' => $itemOcurrencia['periodicidad'],
+                'descripcion' => $itemOcurrencia['descripcion'],
+                'mes_carga_anual' => $itemOcurrencia['mes_carga_anual'],
+                'documentos' => []
+            ];
+        }
+        $stmtItemsOcurrencia->close();
+    }
+}
+
 // Actualizaciones versionadas de ítems por ocurrencia (p. ej. Elecciones).
 // No dependen del mes del selector; se muestran por el año seleccionado.
 $documentosOcurrencia = [];
