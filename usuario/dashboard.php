@@ -330,7 +330,27 @@ if ($user_perfil === 'publicador' && !empty($itemsPorPeriodicidad['ocurrencia'])
         $stmtOcurrencia->bind_param($tiposOcurrencia . 'i', ...$parametrosOcurrencia);
         $stmtOcurrencia->execute();
         $resultadoOcurrencia = $stmtOcurrencia->get_result();
+        $eleccionesPendientesVistas = [];
         while ($documentoOcurrencia = $resultadoOcurrencia->fetch_assoc()) {
+            // La consulta viene de mas reciente a mas antigua. Si quedaron
+            // pendientes historicos de una misma eleccion, se muestra solo el
+            // ultimo; las versiones publicadas siguen visibles como historial.
+            if (empty($documentoOcurrencia['verificador_id'])) {
+                $claveEleccion = null;
+                if (preg_match('/elecciones_(\d+)_eleccion_(\d+)_/i', (string)($documentoOcurrencia['archivo'] ?? ''), $coincidencia)) {
+                    $claveEleccion = $documentoOcurrencia['item_id'] . ':' . $coincidencia[1] . ':' . $coincidencia[2];
+                } elseif (preg_match('/\[ELECCION:(\d+):(\d+)\]/i', (string)($documentoOcurrencia['descripcion'] ?? ''), $coincidencia)) {
+                    $claveEleccion = $documentoOcurrencia['item_id'] . ':' . $coincidencia[1] . ':' . $coincidencia[2];
+                }
+
+                if ($claveEleccion !== null) {
+                    if (isset($eleccionesPendientesVistas[$claveEleccion])) {
+                        continue;
+                    }
+                    $eleccionesPendientesVistas[$claveEleccion] = true;
+                }
+            }
+
             $documentosOcurrencia[] = $documentoOcurrencia;
             if (empty($documentoOcurrencia['verificador_id'])) {
                 $contadores['ocurrencia']++;

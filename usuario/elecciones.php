@@ -503,10 +503,33 @@ function registrar_actualizacion_elecciones_para_publicacion($conn, $year, $csvP
     $tituloCompleto = 'Elecciones - ' . $accion . ' N.º ' . (int)$numeroEleccion . ' - ' . $nombreEleccion;
     $titulo = function_exists('mb_substr') ? mb_substr($tituloCompleto, 0, 255, 'UTF-8') : substr($tituloCompleto, 0, 255);
     $descripcion = $accion . ' registrada en el módulo especial de Elecciones. Año ' . (int)$year . '. Cada versión requiere su propio verificador.';
+    $referenciaEleccion = 'ELECCION:' . (int)$year . ':' . (int)$numeroEleccion;
+    $descripcion .= ' [' . $referenciaEleccion . ']';
     $archivoRelativo = 'elecciones_versiones/' . $nombreArchivo;
 
     $conn->begin_transaction();
     try {
+        // Solo la ultima edicion no publicada de una eleccion debe requerir
+        // verificador. Las versiones que ya tienen verificador se conservan.
+        // El nombre del archivo identifica tambien los registros anteriores a
+        // la referencia interna agregada en la descripcion.
+        $patronArchivo = 'elecciones_versiones/elecciones_' . (int)$year . '_eleccion_' . (int)$numeroEleccion . '_%';
+        $patronReferencia = '%[' . $referenciaEleccion . ']%';
+        $stmtReemplazar = $conn->prepare("
+            UPDATE documentos d
+            LEFT JOIN verificadores_publicador vp ON vp.documento_id = d.id
+            SET d.estado = 'reemplazado'
+            WHERE d.item_id = ?
+              AND d.ano_carga = ?
+              AND d.estado != 'reemplazado'
+              AND vp.id IS NULL
+              AND (d.archivo LIKE ? OR d.descripcion LIKE ?)
+        ");
+        if (!$stmtReemplazar) throw new Exception('No se pudo preparar el reemplazo de la version anterior.');
+        $stmtReemplazar->bind_param('iiss', $itemId, $year, $patronArchivo, $patronReferencia);
+        if (!$stmtReemplazar->execute()) throw new Exception('No se pudo reemplazar la version pendiente anterior.');
+        $stmtReemplazar->close();
+
         $stmtDoc = $conn->prepare("
             INSERT INTO documentos
                 (item_id, usuario_id, titulo, descripcion, archivo, mes_carga, ano_carga, estado, fecha_subida)
