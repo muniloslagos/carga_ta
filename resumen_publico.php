@@ -171,9 +171,20 @@ while ($item = $all_items->fetch_assoc()) {
         $stmtSM->close();
     }
     
-    // Buscar documento (con fallback para docs sin mes_carga/ano_carga)
+    // Buscar documento. Los items por ocurrencia no generan una obligacion
+    // mensual: se evalua solamente su ultima actualizacion del ano.
     $documento = null;
-    if ($sinMovimiento) {
+    if ($item['periodicidad'] === 'ocurrencia') {
+        $stmtDoc = $conn->prepare("SELECT id, fecha_subida, titulo FROM documentos
+            WHERE item_id = ?
+            AND ano_carga = ?
+            AND estado != 'reemplazado'
+            ORDER BY fecha_subida DESC, id DESC LIMIT 1");
+        $stmtDoc->bind_param('ii', $item['id'], $ano);
+        $stmtDoc->execute();
+        $documento = $stmtDoc->get_result()->fetch_assoc();
+        $stmtDoc->close();
+    } elseif ($sinMovimiento) {
         $stmtDoc = $conn->prepare("SELECT id, fecha_subida, titulo FROM documentos 
             WHERE item_id = ? 
             AND ((mes_carga = ? AND ano_carga = ?) OR (mes_carga IS NULL AND MONTH(fecha_subida) = ? AND YEAR(fecha_subida) = ?))
@@ -236,7 +247,14 @@ while ($item = $all_items->fetch_assoc()) {
     $fecha_envio_raw = null;
     $fecha_publicacion_raw = null;
     
-    if ($verificador) {
+    if ($item['periodicidad'] === 'ocurrencia' && !$documento) {
+        $estado = 'Sin actualizaciones pendientes';
+        $estado_clase = 'success';
+        $fecha_envio = '-';
+        $fecha_publicacion = '-';
+        $totales['publicados']++;
+        $items_por_direccion[$dir_id]['totales']['publicados']++;
+    } elseif ($verificador) {
         $estado = $sinMovimiento ? 'Sin Movimiento (Publicado)' : 'Publicado';
         $estado_clase = 'success';
         // Para placeholders Sin Movimiento, usar fecha de declaración cuando exista
