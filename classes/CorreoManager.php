@@ -17,6 +17,46 @@ class CorreoManager {
         $this->conn = $db->getConnection();
         $this->email_sender = new EmailSender();
     }
+
+    /**
+     * Estado de la ultima actualizacion anual de un item por ocurrencia.
+     * Estos items no constituyen una obligacion mensual.
+     */
+    private function obtenerEstadoItemOcurrencia($item_id, $ano) {
+        $stmt = $this->conn->prepare("
+            SELECT d.id, d.fecha_subida,
+                   vp.fecha_carga_portal
+            FROM documentos d
+            LEFT JOIN verificadores_publicador vp ON vp.documento_id = d.id
+            WHERE d.item_id = ?
+              AND d.ano_carga = ?
+              AND d.estado != 'reemplazado'
+            ORDER BY d.fecha_subida DESC, d.id DESC, vp.fecha_carga_portal DESC
+            LIMIT 1
+        ");
+        if (!$stmt) {
+            return ['documento' => null, 'verificador' => null];
+        }
+
+        $stmt->bind_param('ii', $item_id, $ano);
+        $stmt->execute();
+        $fila = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if (!$fila) {
+            return ['documento' => null, 'verificador' => null];
+        }
+
+        return [
+            'documento' => [
+                'id' => $fila['id'],
+                'fecha_subida' => $fila['fecha_subida']
+            ],
+            'verificador' => !empty($fila['fecha_carga_portal'])
+                ? ['fecha_carga_portal' => $fila['fecha_carga_portal']]
+                : null
+        ];
+    }
     
     /**
      * Enviar correo de inicio de proceso a todos los cargadores
@@ -712,6 +752,32 @@ class CorreoManager {
         $items_pendientes = 0;
         
         foreach ($items as $item) {
+            if ($item['periodicidad'] === 'ocurrencia') {
+                $estadoOcurrencia = $this->obtenerEstadoItemOcurrencia((int)$item['id'], (int)$ano);
+                $documentoOcurrencia = $estadoOcurrencia['documento'];
+                $verificadorOcurrencia = $estadoOcurrencia['verificador'];
+
+                $total_items++;
+                $html .= '<tr><td>' . htmlspecialchars($item['nombre']) . '</td>';
+                if (!$documentoOcurrencia) {
+                    $items_publicados++;
+                    $html .= '<td style="color:green;"><strong>Sin actualizaciones pendientes</strong></td>';
+                    $html .= '<td colspan="2"><em>No aplica carga mensual</em></td>';
+                } elseif ($verificadorOcurrencia) {
+                    $items_publicados++;
+                    $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
+                    $html .= '<td>' . date('d/m/Y H:i', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                    $html .= '<td>' . date('d/m/Y H:i', strtotime($verificadorOcurrencia['fecha_carga_portal'])) . '</td>';
+                } else {
+                    $items_cargados++;
+                    $html .= '<td style="color:orange;"><strong>⚠ Cargado (sin publicar)</strong></td>';
+                    $html .= '<td>' . date('d/m/Y H:i', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                    $html .= '<td><em>Pendiente</em></td>';
+                }
+                $html .= '</tr>';
+                continue;
+            }
+
             // Determinar mes a usar según periodicidad
             $mes_busqueda = $mes;
             if ($item['periodicidad'] === 'anual') {
@@ -745,7 +811,8 @@ class CorreoManager {
                 // Si es Sin Movimiento, buscar SOLO el documento placeholder
                 $stmt = $this->conn->prepare("SELECT id, fecha_subida 
                     FROM documentos 
-                    WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? 
+                    WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+                    AND estado != 'reemplazado'
                     AND titulo LIKE 'Sin Movimiento%'
                     ORDER BY fecha_subida DESC
                     LIMIT 1");
@@ -759,6 +826,7 @@ class CorreoManager {
                 $stmt = $this->conn->prepare("SELECT d.id, d.fecha_subida 
                     FROM documentos d
                     WHERE d.item_id = ? AND d.mes_carga = ? AND d.ano_carga = ?
+                    AND d.estado != 'reemplazado'
                     AND (d.titulo NOT LIKE 'Sin Movimiento%' OR d.titulo IS NULL)
                     ORDER BY d.fecha_subida DESC
                     LIMIT 1");
@@ -1354,6 +1422,32 @@ class CorreoManager {
             $html .= '</tr></thead><tbody>';
             
             foreach ($items as $item) {
+                if ($item['periodicidad'] === 'ocurrencia') {
+                    $estadoOcurrencia = $this->obtenerEstadoItemOcurrencia((int)$item['id'], (int)$ano);
+                    $documentoOcurrencia = $estadoOcurrencia['documento'];
+                    $verificadorOcurrencia = $estadoOcurrencia['verificador'];
+
+                    $total_general++;
+                    $html .= '<tr><td>' . htmlspecialchars($item['nombre']) . '</td>';
+                    if (!$documentoOcurrencia) {
+                        $pub_general++;
+                        $html .= '<td style="color:green;"><strong>Sin actualizaciones pendientes</strong></td>';
+                        $html .= '<td colspan="2"><em>No aplica carga mensual</em></td>';
+                    } elseif ($verificadorOcurrencia) {
+                        $pub_general++;
+                        $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($verificadorOcurrencia['fecha_carga_portal'])) . '</td>';
+                    } else {
+                        $car_general++;
+                        $html .= '<td style="color:orange;"><strong>⚠ Cargado (Sin Publicar)</strong></td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                        $html .= '<td><em>Pendiente</em></td>';
+                    }
+                    $html .= '</tr>';
+                    continue;
+                }
+
                 // Filtrar items que no corresponden al período actual
                 $mesesTrimestral = [3, 6, 9, 12];
                 $mesesSemestral = [6, 12];
@@ -1398,7 +1492,8 @@ class CorreoManager {
                 $documento = null;
                 if ($sinMovimiento) {
                     $stmt = $this->conn->prepare("SELECT id, fecha_subida FROM documentos 
-                        WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? AND titulo LIKE 'Sin Movimiento%'
+                        WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+                        AND estado != 'reemplazado' AND titulo LIKE 'Sin Movimiento%'
                         ORDER BY fecha_subida DESC LIMIT 1");
                     $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
                     $stmt->execute();
@@ -1407,6 +1502,7 @@ class CorreoManager {
                 } else {
                     $stmt = $this->conn->prepare("SELECT id, fecha_subida FROM documentos 
                         WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+                        AND estado != 'reemplazado'
                         AND (titulo NOT LIKE 'Sin Movimiento%' OR titulo IS NULL)
                         ORDER BY fecha_subida DESC LIMIT 1");
                     $stmt->bind_param('iii', $item['id'], $mes_busqueda, $ano);
@@ -1531,6 +1627,32 @@ class CorreoManager {
             $html .= '</tr></thead><tbody>';
             
             foreach ($items as $item) {
+                if ($item['periodicidad'] === 'ocurrencia') {
+                    $estadoOcurrencia = $this->obtenerEstadoItemOcurrencia((int)$item['id'], (int)$ano);
+                    $documentoOcurrencia = $estadoOcurrencia['documento'];
+                    $verificadorOcurrencia = $estadoOcurrencia['verificador'];
+
+                    $total++;
+                    $html .= '<tr><td>' . htmlspecialchars($item['nombre']) . '</td>';
+                    if (!$documentoOcurrencia) {
+                        $pub++;
+                        $html .= '<td style="color:green;"><strong>Sin actualizaciones pendientes</strong></td>';
+                        $html .= '<td colspan="2"><em>No aplica carga mensual</em></td>';
+                    } elseif ($verificadorOcurrencia) {
+                        $pub++;
+                        $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($verificadorOcurrencia['fecha_carga_portal'])) . '</td>';
+                    } else {
+                        $car++;
+                        $html .= '<td style="color:orange;"><strong>⚠ Cargado (Sin Publicar)</strong></td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                        $html .= '<td><em>Pendiente</em></td>';
+                    }
+                    $html .= '</tr>';
+                    continue;
+                }
+
                 // Filtrar items que no corresponden al período actual
                 $mesesTrimestral = [3, 6, 9, 12];
                 $mesesSemestral = [6, 12];
@@ -1575,7 +1697,8 @@ class CorreoManager {
                 $documento = null;
                 if ($sinMovimiento) {
                     $stmtD = $this->conn->prepare("SELECT id, fecha_subida FROM documentos 
-                        WHERE item_id = ? AND mes_carga = ? AND ano_carga = ? AND titulo LIKE 'Sin Movimiento%'
+                        WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+                        AND estado != 'reemplazado' AND titulo LIKE 'Sin Movimiento%'
                         ORDER BY fecha_subida DESC LIMIT 1");
                     $stmtD->bind_param('iii', $item['id'], $mes_busqueda, $ano);
                     $stmtD->execute();
@@ -1584,6 +1707,7 @@ class CorreoManager {
                 } else {
                     $stmtD = $this->conn->prepare("SELECT id, fecha_subida FROM documentos 
                         WHERE item_id = ? AND mes_carga = ? AND ano_carga = ?
+                        AND estado != 'reemplazado'
                         AND (titulo NOT LIKE 'Sin Movimiento%' OR titulo IS NULL)
                         ORDER BY fecha_subida DESC LIMIT 1");
                     $stmtD->bind_param('iii', $item['id'], $mes_busqueda, $ano);
