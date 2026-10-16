@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/municipalidad.php';
 
 class EmailSender {
     private $conn;
@@ -155,6 +156,7 @@ class EmailSender {
      * Generar plantilla HTML para el correo
      */
     private function generarPlantillaHTML($contenido) {
+        $correoContacto = htmlspecialchars(municipalidad_correo_contacto(), ENT_QUOTES, 'UTF-8');
         $html = '<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -221,15 +223,15 @@ class EmailSender {
 <body>
     <div class="header">
         <h2 style="margin: 0;">Sistema de Transparencia Activa</h2>
-        <p style="margin: 5px 0 0 0;">Municipalidad de Los Lagos</p>
+        <p style="margin: 5px 0 0 0;">' . htmlspecialchars(municipalidad_nombre(), ENT_QUOTES, 'UTF-8') . '</p>
     </div>
     <div class="content">
         ' . $contenido . '
     </div>
     <div class="footer">
         <p style="margin: 5px 0;">Este es un correo automático del Sistema de Transparencia Activa.</p>
-        <p style="margin: 5px 0;">Por favor no responda directamente a este correo, si desea comunicarse debe hacerlo al correo <a href="mailto:transparencia@muniloslagos.cl" style="color: #007bff;">transparencia@muniloslagos.cl</a></p>
-        <p style="margin: 5px 0;">© ' . date('Y') . ' Municipalidad de Los Lagos - Todos los derechos reservados</p>
+        <p style="margin: 5px 0;">Por favor no responda directamente a este correo, si desea comunicarse debe hacerlo al correo <a href="mailto:' . $correoContacto . '" style="color: #007bff;">' . $correoContacto . '</a></p>
+        <p style="margin: 5px 0;">© ' . date('Y') . ' ' . htmlspecialchars(municipalidad_nombre(), ENT_QUOTES, 'UTF-8') . ' - Todos los derechos reservados</p>
     </div>
 </body>
 </html>';

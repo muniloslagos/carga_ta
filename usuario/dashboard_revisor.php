@@ -233,6 +233,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                 <thead class="table-light">
                     <tr>
                         <th>Item</th>
+                        <th class="text-center">Bitácora</th>
                         <th>Dirección</th>
                         <th>Cargador</th>
                         <th>Mes/Año</th>
@@ -264,6 +265,20 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                         <tr class="<?php echo $rowClass; ?>">
                             <td>
                                 <small><strong><?php echo htmlspecialchars($doc['item_titulo']); ?></strong></small>
+                            </td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalHistorialRevisor"
+                                        data-item-id="<?php echo (int)$doc['item_id']; ?>"
+                                        data-item-nombre="<?php echo htmlspecialchars($doc['item_titulo'], ENT_QUOTES); ?>"
+                                        data-mes="<?php echo (int)$doc['mes']; ?>"
+                                        data-ano="<?php echo (int)$doc['ano']; ?>"
+                                        onclick="mostrarHistorialRevisor(this)"
+                                        title="Ver bitácora e historial">
+                                    <i class="bi bi-clock-history"></i>
+                                </button>
                             </td>
                             <td><small><?php echo htmlspecialchars($doc['direccion_nombre'] ?? '—'); ?></small></td>
                             <td><small><?php echo htmlspecialchars($doc['cargador_nombre'] ?? '—'); ?></small></td>
@@ -299,7 +314,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                         </tr>
                         <?php if ($observaciones && $estado_revision === 'observado'): ?>
                             <tr class="table-warning">
-                                <td colspan="7">
+                                <td colspan="8">
                                     <small>
                                         <strong><i class="bi bi-chat-left-text"></i> Observaciones:</strong>
                                         <?php echo nl2br(htmlspecialchars($observaciones)); ?>
@@ -311,7 +326,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                     
                     <?php if (!$hay_documentos): ?>
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 <strong>No hay documentos para mostrar</strong><br>
                                 <small>
@@ -336,6 +351,36 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de bitácora e historial (solo lectura) -->
+<div class="modal fade" id="modalHistorialRevisor" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalHistorialRevisorTitle">Historial de Movimientos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%">Tipo</th>
+                                <th width="30%">Movimiento</th>
+                                <th width="25%">Usuario</th>
+                                <th width="40%">Fecha y Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialRevisorBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -406,6 +451,64 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
 </div>
 
 <script>
+function escaparHtmlRevisor(valor) {
+    const elemento = document.createElement('div');
+    elemento.textContent = valor == null ? '' : String(valor);
+    return elemento.innerHTML;
+}
+
+function mostrarHistorialRevisor(button) {
+    const itemId = button.dataset.itemId;
+    const itemNombre = button.dataset.itemNombre || '';
+    const mes = button.dataset.mes;
+    const ano = button.dataset.ano;
+    const cuerpo = document.getElementById('historialRevisorBody');
+
+    document.getElementById('modalHistorialRevisorTitle').textContent = `Historial: ${itemNombre}`;
+    cuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted"><span class="spinner-border spinner-border-sm"></span> Cargando...</td></tr>';
+
+    fetch(`get_historial.php?item_id=${encodeURIComponent(itemId)}&mes=${encodeURIComponent(mes)}&ano=${encodeURIComponent(ano)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error || 'No se pudo cargar el historial');
+            if (!data.historial || data.historial.length === 0) {
+                cuerpo.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay registros de movimientos</td></tr>';
+                return;
+            }
+
+            cuerpo.innerHTML = data.historial.map(movimiento => {
+                let icono = '<i class="bi bi-question-circle"></i>';
+                let clase = 'bg-dark';
+                let tipo = movimiento.tipo || 'Movimiento';
+                if (movimiento.tipo === 'documento_cargado') {
+                    icono = '<i class="bi bi-file-earmark-text"></i>'; clase = 'bg-primary'; tipo = 'Documento Cargado';
+                } else if (movimiento.tipo === 'verificador_agregado') {
+                    icono = '<i class="bi bi-check-circle"></i>'; clase = 'bg-success'; tipo = 'Verificador Agregado';
+                } else if (movimiento.tipo === 'sin_movimiento') {
+                    icono = '<i class="bi bi-dash-circle"></i>'; clase = 'bg-secondary'; tipo = 'Sin Movimiento';
+                } else if (movimiento.tipo === 'documento_observado') {
+                    icono = '<i class="bi bi-x-circle"></i>'; clase = 'bg-danger'; tipo = 'Documento Observado';
+                }
+
+                const fechaObjeto = new Date(movimiento.fecha);
+                const fecha = Number.isNaN(fechaObjeto.getTime()) ? '—' : fechaObjeto.toLocaleString('es-CL');
+                return `<tr>
+                    <td><span class="badge ${clase}">${icono}</span></td>
+                    <td><strong>${escaparHtmlRevisor(tipo)}</strong></td>
+                    <td>${escaparHtmlRevisor(movimiento.usuario || '—')}</td>
+                    <td>${escaparHtmlRevisor(fecha)}</td>
+                </tr>
+                <tr class="table-light"><td colspan="4"><small>
+                    <strong>Descripción:</strong> ${escaparHtmlRevisor(movimiento.descripcion || '—')}<br>
+                    <strong>Detalle:</strong> ${escaparHtmlRevisor(movimiento.detalle || '—')}
+                </small></td></tr>`;
+            }).join('');
+        })
+        .catch(error => {
+            cuerpo.innerHTML = `<tr><td colspan="4" class="text-center text-danger">${escaparHtmlRevisor(error.message)}</td></tr>`;
+        });
+}
+
 function aprobarDocumento(docId) {
     document.getElementById('aprobar_documento_id').value = docId;
     new bootstrap.Modal(document.getElementById('modalAprobar')).show();

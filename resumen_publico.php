@@ -12,6 +12,7 @@ header('Expires: 0');
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/Database.php';
 require_once __DIR__ . '/classes/ItemPlazo.php';
+require_once __DIR__ . '/includes/municipalidad.php';
 
 $db = new Database();
 $conn = $db->getConnection();
@@ -385,11 +386,12 @@ while ($d = $direcciones->fetch_assoc()) {
     <div class="container">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-3">
-                <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo_blanco2025.png" 
-                     alt="Logo Municipalidad de Los Lagos" 
+                <img src="<?php echo htmlspecialchars(municipalidad_logo_url()); ?>"
+                     alt="Logo <?php echo htmlspecialchars(municipalidad_nombre()); ?>"
                      style="height: 80px; width: auto;">
                 <div>
                     <h1 class="mb-1"><i class="bi bi-shield-check"></i> Resumen Municipal - Transparencia Activa</h1>
+                    <h5 class="mb-1"><?php echo htmlspecialchars(municipalidad_nombre()); ?></h5>
                     <h4 class="mb-0">Período: <?php echo htmlspecialchars($nombre_mes . ' ' . $ano); ?></h4>
                 </div>
             </div>
@@ -622,7 +624,7 @@ while ($d = $direcciones->fetch_assoc()) {
     <div class="text-center text-muted mb-4">
         <small>
             Generado el <?php echo date('d/m/Y H:i:s'); ?> — 
-            Municipalidad de Los Lagos — Sistema de Transparencia Activa
+            <?php echo htmlspecialchars(municipalidad_nombre()); ?> — Sistema de Transparencia Activa
         </small>
     </div>
 </div>

@@ -8,11 +8,13 @@ if ($current_profile !== 'administrativo') {
 }
 
 require_once dirname(dirname(__DIR__)) . '/includes/transparencia_pasiva_csv.php';
+require_once dirname(dirname(__DIR__)) . '/includes/municipalidad.php';
 
 $conn = $db->getConnection();
 $mensaje = '';
 $error = '';
 $tipo_mensaje = 'success';
+$configuracionMunicipal = municipalidad_config();
 
 // Verificar si existe la tabla anos_configurados
 $checkTable = $conn->query("SHOW TABLES LIKE 'anos_configurados'");
@@ -32,6 +34,64 @@ $tabla_smtp_existe = $checkTableSmtp && $checkTableSmtp->num_rows > 0;
 
 // Procesar formularios
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // Identidad visual de la municipalidad (almacenada en archivo, no en BD)
+    if (isset($_POST['guardar_municipalidad'])) {
+        try {
+            $nombreMunicipalidad = trim((string)($_POST['nombre_municipalidad'] ?? ''));
+            $largoNombre = function_exists('mb_strlen') ? mb_strlen($nombreMunicipalidad) : strlen($nombreMunicipalidad);
+            if ($largoNombre < 3 || $largoNombre > 150) {
+                throw new RuntimeException('El nombre debe contener entre 3 y 150 caracteres.');
+            }
+
+            $correoMunicipalidad = trim((string)($_POST['correo_municipalidad'] ?? ''));
+            if (!filter_var($correoMunicipalidad, FILTER_VALIDATE_EMAIL)) {
+                throw new RuntimeException('Debe ingresar un correo institucional válido.');
+            }
+
+            $logoRelativo = null;
+            $archivoLogo = $_FILES['logo_municipalidad'] ?? null;
+            $errorLogo = is_array($archivoLogo) ? (int)($archivoLogo['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+
+            if ($errorLogo !== UPLOAD_ERR_NO_FILE) {
+                if ($errorLogo !== UPLOAD_ERR_OK) {
+                    throw new RuntimeException('No fue posible recibir el archivo del logo.');
+                }
+                if ((int)$archivoLogo['size'] > 5 * 1024 * 1024) {
+                    throw new RuntimeException('El logo no puede superar los 5 MB.');
+                }
+
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime = $finfo->file($archivoLogo['tmp_name']);
+                $extensiones = [
+                    'image/png' => 'png',
+                    'image/jpeg' => 'jpg',
+                    'image/webp' => 'webp',
+                ];
+                if (!isset($extensiones[$mime])) {
+                    throw new RuntimeException('El logo debe estar en formato PNG, JPG o WEBP.');
+                }
+
+                $directorioLogo = dirname(dirname(__DIR__)) . '/uploads/configuracion';
+                if (!is_dir($directorioLogo) && !mkdir($directorioLogo, 0755, true) && !is_dir($directorioLogo)) {
+                    throw new RuntimeException('No se pudo crear la carpeta para el logo.');
+                }
+
+                $nombreLogo = 'logo_municipalidad_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.' . $extensiones[$mime];
+                if (!move_uploaded_file($archivoLogo['tmp_name'], $directorioLogo . '/' . $nombreLogo)) {
+                    throw new RuntimeException('No se pudo guardar el logo en el servidor.');
+                }
+                $logoRelativo = 'uploads/configuracion/' . $nombreLogo;
+            }
+
+            $configuracionMunicipal = municipalidad_guardar($nombreMunicipalidad, $logoRelativo, $correoMunicipalidad);
+            $mensaje = 'Configuración de la municipalidad guardada exitosamente.';
+            $tipo_mensaje = 'success';
+        } catch (Throwable $errorMunicipalidad) {
+            $error = $errorMunicipalidad->getMessage();
+            $tipo_mensaje = 'danger';
+        }
+    }
     
     // Configuración General
     if (isset($_POST['guardar_general'])) {
@@ -423,6 +483,11 @@ require_once dirname(dirname(__DIR__)) . '/includes/header.php';
             <!-- Tabs de configuración -->
             <ul class="nav nav-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="municipalidad-tab" data-bs-toggle="tab" data-bs-target="#municipalidad" type="button" role="tab">
+                        <i class="bi bi-building"></i> Municipalidad
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
                         <i class="bi bi-gear"></i> General
                     </button>
@@ -445,6 +510,57 @@ require_once dirname(dirname(__DIR__)) . '/includes/header.php';
             </ul>
 
             <div class="tab-content" id="configTabContent">
+                <!-- Tab: Municipalidad -->
+                <div class="tab-pane fade" id="municipalidad" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-building"></i> Identidad de la Municipalidad</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">
+                                Esta configuración se guarda en un archivo local y no modifica la base de datos.
+                                El mismo logo se utilizará en el acceso, selección de perfiles, cabeceras y resumen general.
+                            </p>
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="row align-items-start">
+                                    <div class="col-md-7">
+                                        <div class="mb-3">
+                                            <label for="nombre_municipalidad" class="form-label">Nombre de la municipalidad <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="nombre_municipalidad" name="nombre_municipalidad"
+                                                   value="<?= htmlspecialchars($configuracionMunicipal['nombre']) ?>" minlength="3" maxlength="150" required>
+                                            <small class="text-muted">Se mostrará en cabeceras, resúmenes y pie de los correos.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="logo_municipalidad" class="form-label">Logo general</label>
+                                            <input type="file" class="form-control" id="logo_municipalidad" name="logo_municipalidad"
+                                                   accept="image/png,image/jpeg,image/webp">
+                                            <small class="text-muted">PNG, JPG o WEBP, máximo 5 MB. Si no selecciona un archivo se conserva el actual.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="correo_municipalidad" class="form-label">Correo institucional <span class="text-danger">*</span></label>
+                                            <input type="email" class="form-control" id="correo_municipalidad" name="correo_municipalidad"
+                                                   value="<?= htmlspecialchars($configuracionMunicipal['correo_contacto']) ?>" maxlength="254" required>
+                                            <small class="text-muted">Se mostrará como correo de contacto en el pie de las notificaciones.</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5 text-center">
+                                        <div class="border rounded p-3 bg-light">
+                                            <div class="small text-muted mb-2">Logo actual</div>
+                                            <img src="<?= htmlspecialchars(municipalidad_logo_url()) ?>" alt="Logo actual"
+                                                 style="max-width: 240px; max-height: 140px; object-fit: contain;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-grid gap-2 mt-3">
+                                    <button type="submit" name="guardar_municipalidad" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> Guardar Municipalidad
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Tab: General -->
                 <div class="tab-pane fade show active" id="general" role="tabpanel">
                     <div class="card mt-3">
@@ -952,5 +1068,16 @@ require_once dirname(dirname(__DIR__)) . '/includes/header.php';
         </div>
     </div>
 </div>
+
+<?php if (isset($_POST['guardar_municipalidad'])): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const boton = document.getElementById('municipalidad-tab');
+    if (boton && window.bootstrap) {
+        bootstrap.Tab.getOrCreateInstance(boton).show();
+    }
+});
+</script>
+<?php endif; ?>
 
 <?php require_once dirname(dirname(__DIR__)) . '/includes/footer.php'; ?>

@@ -2030,7 +2030,7 @@ if (isset($_SESSION['success'])) {
                 <div class="modal-body">
                     <input type="hidden" name="item_id" id="itemIdInput">
                     <input type="hidden" name="mes_carga" id="mesCargaInput">
-                    <input type="hidden" id="anoCargaInput" value="<?php echo (int)$anoSeleccionado; ?>">
+                    <input type="hidden" name="ano_carga" id="anoCargaInput" value="<?php echo (int)$anoSeleccionado; ?>">
                     <input type="hidden" name="doc_id_reemplazar" id="docIdReemplazarInput" value="0">
 
                     <div id="camposDocumentoCorreccion">

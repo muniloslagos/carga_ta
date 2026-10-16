@@ -1777,7 +1777,7 @@ class CorreoManager {
     /**
      * Enviar correo al cargador cuando el publicador observa su documento
      */
-    public function enviarDocumentoObservado($observacion_id) {
+    public function enviarDocumentoObservado($observacion_id, $rol_observador = 'publicador') {
         // Obtener datos de la observación
         $stmt = $this->conn->prepare("
             SELECT o.*, 
@@ -1824,6 +1824,14 @@ class CorreoManager {
         
         $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
         $cuerpo = $this->reemplazarVariables($plantilla['cuerpo'], $variables);
+
+        // La misma plantilla sirve para observaciones del publicador y del
+        // revisor. Se conserva el texto historico para el flujo original y se
+        // adapta cuando la observacion proviene de revision previa.
+        if ($rol_observador === 'revisor') {
+            $asunto = str_replace(['Publicador', 'publicador'], ['Revisor', 'revisor'], $asunto);
+            $cuerpo = str_replace(['Publicador', 'publicador'], ['Revisor', 'revisor'], $cuerpo);
+        }
         
         // Enviar correo
         $exito = $this->email_sender->enviarCorreo(

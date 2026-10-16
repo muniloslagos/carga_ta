@@ -14,6 +14,7 @@ if ($current_profile !== 'revisor') {
 }
 
 require_once '../classes/Revisor.php';
+require_once '../classes/CorreoManager.php';
 
 $conn = $db->getConnection();
 $revisorClass = new Revisor($conn);
@@ -34,6 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (!$documento_id) {
         $_SESSION['mensaje_error'] = 'ID de documento inválido';
+        header('Location: dashboard_revisor.php');
+        exit;
+    }
+
+    if (!Revisor::requiereRevision($documento_id, $conn)) {
+        $_SESSION['mensaje_error'] = 'Este documento pertenece a un item por ocurrencia y no requiere revision previa.';
         header('Location: dashboard_revisor.php');
         exit;
     }
@@ -62,19 +69,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        $resultado = $revisorClass->observar($documento_id, $revisor_id, $observaciones);
-        
-        if (isset($resultado['success']) && $resultado['success']) {
-            $_SESSION['mensaje_success'] = 'Documento observado exitosamente. El cargador deberá corregirlo.';
-            
-            // Registrar en logs
+        $conn->begin_transaction();
+        try {
+            $stmtDocumento = $conn->prepare("
+                SELECT d.item_id, d.usuario_id, d.mes_carga, d.ano_carga
+                FROM documentos d
+                WHERE d.id = ?
+                LIMIT 1
+            ");
+            $stmtDocumento->bind_param('i', $documento_id);
+            $stmtDocumento->execute();
+            $documento = $stmtDocumento->get_result()->fetch_assoc();
+            $stmtDocumento->close();
+
+            if (!$documento) {
+                throw new Exception('Documento no encontrado');
+            }
+
+            $resultado = $revisorClass->observar($documento_id, $revisor_id, $observaciones);
+            if (!isset($resultado['success']) || !$resultado['success']) {
+                throw new Exception($resultado['error'] ?? 'Error al observar el documento');
+            }
+
+            // Registrar la observacion en el flujo comun para que sea visible
+            // en la bitacora, el panel del cargador y las correcciones.
+            $stmtObservacion = $conn->prepare("
+                INSERT INTO observaciones_documentos
+                    (documento_id, item_id, observado_por, cargador_id, observacion, mes, ano)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmtObservacion->bind_param(
+                'iiiisii',
+                $documento_id,
+                $documento['item_id'],
+                $revisor_id,
+                $documento['usuario_id'],
+                $observaciones,
+                $documento['mes_carga'],
+                $documento['ano_carga']
+            );
+            if (!$stmtObservacion->execute()) {
+                throw new Exception('Error al registrar la observacion para el cargador');
+            }
+            $observacion_id = (int)$conn->insert_id;
+            $stmtObservacion->close();
+
             $sql_log = "INSERT INTO logs (usuario_id, accion, ip_address) VALUES (?, 'Documento observado por revisor', ?)";
             $stmt_log = $conn->prepare($sql_log);
-            $ip = $_SERVER['REMOTE_ADDR'];
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $stmt_log->bind_param('is', $revisor_id, $ip);
             $stmt_log->execute();
-        } else {
-            $_SESSION['mensaje_error'] = $resultado['error'] ?? 'Error al observar el documento';
+            $stmt_log->close();
+
+            $conn->commit();
+            $_SESSION['mensaje_success'] = 'Documento observado exitosamente. El cargador debera corregirlo.';
+
+            // La observacion queda guardada aunque el servidor de correo falle.
+            try {
+                $correoManager = new CorreoManager();
+                $correoManager->enviarDocumentoObservado($observacion_id, 'revisor');
+                $_SESSION['mensaje_success'] .= ' Se notifico al cargador por correo.';
+            } catch (Throwable $correoError) {
+                $_SESSION['mensaje_error'] = 'La observacion fue registrada, pero no se pudo enviar el correo al cargador: ' . $correoError->getMessage();
+            }
+        } catch (Throwable $e) {
+            $conn->rollback();
+            $_SESSION['mensaje_error'] = $e->getMessage();
         }
         
     } else {

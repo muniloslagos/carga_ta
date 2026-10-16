@@ -1,6 +1,7 @@
 # Archivos de configuración local (credenciales distintas por entorno)
 config/database.php
 config/config.php
+config/municipalidad.json
 
 # Archivos de sesión de PHP
 *.session

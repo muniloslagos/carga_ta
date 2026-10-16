@@ -24,8 +24,8 @@ $db_conn = $db->getConnection();
 // Verificar permisos según el perfil
 $perfil = isset($_SESSION['profile']) ? $_SESSION['profile'] : '';
 
-if ($perfil === 'publicador' || $perfil === 'auditor' || $perfil === 'revisor') {
-    // Publicador, Auditor y Revisor pueden ver TODOS los documentos
+if ($perfil === 'publicador' || $perfil === 'auditor' || $perfil === 'revisor' || $perfil === 'administrativo') {
+    // Publicador, Auditor, Revisor y Administrativo pueden ver TODOS los documentos
     $sql = "SELECT d.*
             FROM documentos d
             WHERE d.id = ?";
@@ -33,13 +33,24 @@ if ($perfil === 'publicador' || $perfil === 'auditor' || $perfil === 'revisor') 
     $stmt = $db_conn->prepare($sql);
     $stmt->bind_param("i", $doc_id);
 } else {
-    // Otros perfiles solo pueden ver sus propios documentos
+    // Los cargadores pueden descargar documentos de cualquier usuario cuando
+    // tienen permiso de carga sobre el mismo item. El autor conserva acceso
+    // aunque su asignacion haya cambiado posteriormente.
     $sql = "SELECT d.*
             FROM documentos d
-            WHERE d.id = ? AND d.usuario_id = ?";
+            WHERE d.id = ?
+              AND (
+                    d.usuario_id = ?
+                    OR EXISTS (
+                        SELECT 1
+                        FROM item_usuarios iu
+                        WHERE iu.item_id = d.item_id
+                          AND iu.usuario_id = ?
+                    )
+              )";
     
     $stmt = $db_conn->prepare($sql);
-    $stmt->bind_param("ii", $doc_id, $_SESSION['user_id']);
+    $stmt->bind_param("iii", $doc_id, $_SESSION['user_id'], $_SESSION['user_id']);
 }
 
 $stmt->execute();
@@ -54,7 +65,14 @@ if (!$documento) {
 }
 
 // Ruta segura del archivo
-$archivo = dirname(__DIR__) . '/uploads/' . $documento['archivo'];
+$rutaRelativa = str_replace('\\', '/', trim((string)$documento['archivo']));
+$rutaRelativa = ltrim($rutaRelativa, '/');
+if ($rutaRelativa === '' || preg_match('#(^|/)\.\.(/|$)#', $rutaRelativa)) {
+    $_SESSION['error'] = 'Ruta de archivo no válida';
+    header('Location: dashboard.php');
+    exit;
+}
+$archivo = dirname(__DIR__) . '/uploads/' . $rutaRelativa;
 
 if (!file_exists($archivo)) {
     $_SESSION['error'] = 'Archivo no encontrado en el servidor';
@@ -64,7 +82,9 @@ if (!file_exists($archivo)) {
 
 // Descargar el archivo
 header('Content-Type: application/octet-stream');
-header('Content-Disposition: attachment; filename="' . basename($documento['archivo']) . '"');
+$nombreDescarga = basename($rutaRelativa);
+$nombreAlternativo = preg_replace('/[^A-Za-z0-9._-]/', '_', $nombreDescarga);
+header('Content-Disposition: attachment; filename="' . $nombreAlternativo . '"; filename*=UTF-8\'\'' . rawurlencode($nombreDescarga));
 header('Content-Length: ' . filesize($archivo));
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');

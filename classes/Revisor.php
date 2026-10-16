@@ -134,14 +134,13 @@ class Revisor {
                        rd.fecha_revision,
                        (SELECT COUNT(*) FROM verificadores_publicador WHERE documento_id = d.id) as tiene_verificador
                 FROM documentos d
-                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                 WHERE d.estado IN ('pendiente', 'aprobado')
                 AND rd.documento_id IS NULL
-                AND ds.documento_id IS NOT NULL";
+                AND i.periodicidad != 'ocurrencia'";
         
         $params = [];
         $types = "";
@@ -186,13 +185,12 @@ class Revisor {
                        rd.fecha_revision,
                        (SELECT COUNT(*) FROM verificadores_publicador WHERE documento_id = d.id) as tiene_verificador
                 FROM documentos d
-                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id
                 WHERE d.estado IN ('pendiente', 'aprobado')
-                AND ds.documento_id IS NOT NULL";
+                AND i.periodicidad != 'ocurrencia'";
         
         $params = [];
         $types = "";
@@ -236,13 +234,12 @@ class Revisor {
                        rd.observaciones as observaciones_revision,
                        rd.fecha_revision
                 FROM documentos d
-                LEFT JOIN documento_seguimiento ds ON d.id = ds.documento_id
                 INNER JOIN items_transparencia i ON d.item_id = i.id
                 LEFT JOIN direcciones dir ON i.direccion_id = dir.id
                 LEFT JOIN usuarios u ON d.usuario_id = u.id
                 INNER JOIN revisiones_documentos rd ON d.id = rd.documento_id
                 WHERE rd.revisor_id = ?
-                AND ds.documento_id IS NOT NULL";
+                AND i.periodicidad != 'ocurrencia'";
         
         $params = [$revisor_id];
         $types = "i";
@@ -281,12 +278,38 @@ class Revisor {
     }
 
     /**
+     * Los items por ocurrencia (por ejemplo, Elecciones) pasan directamente
+     * al flujo del publicador y no requieren revision previa.
+     */
+    public static function requiereRevision($documento_id, $conn) {
+        $sql = "SELECT i.periodicidad
+                FROM documentos d
+                INNER JOIN items_transparencia i ON i.id = d.item_id
+                WHERE d.id = ?
+                LIMIT 1";
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param('i', $documento_id);
+        $stmt->execute();
+        $item = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        return $item && $item['periodicidad'] !== 'ocurrencia';
+    }
+
+    /**
      * Validar si un documento puede ser publicado (para el publicador)
      * Retorna: ['puede_publicar' => true/false, 'razon' => 'mensaje']
      */
     public static function puedePublicar($documento_id, $conn) {
         // Verificar si la revisión está activada
         if (!self::estaActivado($conn)) {
+            return ['puede_publicar' => true, 'razon' => ''];
+        }
+
+        if (!self::requiereRevision($documento_id, $conn)) {
             return ['puede_publicar' => true, 'razon' => ''];
         }
 
@@ -325,7 +348,8 @@ class Revisor {
                     SUM(CASE WHEN rd.estado = 'observado' THEN 1 ELSE 0 END) as observados
                 FROM revisiones_documentos rd
                 INNER JOIN documentos d ON rd.documento_id = d.id
-                WHERE 1=1";
+                INNER JOIN items_transparencia i ON i.id = d.item_id
+                WHERE i.periodicidad != 'ocurrencia'";
         
         $params = [];
         $types = "";

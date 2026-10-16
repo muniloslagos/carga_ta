@@ -3,6 +3,7 @@ require_once '../includes/check_auth.php';
 require_login();
 require_once '../config/config.php';
 require_once '../config/Database.php';
+require_once '../classes/Documento.php';
 
 header('Content-Type: application/json');
 
@@ -123,35 +124,17 @@ if ($accion === 'actualizar_observacion') {
         exit;
     }
     
-    // Subir archivo
-    $file = $_FILES['archivo'];
-    $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
-    $maxSize = 200 * 1024 * 1024; // 200MB
-    
-    $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    
-    if (!in_array($fileExt, $allowedTypes)) {
-        echo json_encode(['success' => false, 'error' => 'Tipo de archivo no permitido']);
+    // Subir el archivo a documentos/AÑO/MES/item_ID, conservando un nombre
+    // reconocible y creando una nueva versión si ya existe.
+    $documentoArchivos = new Documento($conn);
+    $uploadResult = $documentoArchivos->uploadFile($_FILES['archivo'], $item_id, $mes, $ano);
+    if (isset($uploadResult['error'])) {
+        echo json_encode(['success' => false, 'error' => $uploadResult['error']]);
         exit;
     }
-    
-    if ($file['size'] > $maxSize) {
-        echo json_encode(['success' => false, 'message' => 'El archivo es demasiado grande (máximo 100MB)']);
-        exit;
-    }
-    
-    $uploadDir = dirname(__DIR__) . '/uploads/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
-    
-    $filename = uniqid('doc_') . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file['name']);
-    $filepath = $uploadDir . $filename;
-    
-    if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-        echo json_encode(['success' => false, 'error' => 'Error al subir el archivo']);
-        exit;
-    }
+
+    $filename = $uploadResult['filename'];
+    $filepath = $uploadResult['filepath'];
     
     // Iniciar transacción
     $conn->begin_transaction();

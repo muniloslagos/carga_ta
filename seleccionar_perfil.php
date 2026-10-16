@@ -5,6 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/municipalidad.php';
 require_once __DIR__ . '/config/Database.php';
 require_once __DIR__ . '/classes/Usuario.php';
 
@@ -164,7 +165,8 @@ $descripciones_perfiles = [
             <div class="col-md-10">
                 <div class="card shadow-lg">
                     <div class="card-header text-center" style="padding: 30px 20px;">
-                        <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo2025.png" alt="Logo Municipalidad" style="max-width: 150px; margin-bottom: 20px;">
+                        <img src="<?php echo htmlspecialchars(municipalidad_logo_url()); ?>" alt="Logo <?php echo htmlspecialchars(municipalidad_nombre()); ?>" style="max-width: 150px; max-height: 120px; object-fit: contain; margin-bottom: 20px;">
+                        <div class="mb-2"><?php echo htmlspecialchars(municipalidad_nombre()); ?></div>
                         <h3>Bienvenido/a, <?php echo htmlspecialchars($user['nombre']); ?></h3>
                         <p class="mb-0">Tienes múltiples perfiles asignados. Selecciona con cuál deseas ingresar:</p>
                     </div>

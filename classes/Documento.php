@@ -218,8 +218,11 @@ class Documento {
     // Eliminar documento
     public function delete($id) {
         $doc = $this->getById($id);
-        if ($doc && file_exists($doc['archivo'])) {
-            unlink($doc['archivo']);
+        if ($doc) {
+            $rutaArchivo = $this->getAbsoluteFilePath($doc['archivo']);
+            if ($rutaArchivo && is_file($rutaArchivo)) {
+                unlink($rutaArchivo);
+            }
         }
 
         $sql = "DELETE FROM {$this->table} WHERE id = ?";
@@ -229,10 +232,14 @@ class Documento {
     }
 
     // Subir archivo
-    public function uploadFile($file) {
+    public function uploadFile($file, $itemId = null, $mes = null, $ano = null) {
         // Tipos permitidos: PDF, documentos Word, Excel, imágenes y archivos comprimidos
         $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
         $maxSize = 200 * 1024 * 1024; // 200MB
+
+        if (!isset($file['error']) || (int)$file['error'] !== UPLOAD_ERR_OK) {
+            return ['error' => 'El archivo no se recibió correctamente'];
+        }
 
         $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         
@@ -244,14 +251,66 @@ class Documento {
             return ['error' => 'El archivo es demasiado grande (máximo 100MB)'];
         }
 
-        $filename = uniqid('doc_') . '.' . $fileExt;
-        $filepath = $this->uploadDir . $filename;
+        $relativeDir = '';
+        $destinationDir = $this->uploadDir;
+        if ((int)$itemId > 0 && (int)$mes >= 1 && (int)$mes <= 12 && (int)$ano > 0) {
+            $relativeDir = 'documentos/' . sprintf('%04d', (int)$ano)
+                . '/' . sprintf('%02d', (int)$mes)
+                . '/item_' . (int)$itemId . '/';
+            $destinationDir .= $relativeDir;
+        }
+
+        if (!is_dir($destinationDir) && !mkdir($destinationDir, 0755, true) && !is_dir($destinationDir)) {
+            return ['error' => 'No se pudo crear la carpeta de destino del documento'];
+        }
+
+        $originalName = basename(str_replace('\\', '/', (string)$file['name']));
+        $baseName = pathinfo($originalName, PATHINFO_FILENAME);
+        $baseName = preg_replace('/[^\p{L}\p{N}._ -]+/u', '_', $baseName);
+        $baseName = trim((string)$baseName, " .-_\t\n\r\0\x0B");
+        if ($baseName === '') {
+            $baseName = 'documento';
+        }
+        if (function_exists('mb_substr')) {
+            $baseName = mb_substr($baseName, 0, 120, 'UTF-8');
+        } else {
+            $baseName = substr($baseName, 0, 120);
+        }
+
+        $filename = $baseName . '.' . $fileExt;
+        $version = 2;
+        while (file_exists($destinationDir . $filename)) {
+            $filename = $baseName . '_v' . $version . '.' . $fileExt;
+            $version++;
+        }
+
+        $relativePath = $relativeDir . $filename;
+        $filepath = $destinationDir . $filename;
 
         if (move_uploaded_file($file['tmp_name'], $filepath)) {
-            return ['success' => true, 'filepath' => $filepath, 'filename' => $filename];
+            return [
+                'success' => true,
+                'filepath' => $filepath,
+                'filename' => $relativePath,
+                'download_name' => $filename,
+            ];
         }
 
         return ['error' => 'Error al subir el archivo'];
+    }
+
+    /**
+     * Resuelve rutas antiguas (archivo.ext) y nuevas
+     * (documentos/AAAA/MM/item_ID/archivo.ext) dentro de uploads.
+     */
+    public function getAbsoluteFilePath($relativePath) {
+        $relativePath = str_replace('\\', '/', trim((string)$relativePath));
+        $relativePath = ltrim($relativePath, '/');
+        if ($relativePath === '' || preg_match('#(^|/)\.\.(/|$)#', $relativePath)) {
+            return null;
+        }
+
+        return $this->uploadDir . $relativePath;
     }
 }
 ?>

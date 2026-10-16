@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/includes/municipalidad.php';
 require_once __DIR__ . '/config/Database.php';
 
 // Inicializar base de datos
@@ -116,10 +117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="col-md-6">
                 <div class="card shadow-lg">
                     <div class="card-header text-center" style="padding: 30px 20px;">
-                        <img src="https://muniloslagos.cl/wp-content/uploads/2025/02/logo2025.png" alt="Logo Municipalidad" style="max-width: 180px; margin-bottom: 20px;">
+                        <img src="<?php echo htmlspecialchars(municipalidad_logo_url()); ?>" alt="Logo <?php echo htmlspecialchars(municipalidad_nombre()); ?>" style="max-width: 180px; max-height: 140px; object-fit: contain; margin-bottom: 20px;">
                         <div>
                             <i class="bi bi-shield-check" style="font-size: 2rem; color: white;"></i>
                             <h2 class="mt-2"><?php echo SITE_NAME; ?></h2>
+                            <p class="mb-0"><?php echo htmlspecialchars(municipalidad_nombre()); ?></p>
                         </div>
                     </div>
                     <div class="card-body">
@@ -155,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="text-center mt-4">
-                    <p class="text-muted">&copy; 2025 Sistema de Transparencia Activa</p>
+                    <p class="text-muted">&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars(municipalidad_nombre()); ?> — Sistema de Transparencia Activa</p>
                 </div>
             </div>
         </div>
