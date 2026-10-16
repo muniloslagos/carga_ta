@@ -716,15 +716,12 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5 class="d-inline-block mb-0">Items Mensuales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5>
-                        <?php if ($plazoTituloE): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
                               data-bs-placement="top" 
-                              data-bs-html="true"
-                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
-                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloE)); ?>
+                              title="Consulte el plazo de envío y publicación informado en cada ítem.">
+                            <i class="bi bi-calendar-event me-1"></i> Plazos según ítem
                         </span>
-                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -891,6 +888,13 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td>
                                             <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php if ($plazoFinal || $plazoPublicFinal): ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
+                                                    <?php if ($plazoFinal && $plazoPublicFinal): ?> · <?php endif; ?>
+                                                    <?php if ($plazoPublicFinal): ?><span title="Plazo publicador"><i class="bi bi-globe"></i> <?php echo date('d/m/Y', strtotime($plazoPublicFinal)); ?></span><?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php if ($observacion): ?>
                                                 <div class="mt-2">
                                                     <?php echo $estadoBadge; ?>
@@ -1047,15 +1051,12 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5 class="d-inline-block mb-0">Items Trimestrales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5>
-                        <?php if ($plazoTituloET): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
                               data-bs-placement="top" 
-                              data-bs-html="true"
-                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
-                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloET)); ?>
+                              title="Consulte el plazo de envío y publicación informado en cada ítem.">
+                            <i class="bi bi-calendar-event me-1"></i> Plazos según ítem
                         </span>
-                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -1177,6 +1178,13 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td>
                                             <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php if ($plazoFinal || $plazoPublicFinal): ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
+                                                    <?php if ($plazoFinal && $plazoPublicFinal): ?> · <?php endif; ?>
+                                                    <?php if ($plazoPublicFinal): ?><span title="Plazo publicador"><i class="bi bi-globe"></i> <?php echo date('d/m/Y', strtotime($plazoPublicFinal)); ?></span><?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
                                             <?php if (!empty($observacionRevisorHtml)): ?>
                                                 <div class="mt-2">
@@ -1328,15 +1336,12 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5 class="d-inline-block mb-0">Items Semestrales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?></h5>
-                        <?php if ($plazoTituloES): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
                               data-bs-placement="top" 
-                              data-bs-html="true"
-                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
-                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloES)); ?>
+                              title="Consulte el plazo de envío y publicación informado en cada ítem.">
+                            <i class="bi bi-calendar-event me-1"></i> Plazos según ítem
                         </span>
-                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -1460,6 +1465,13 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td>
                                             <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php if ($plazoFinal || $plazoPublicFinal): ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
+                                                    <?php if ($plazoFinal && $plazoPublicFinal): ?> · <?php endif; ?>
+                                                    <?php if ($plazoPublicFinal): ?><span title="Plazo publicador"><i class="bi bi-globe"></i> <?php echo date('d/m/Y', strtotime($plazoPublicFinal)); ?></span><?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
                                             <?php if (!empty($observacionRevisorHtml)): ?>
                                                 <div class="mt-2">
@@ -1610,15 +1622,12 @@ if (isset($_SESSION['success'])) {
                 <div class="row align-items-center mb-3">
                     <div class="col">
                         <h5 class="d-inline-block mb-0">Items Anuales &mdash; <?php echo $anoSeleccionado; ?></h5>
-                        <?php if ($plazoTituloEA): ?>
                         <span class="badge ms-3 px-3 py-2" style="background-color: #ff8c00; font-size: 0.9rem; vertical-align: middle;" 
                               data-bs-toggle="tooltip" 
                               data-bs-placement="top" 
-                              data-bs-html="true"
-                              title="Deberá enviar todos los documentos antes de esta fecha. El no cumplimiento puede resultar en:<br>• Incumplimiento de la Ley N° 20.285 sobre Transparencia<br>• Sanciones administrativas<br>• Multas según lo establece el CPLT">
-                            <i class="bi bi-calendar-event me-1"></i> Plazo envío: <?php echo date('d/m/Y', strtotime($plazoTituloEA)); ?>
+                              title="Consulte el plazo de envío y publicación informado en cada ítem.">
+                            <i class="bi bi-calendar-event me-1"></i> Plazos según ítem
                         </span>
-                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -1739,6 +1748,13 @@ if (isset($_SESSION['success'])) {
                                         </td>
                                         <td>
                                             <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php if ($plazoFinal || $plazoPublicFinal): ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
+                                                    <?php if ($plazoFinal && $plazoPublicFinal): ?> · <?php endif; ?>
+                                                    <?php if ($plazoPublicFinal): ?><span title="Plazo publicador"><i class="bi bi-globe"></i> <?php echo date('d/m/Y', strtotime($plazoPublicFinal)); ?></span><?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <?php $observacionRevisorHtml = construirObservacionRevisorHtml($ultimoDoc, $revisionActivada); ?>
                                             <?php if (!empty($observacionRevisorHtml)): ?>
                                                 <div class="mt-2">

@@ -194,7 +194,16 @@ function renderTablaAuditor($items, $documentoClass, $verificadorClass, $itemPla
         ?>
         <tr class="<?php echo $rowClass; ?>" data-estado="<?php echo $dataEstado; ?>">
             <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
-            <td><?php echo htmlspecialchars($item['nombre']); ?></td>
+            <td>
+                <?php echo htmlspecialchars($item['nombre']); ?>
+                <?php if ($plazoEnvioFinal || $plazoPublicFinal): ?>
+                    <div class="small text-muted mt-1">
+                        <?php if ($plazoEnvioFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoEnvioFinal)); ?></span><?php endif; ?>
+                        <?php if ($plazoEnvioFinal && $plazoPublicFinal): ?> · <?php endif; ?>
+                        <?php if ($plazoPublicFinal): ?><span title="Plazo publicador"><i class="bi bi-globe"></i> <?php echo date('d/m/Y', strtotime($plazoPublicFinal)); ?></span><?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </td>
             <td><small><?php echo htmlspecialchars($item['direccion_nombre'] ?? 'Sin dirección'); ?></small></td>
             <td>
                 <button type="button" class="btn btn-sm btn-link p-0"
@@ -354,13 +363,9 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         <div class="row align-items-center mb-3">
             <div class="col">
                 <h5>Items Mensuales &mdash; <?php echo $meses[$mesSeleccionado] . ' ' . $anoSeleccionado; ?>
-                    <?php if ($plazoTituloEAM || $plazoTituloPAM): ?>
                     <small class="text-muted fw-normal ms-2">
-                        <?php if ($plazoTituloEAM): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAM)); ?><?php endif; ?>
-                        <?php if ($plazoTituloEAM && $plazoTituloPAM): ?> &nbsp;|&nbsp; <?php endif; ?>
-                        <?php if ($plazoTituloPAM): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAM)); ?><?php endif; ?>
+                        Plazos detallados por ítem
                     </small>
-                    <?php endif; ?>
                 </h5>
             </div>
             <div class="col-auto">
@@ -402,13 +407,9 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         ?>
         <div class="mb-3">
             <h5>Items Trimestrales
-                <?php if ($plazoTituloEAT || $plazoTituloPAT): ?>
                 <small class="text-muted fw-normal ms-2">
-                    <?php if ($plazoTituloEAT): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAT)); ?><?php endif; ?>
-                    <?php if ($plazoTituloEAT && $plazoTituloPAT): ?> &nbsp;|&nbsp; <?php endif; ?>
-                    <?php if ($plazoTituloPAT): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAT)); ?><?php endif; ?>
+                    Plazos detallados por ítem
                 </small>
-                <?php endif; ?>
             </h5>
         </div>
         <div class="table-responsive">
@@ -435,13 +436,9 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         ?>
         <div class="mb-3">
             <h5>Items Semestrales
-                <?php if ($plazoTituloEAS || $plazoTituloPAS): ?>
                 <small class="text-muted fw-normal ms-2">
-                    <?php if ($plazoTituloEAS): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAS)); ?><?php endif; ?>
-                    <?php if ($plazoTituloEAS && $plazoTituloPAS): ?> &nbsp;|&nbsp; <?php endif; ?>
-                    <?php if ($plazoTituloPAS): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAS)); ?><?php endif; ?>
+                    Plazos detallados por ítem
                 </small>
-                <?php endif; ?>
             </h5>
         </div>
         <div class="table-responsive">
@@ -469,13 +466,9 @@ foreach (['mensual','trimestral','semestral','anual'] as $p) {
         ?>
         <div class="mb-3">
             <h5>Items Anuales &mdash; <?php echo $anoSeleccionado; ?>
-                <?php if ($plazoTituloEAA || $plazoTituloPAA): ?>
                 <small class="text-muted fw-normal ms-2">
-                    <?php if ($plazoTituloEAA): ?>Plazo Interno: <?php echo date('d/m/Y', strtotime($plazoTituloEAA)); ?><?php endif; ?>
-                    <?php if ($plazoTituloEAA && $plazoTituloPAA): ?> &nbsp;|&nbsp; <?php endif; ?>
-                    <?php if ($plazoTituloPAA): ?>Plazo Ley: <?php echo date('d/m/Y', strtotime($plazoTituloPAA)); ?><?php endif; ?>
+                    Plazos detallados por ítem
                 </small>
-                <?php endif; ?>
             </h5>
         </div>
         <div class="table-responsive">

@@ -7,15 +7,18 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/EmailSender.php';
 require_once __DIR__ . '/PlazoCalculator.php';
+require_once __DIR__ . '/ItemPlazo.php';
 
 class CorreoManager {
     private $conn;
     private $email_sender;
+    private $item_plazo;
     
     public function __construct() {
         global $db;
         $this->conn = $db->getConnection();
         $this->email_sender = new EmailSender();
+        $this->item_plazo = new ItemPlazo($this->conn);
     }
 
     /**
@@ -77,9 +80,9 @@ class CorreoManager {
             $siguiente_ano++;
         }
         
-        // Calcular plazo: 6° día hábil del mes siguiente
-        $plazo_dias = 6;
-        $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
+        // Los plazos pueden variar por ítem; el detalle exacto se incluye en la lista.
+        $plazo_dias = 'según cada ítem';
+        $fecha_limite = 'según el plazo indicado para cada ítem';
         
         // Obtener todos los cargadores con sus ítems asignados para este mes
         $cargadores = $this->obtenerCargadoresConItems($mes);
@@ -97,9 +100,9 @@ class CorreoManager {
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
                     '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
-                    '{items_asignados}' => $this->generarListaItems($cargador['items']),
+                    '{items_asignados}' => $this->generarListaItems($cargador['items'], $mes, $ano),
                     '{plazo_dias}' => $plazo_dias,
-                    '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+                    '{fecha_limite}' => $fecha_limite
                 ];
                 
                 $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
@@ -174,9 +177,9 @@ class CorreoManager {
                         '{mes_carga}' => $this->nombreMes($mes),
                         '{ano_carga}' => $ano,
                         '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
-                        '{items_asignados}' => $this->generarListaItems($items_director),
+                        '{items_asignados}' => $this->generarListaItems($items_director, $mes, $ano),
                         '{plazo_dias}' => $plazo_dias,
-                        '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+                        '{fecha_limite}' => $fecha_limite
                     ];
                     
                     $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
@@ -264,9 +267,8 @@ class CorreoManager {
             $siguiente_ano++;
         }
         
-        // Calcular plazo: 6° día hábil del mes siguiente
-        $plazo_dias = 6;
-        $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
+        $plazo_dias = 'según cada ítem';
+        $fecha_limite = 'según el plazo indicado para cada ítem';
         
         // Reemplazar variables
         $variables = [
@@ -274,9 +276,9 @@ class CorreoManager {
             '{mes_carga}' => $this->nombreMes($mes),
             '{ano_carga}' => $ano,
             '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
-            '{items_asignados}' => $this->generarListaItems($cargador['items']),
+            '{items_asignados}' => $this->generarListaItems($cargador['items'], $mes, $ano),
             '{plazo_dias}' => $plazo_dias,
-            '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+            '{fecha_limite}' => $fecha_limite
         ];
         
         $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
@@ -340,9 +342,8 @@ class CorreoManager {
             $siguiente_ano++;
         }
         
-        // Calcular plazo: 6° día hábil del mes siguiente
-        $plazo_dias = 6;
-        $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
+        $plazo_dias = 'según cada ítem';
+        $fecha_limite = 'según el plazo indicado para cada ítem';
         
         // Obtener nombres de las direcciones del director
         $stmtDir = $this->conn->prepare("SELECT nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
@@ -364,9 +365,9 @@ class CorreoManager {
             '{mes_carga}' => $this->nombreMes($mes),
             '{ano_carga}' => $ano,
             '{mes_siguiente}' => $this->nombreMes($siguiente_mes),
-            '{items_asignados}' => $this->generarListaItems($items_director),
+            '{items_asignados}' => $this->generarListaItems($items_director, $mes, $ano),
             '{plazo_dias}' => $plazo_dias,
-            '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+            '{fecha_limite}' => $fecha_limite
         ];
         
         $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
@@ -517,14 +518,28 @@ class CorreoManager {
     /**
      * Generar lista HTML de ítems
      */
-    private function generarListaItems($items) {
+    private function generarListaItems($items, $mes = null, $ano = null) {
         if (empty($items)) {
             return '<p><em>No tiene ítems asignados</em></p>';
         }
         
         $html = '<ul>';
         foreach ($items as $item) {
-            $html .= '<li>' . htmlspecialchars($item['nombre']) . ' (' . htmlspecialchars($item['periodicidad']) . ')</li>';
+            $detallePlazo = '';
+            if ($mes !== null && $ano !== null) {
+                $fecha = $this->item_plazo->getPlazoFinal(
+                    (int)$item['id'],
+                    (int)$ano,
+                    (int)$mes,
+                    $item['periodicidad']
+                );
+                if ($fecha) {
+                    $detallePlazo = ' — plazo cargador: <strong>'
+                        . date('d-m-Y', strtotime($fecha)) . '</strong>';
+                }
+            }
+            $html .= '<li>' . htmlspecialchars($item['nombre']) . ' ('
+                . htmlspecialchars($item['periodicidad']) . ')' . $detallePlazo . '</li>';
         }
         $html .= '</ul>';
         
@@ -535,7 +550,18 @@ class CorreoManager {
      * Reemplazar variables en texto
      */
     private function reemplazarVariables($texto, $variables) {
-        return str_replace(array_keys($variables), array_values($variables), $texto);
+        $resultado = str_replace(array_keys($variables), array_values($variables), $texto);
+
+        // Mantener legibles las plantillas antiguas, que asumían un único plazo 6/10.
+        return str_replace([
+            'según cada ítem días hábiles (hasta el <strong>según el plazo indicado para cada ítem</strong>)',
+            'el día de <strong>hoy (según el plazo configurado para cada ítem)</strong>',
+            'el día de hoy, <strong>según el plazo configurado para cada ítem</strong>, correspondiente al <strong>10° día hábil del mes</strong>',
+        ], [
+            'el indicado para cada ítem en la lista anterior',
+            '<strong>al cumplirse el plazo configurado para cada ítem</strong>',
+            '<strong>al cumplirse los plazos configurados para cada ítem</strong>',
+        ], $resultado);
     }
     
     /**
@@ -591,15 +617,8 @@ class CorreoManager {
             throw new Exception('No se encontró la plantilla de fin de proceso cargadores');
         }
         
-        // Calcular fecha límite que ya venció
-        $siguiente_mes = $mes + 1;
-        $siguiente_ano = $ano;
-        if ($siguiente_mes > 12) {
-            $siguiente_mes = 1;
-            $siguiente_ano++;
-        }
-        $plazo_dias = 6;
-        $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
+        // No existe una fecha única cuando hay plazos diferenciados por ítem.
+        $fecha_limite = 'según el plazo configurado para cada ítem';
         
         // Obtener todos los cargadores con sus ítems asignados
         $cargadores = $this->obtenerCargadoresConItems();
@@ -619,7 +638,7 @@ class CorreoManager {
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
                     '{resumen_carga}' => $resumen_carga,
-                    '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+                    '{fecha_limite}' => $fecha_limite
                 ];
                 
                 $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
@@ -682,15 +701,7 @@ class CorreoManager {
             throw new Exception('No se encontró el cargador o no tiene ítems asignados');
         }
         
-        // Calcular fecha límite
-        $siguiente_mes = $mes + 1;
-        $siguiente_ano = $ano;
-        if ($siguiente_mes > 12) {
-            $siguiente_mes = 1;
-            $siguiente_ano++;
-        }
-        $plazo_dias = 6;
-        $fecha_limite = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, $plazo_dias);
+        $fecha_limite = 'según el plazo configurado para cada ítem';
         
         // Obtener resumen de carga
         $resumen_carga = $this->obtenerResumenCargaUsuario($usuario_id, $mes, $ano);
@@ -701,7 +712,7 @@ class CorreoManager {
             '{mes_carga}' => $this->nombreMes($mes),
             '{ano_carga}' => $ano,
             '{resumen_carga}' => $resumen_carga,
-            '{fecha_limite}' => date('d-m-Y', strtotime($fecha_limite))
+            '{fecha_limite}' => $fecha_limite
         ];
         
         $asunto = $this->reemplazarVariables($plantilla['asunto'], $variables);
@@ -958,14 +969,8 @@ class CorreoManager {
         $token = $this->generarTokenPublico($mes, $ano);
         $enlace_resumen = SITE_URL . 'resumen_publico.php?token=' . $token;
         
-        // Calcular fecha del 10° día hábil
-        $siguiente_mes = $mes + 1;
-        $siguiente_ano = $ano;
-        if ($siguiente_mes > 12) {
-            $siguiente_mes = 1;
-            $siguiente_ano++;
-        }
-        $fecha_cierre = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, 10);
+        // Cada ítem puede tener un plazo de publicación distinto.
+        $fecha_cierre = 'según el plazo configurado para cada ítem';
         
         // Obtener directores con correo
         $directores = $this->obtenerDirectoresConCorreo();
@@ -998,7 +1003,7 @@ class CorreoManager {
                     '{direcciones_director}' => $texto_direcciones,
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
-                    '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+                    '{fecha_cierre}' => $fecha_cierre,
                     '{resumen_general}' => $resumen_director,
                     '{enlace_resumen}' => $enlace_resumen
                 ];
@@ -1054,7 +1059,7 @@ class CorreoManager {
                         '{direcciones_director}' => 'Todas las direcciones del municipio',
                         '{mes_carga}' => $this->nombreMes($mes),
                         '{ano_carga}' => $ano,
-                        '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+                        '{fecha_cierre}' => $fecha_cierre,
                         '{resumen_general}' => $resumen_completo,
                         '{enlace_resumen}' => $enlace_resumen
                     ];
@@ -1148,7 +1153,7 @@ class CorreoManager {
                     '{direcciones_director}' => 'Todas las direcciones del municipio',
                     '{mes_carga}' => $this->nombreMes($mes),
                     '{ano_carga}' => $ano,
-                    '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+                    '{fecha_cierre}' => $fecha_cierre,
                     '{resumen_general}' => $resumen_completo,
                     '{enlace_resumen}' => $enlace_resumen
                 ];
@@ -1331,14 +1336,7 @@ class CorreoManager {
         $token = $this->generarTokenPublico($mes, $ano);
         $enlace_resumen = SITE_URL . 'resumen_publico.php?token=' . $token;
         
-        // Calcular fecha del 10° día hábil
-        $siguiente_mes = $mes + 1;
-        $siguiente_ano = $ano;
-        if ($siguiente_mes > 12) {
-            $siguiente_mes = 1;
-            $siguiente_ano++;
-        }
-        $fecha_cierre = PlazoCalculator::calcularNesimoDiaHabil($siguiente_ano, $siguiente_mes, 10);
+        $fecha_cierre = 'según el plazo configurado para cada ítem';
         
         // Obtener nombres de direcciones asignadas
         $stmtDir = $this->conn->prepare("SELECT nombre FROM direcciones WHERE director_id = ? AND activa = 1 ORDER BY nombre");
@@ -1361,7 +1359,7 @@ class CorreoManager {
             '{direcciones_director}' => $texto_direcciones,
             '{mes_carga}' => $this->nombreMes($mes),
             '{ano_carga}' => $ano,
-            '{fecha_cierre}' => date('d-m-Y', strtotime($fecha_cierre)),
+            '{fecha_cierre}' => $fecha_cierre,
             '{resumen_general}' => $resumen_director,
             '{enlace_resumen}' => $enlace_resumen
         ];

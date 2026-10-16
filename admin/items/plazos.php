@@ -16,12 +16,112 @@ require_once '../../classes/PlazoCalculator.php';
 
 $itemClass = new Item($db->getConnection());
 $itemPlazoClass = new ItemPlazo($db->getConnection());
+$conn = $db->getConnection();
 
 $success = '';
 $error = '';
+$tabActiva = $_GET['tab'] ?? 'mes';
+
+if (empty($_SESSION['csrf_instalar_plazos_item'])) {
+    $_SESSION['csrf_instalar_plazos_item'] = bin2hex(random_bytes(32));
+}
+
+$columnasPlazoItem = ['plazo_dias_cargador', 'plazo_dias_publicador'];
+$obtenerColumnasPlazoItem = static function ($conexion) use ($columnasPlazoItem) {
+    $encontradas = [];
+    $sql = "SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'items_transparencia'
+              AND COLUMN_NAME IN ('plazo_dias_cargador', 'plazo_dias_publicador')";
+    $resultado = $conexion->query($sql);
+    if ($resultado) {
+        while ($fila = $resultado->fetch_assoc()) {
+            $encontradas[] = $fila['COLUMN_NAME'];
+        }
+    }
+    return $encontradas;
+};
+
+$columnasPlazoEncontradas = $obtenerColumnasPlazoItem($conn);
+$plazosPorItemInstalados = count(array_intersect($columnasPlazoItem, $columnasPlazoEncontradas)) === count($columnasPlazoItem);
+
+// Instalación controlada desde el panel administrativo. Cada ALTER es idempotente
+// porque solo se ejecuta para una columna que todavía no existe.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instalar_plazos_item'])) {
+    $tabActiva = 'items';
+    $csrfRecibido = (string)($_POST['csrf_token'] ?? '');
+    if (!hash_equals($_SESSION['csrf_instalar_plazos_item'], $csrfRecibido)) {
+        $error = 'La sesión de instalación expiró. Recargue la página e inténtelo nuevamente.';
+    } else {
+        $definiciones = [
+            'plazo_dias_cargador' => "TINYINT UNSIGNED NULL DEFAULT NULL COMMENT 'Día hábil base para el cargador; NULL hereda 6'",
+            'plazo_dias_publicador' => "TINYINT UNSIGNED NULL DEFAULT NULL COMMENT 'Día hábil base para el publicador; NULL hereda 10'",
+        ];
+
+        foreach ($definiciones as $columna => $definicion) {
+            if (!in_array($columna, $columnasPlazoEncontradas, true)) {
+                if (!$conn->query("ALTER TABLE items_transparencia ADD COLUMN `$columna` $definicion")) {
+                    $error = 'No se pudo actualizar la base de datos: ' . $conn->error;
+                    break;
+                }
+            }
+        }
+
+        $columnasPlazoEncontradas = $obtenerColumnasPlazoItem($conn);
+        $plazosPorItemInstalados = count(array_intersect($columnasPlazoItem, $columnasPlazoEncontradas)) === count($columnasPlazoItem);
+        if (!$error && $plazosPorItemInstalados) {
+            $success = 'La sección Plazos por Ítem fue instalada correctamente. La base de datos quedó actualizada.';
+            $_SESSION['csrf_instalar_plazos_item'] = bin2hex(random_bytes(32));
+        } elseif (!$error) {
+            $error = 'La actualización no pudo completarse. Verifique los permisos de la base de datos.';
+        }
+    }
+}
+
+// Guardar o eliminar la regla base permanente de un ítem.
+elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo_item'])) {
+    $tabActiva = 'items';
+    $item_id = (int)($_POST['item_id'] ?? 0);
+    $plazo_cargador = (int)($_POST['plazo_dias_cargador'] ?? 0);
+    $plazo_publicador = (int)($_POST['plazo_dias_publicador'] ?? 0);
+
+    if (!$plazosPorItemInstalados) {
+        $error = 'Debe instalar la sección Plazos por Ítem antes de guardar reglas.';
+    } elseif (!$item_id) {
+        $error = 'Debe seleccionar un ítem.';
+    } elseif ($plazo_cargador < 1 || $plazo_cargador > 23 || $plazo_publicador < 1 || $plazo_publicador > 23) {
+        $error = 'Los plazos deben estar entre 1 y 23 días hábiles.';
+    } elseif ($plazo_publicador < $plazo_cargador) {
+        $error = 'El plazo del publicador no puede ser anterior al plazo del cargador.';
+    } else {
+        $itemSeleccionado = $itemClass->getById($item_id);
+        if (!$itemSeleccionado || empty($itemSeleccionado['activo']) || $itemSeleccionado['periodicidad'] === 'ocurrencia') {
+            $error = 'El ítem seleccionado no admite un plazo programado.';
+        } elseif ($itemPlazoClass->guardarPlazoBaseItem($item_id, $plazo_cargador, $plazo_publicador)) {
+            $success = 'Plazo personalizado guardado para “' . $itemSeleccionado['nombre'] . '”.';
+        } else {
+            $error = 'No se pudo guardar el plazo personalizado.';
+        }
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_plazo_item'])) {
+    $tabActiva = 'items';
+    $item_id = (int)($_POST['item_id'] ?? 0);
+    $itemSeleccionado = $item_id ? $itemClass->getById($item_id) : null;
+    if (!$plazosPorItemInstalados) {
+        $error = 'La sección Plazos por Ítem aún no está instalada.';
+    } elseif (!$itemSeleccionado) {
+        $error = 'El ítem seleccionado no existe.';
+    } elseif ($itemPlazoClass->eliminarPlazoBaseItem($item_id)) {
+        $success = 'Se eliminó el plazo personalizado. El ítem volvió al plazo general de 6/10 días hábiles.';
+    } else {
+        $error = 'No se pudo restablecer el plazo general del ítem.';
+    }
+}
 
 // Procesar POST para plazos mensual y anual
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo'])) {
+    $tabActiva = 'mes';
     $tipo_plazo = $_POST['tipo_plazo'] ?? '';
     
     if ($tipo_plazo === 'mensual') {
@@ -112,6 +212,24 @@ while ($item = $itemsResult->fetch_assoc()) {
     }
 }
 
+$plazosPersonalizados = [];
+$itemsDisponiblesPlazo = [];
+if ($plazosPorItemInstalados) {
+    $resultadoPlazosPersonalizados = $itemPlazoClass->getItemsConPlazoBase();
+    if ($resultadoPlazosPersonalizados) {
+        while ($regla = $resultadoPlazosPersonalizados->fetch_assoc()) {
+            $plazosPersonalizados[] = $regla;
+        }
+    }
+
+    $resultadoItemsDisponibles = $itemPlazoClass->getItemsSinPlazoBase();
+    if ($resultadoItemsDisponibles) {
+        while ($itemDisponible = $resultadoItemsDisponibles->fetch_assoc()) {
+            $itemsDisponiblesPlazo[] = $itemDisponible;
+        }
+    }
+}
+
 if (isset($_SESSION['success'])) {
     $success = $_SESSION['success'];
     unset($_SESSION['success']);
@@ -138,6 +256,27 @@ $anoActual = (int)date('Y');
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link <?php echo $tabActiva !== 'items' ? 'active' : ''; ?>"
+                id="plazo-mes-tab" data-bs-toggle="tab" data-bs-target="#plazo-mes"
+                type="button" role="tab">
+            <i class="bi bi-calendar-month"></i> Plazo por Mes
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link <?php echo $tabActiva === 'items' ? 'active' : ''; ?>"
+                id="plazo-items-tab" data-bs-toggle="tab" data-bs-target="#plazo-items"
+                type="button" role="tab">
+            <i class="bi bi-list-check"></i> Plazos por Ítem
+            <span class="badge bg-secondary ms-1"><?php echo count($plazosPersonalizados); ?></span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade <?php echo $tabActiva !== 'items' ? 'show active' : ''; ?>" id="plazo-mes" role="tabpanel">
 
 <!-- ITEMS MENSUAL -->
 <?php if (!empty($itemsPorPeriodicidad['mensual'])): ?>
@@ -178,8 +317,8 @@ $anoActual = (int)date('Y');
                     <thead class="table-light">
                         <tr>
                             <th width="15%">Mes</th>
-                            <th width="25%">Plazo Cargador (6° + extra)</th>
-                            <th width="25%">Plazo Publicador (10° + extra)</th>
+                            <th width="25%">Plazo Cargador (base + extra)</th>
+                            <th width="25%">Plazo Publicador (base + extra)</th>
                             <th width="20%">Motivo</th>
                             <th width="15%">Acción</th>
                         </tr>
@@ -284,7 +423,7 @@ $anoActual = (int)date('Y');
                     </div>
 
                     <div class="alert alert-info mb-3">
-                        <strong><i class="bi bi-calculator"></i> Plazos automáticos base:</strong>
+                        <strong><i class="bi bi-calculator"></i> Vista previa con el plazo general:</strong>
                         <div class="mt-2">
                             <span class="badge bg-primary">Cargador:</span> <span id="plazoBaseCargadorMensual">-</span> (6° día hábil)
                         </div>
@@ -301,7 +440,7 @@ $anoActual = (int)date('Y');
                             <input type="number" class="form-control" id="diasExtraCargadorMensual" 
                                    name="dias_extra_cargador" min="0" max="20" value="0"
                                    oninput="actualizarPreviewMensual()">
-                            <small class="text-muted">Se suman a los 6 días hábiles base</small>
+                            <small class="text-muted">Se suman al plazo base del ítem</small>
                         </div>
                         <div class="col-md-6">
                             <label for="diasExtraPublicadorMensual" class="form-label">
@@ -310,7 +449,7 @@ $anoActual = (int)date('Y');
                             <input type="number" class="form-control" id="diasExtraPublicadorMensual" 
                                    name="dias_extra_publicador" min="0" max="20" value="0"
                                    oninput="actualizarPreviewMensual()">
-                            <small class="text-muted">Se suman a los 10 días hábiles base</small>
+                            <small class="text-muted">Se suman al plazo base del ítem</small>
                         </div>
                     </div>
 
@@ -333,7 +472,7 @@ $anoActual = (int)date('Y');
                     </div>
 
                     <div class="alert alert-warning">
-                        <strong>Nota:</strong> Los días extra se aplicarán a todos los items con periodicidad mensual para este mes.
+                        <strong>Nota:</strong> Los días extra se aplicarán a todos los ítems mensuales para este mes. En los ítems con plazo personalizado se sumarán a su propia base, aunque esta vista previa muestre la base general 6/10.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -438,9 +577,10 @@ $anoActual = (int)date('Y');
                             $dias_extra_c_anual = $plazo2025 ? (int)($plazo2025['dias_extra_cargador'] ?? 0) : 0;
                             $dias_extra_p_anual = $plazo2025 ? (int)($plazo2025['dias_extra_publicador'] ?? 0) : 0;
                             $motivo_anual = $plazo2025 ? ($plazo2025['motivo_extension'] ?? '') : '';
-                            
-                            $plazoCargadorAnual = PlazoCalculator::calcularPlazoEnvioConExtra('anual', $anoActual, $mesCargaAnual, $dias_extra_c_anual);
-                            $plazoPublicadorAnual = PlazoCalculator::calcularPlazoPublicacionConExtra('anual', $anoActual, $mesCargaAnual, $dias_extra_p_anual);
+                            $baseCargadorAnual = !empty($item['plazo_dias_cargador']) ? (int)$item['plazo_dias_cargador'] : 6;
+                            $basePublicadorAnual = !empty($item['plazo_dias_publicador']) ? (int)$item['plazo_dias_publicador'] : 10;
+                            $plazoCargadorAnual = $itemPlazoClass->getPlazoFinal($item['id'], $anoActual, $mesCargaAnual, 'anual');
+                            $plazoPublicadorAnual = $itemPlazoClass->getPlazoPublicacionFinal($item['id'], $anoActual, $mesCargaAnual, 'anual');
                             ?>
                             <tr>
                                 <td><strong><?php echo htmlspecialchars($item['numeracion']); ?></strong></td>
@@ -476,7 +616,7 @@ $anoActual = (int)date('Y');
                                     <button class="btn btn-sm btn-primary" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#modalPlazoAnual"
-                                            onclick="editarPlazoAnual(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars(addslashes($item['nombre'])); ?>', <?php echo $dias_extra_c_anual; ?>, <?php echo $dias_extra_p_anual; ?>, '<?php echo addslashes($motivo_anual); ?>')">
+                                            onclick="editarPlazoAnual(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars(addslashes($item['nombre'])); ?>', <?php echo $dias_extra_c_anual; ?>, <?php echo $dias_extra_p_anual; ?>, '<?php echo addslashes($motivo_anual); ?>', <?php echo $baseCargadorAnual; ?>, <?php echo $basePublicadorAnual; ?>)">
                                         <i class="bi bi-pencil"></i> Editar
                                     </button>
                                 </td>
@@ -522,10 +662,10 @@ $anoActual = (int)date('Y');
                     <div class="alert alert-info mb-3">
                         <strong><i class="bi bi-calculator"></i> Plazos automáticos base:</strong>
                         <div class="mt-2">
-                            <span class="badge bg-primary">Cargador:</span> 6° día hábil del mes correspondiente
+                            <span class="badge bg-primary">Cargador:</span> <span id="baseCargadorAnual">6.º</span> día hábil del mes correspondiente
                         </div>
                         <div class="mt-1">
-                            <span class="badge bg-success">Publicador:</span> 10° día hábil del mes correspondiente
+                            <span class="badge bg-success">Publicador:</span> <span id="basePublicadorAnual">10.º</span> día hábil del mes correspondiente
                         </div>
                     </div>
 
@@ -536,7 +676,7 @@ $anoActual = (int)date('Y');
                             </label>
                             <input type="number" class="form-control" id="diasExtraCargadorAnual" 
                                    name="dias_extra_cargador" min="0" max="20" value="0">
-                            <small class="text-muted">Se suman a los 6 días hábiles base</small>
+                            <small class="text-muted">Se suman al plazo base del ítem</small>
                         </div>
                         <div class="col-md-6">
                             <label for="diasExtraPublicadorAnual" class="form-label">
@@ -544,7 +684,7 @@ $anoActual = (int)date('Y');
                             </label>
                             <input type="number" class="form-control" id="diasExtraPublicadorAnual" 
                                    name="dias_extra_publicador" min="0" max="20" value="0">
-                            <small class="text-muted">Se suman a los 10 días hábiles base</small>
+                            <small class="text-muted">Se suman al plazo base del ítem</small>
                         </div>
                     </div>
 
@@ -567,13 +707,205 @@ $anoActual = (int)date('Y');
     </div>
 </div>
 
+</div><!-- /Plazo por Mes -->
+
+<div class="tab-pane fade <?php echo $tabActiva === 'items' ? 'show active' : ''; ?>" id="plazo-items" role="tabpanel">
+    <?php if (!$plazosPorItemInstalados): ?>
+        <div class="card border-warning mb-4">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-database-exclamation display-4 text-warning d-block mb-3"></i>
+                <h4>Esta sección aún no está instalada</h4>
+                <p class="text-muted mx-auto" style="max-width: 680px;">
+                    Para configurar plazos diferentes por ítem, el sistema debe agregar dos campos a la tabla
+                    <code>items_transparencia</code>. Esta operación actualizará la estructura de la base de datos;
+                    no eliminará ni modificará documentos, usuarios o reglas existentes.
+                </p>
+                <div class="alert alert-warning text-start mx-auto" style="max-width: 680px;">
+                    <strong><i class="bi bi-exclamation-triangle"></i> Antes de instalar:</strong>
+                    se recomienda disponer de un respaldo reciente de la base de datos. El usuario MySQL de la aplicación
+                    debe tener permiso <code>ALTER</code>.
+                </div>
+                <form method="POST" onsubmit="return confirm('¿Instalar Plazos por Ítem? Esta acción actualizará la estructura de la base de datos.');">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_instalar_plazos_item']); ?>">
+                    <button type="submit" name="instalar_plazos_item" class="btn btn-warning">
+                        <i class="bi bi-database-add"></i> Instalar Plazos por Ítem
+                    </button>
+                </form>
+            </div>
+        </div>
+    <?php else: ?>
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1"><i class="bi bi-list-check"></i> Plazos personalizados por ítem</h5>
+                <small class="text-muted">Solo aparecen los ítems con una regla diferente al plazo general de 6/10 días hábiles.</small>
+            </div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarPlazoItem"
+                    <?php echo empty($itemsDisponiblesPlazo) ? 'disabled' : ''; ?>>
+                <i class="bi bi-plus-circle"></i> Agregar plazo por ítem
+            </button>
+        </div>
+        <div class="card-body">
+            <?php if (empty($plazosPersonalizados)): ?>
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-calendar2-check display-5 d-block mb-3"></i>
+                    <p class="mb-1">No existen plazos personalizados.</p>
+                    <small>Todos los ítems utilizan el plazo general: cargador 6.º y publicador 10.º día hábil.</small>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Numeración</th>
+                                <th>Ítem</th>
+                                <th>Periodicidad</th>
+                                <th>Dirección</th>
+                                <th>Plazo cargador</th>
+                                <th>Plazo publicador</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($plazosPersonalizados as $regla): ?>
+                            <tr>
+                                <td><strong><?php echo htmlspecialchars($regla['numeracion']); ?></strong></td>
+                                <td><?php echo htmlspecialchars($regla['nombre']); ?></td>
+                                <td><span class="badge bg-light text-dark border"><?php echo ucfirst(htmlspecialchars($regla['periodicidad'])); ?></span></td>
+                                <td><?php echo htmlspecialchars($regla['direccion_nombre'] ?? 'Sin dirección'); ?></td>
+                                <td><span class="badge bg-primary"><?php echo (int)$regla['plazo_dias_cargador']; ?>.º día hábil</span></td>
+                                <td><span class="badge bg-success"><?php echo (int)$regla['plazo_dias_publicador']; ?>.º día hábil</span></td>
+                                <td class="text-end text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#modalEditarPlazoItem"
+                                            onclick='editarPlazoItem(<?php echo json_encode([
+                                                "id" => (int)$regla["id"],
+                                                "nombre" => $regla["nombre"],
+                                                "cargador" => (int)$regla["plazo_dias_cargador"],
+                                                "publicador" => (int)$regla["plazo_dias_publicador"]
+                                            ], JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
+                                        <i class="bi bi-pencil"></i> Editar
+                                    </button>
+                                    <form method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar el plazo personalizado? El ítem volverá al plazo general 6/10.');">
+                                        <input type="hidden" name="item_id" value="<?php echo (int)$regla['id']; ?>">
+                                        <button type="submit" name="eliminar_plazo_item" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Restablecer
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+</div>
+</div><!-- /tab-content -->
+
+<?php if ($plazosPorItemInstalados): ?>
+<div class="modal fade" id="modalAgregarPlazoItem" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar plazo por ítem</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nuevoPlazoItem" class="form-label">Ítem <span class="text-danger">*</span></label>
+                        <select class="form-select" id="nuevoPlazoItem" name="item_id" required>
+                            <option value="">Seleccione un ítem</option>
+                            <?php foreach ($itemsDisponiblesPlazo as $itemDisponible): ?>
+                                <option value="<?php echo (int)$itemDisponible['id']; ?>">
+                                    <?php echo htmlspecialchars($itemDisponible['numeracion'] . ' — ' . $itemDisponible['nombre'] . ' (' . ucfirst($itemDisponible['periodicidad']) . ')'); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Plazo cargador <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="plazo_dias_cargador" min="1" max="23" value="6" required>
+                                <span class="input-group-text">día hábil</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Plazo publicador <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="plazo_dias_publicador" min="1" max="23" value="10" required>
+                                <span class="input-group-text">día hábil</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        Las ampliaciones configuradas en “Plazo por Mes” se sumarán a estos valores base.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" name="guardar_plazo_item" class="btn btn-primary"><i class="bi bi-save"></i> Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarPlazoItem" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar plazo por ítem</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="item_id" id="editarPlazoItemId">
+                    <div class="mb-3">
+                        <label class="form-label">Ítem</label>
+                        <input type="text" class="form-control" id="editarPlazoItemNombre" disabled>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Plazo cargador</label>
+                            <input type="number" class="form-control" id="editarPlazoCargador" name="plazo_dias_cargador" min="1" max="23" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Plazo publicador</label>
+                            <input type="number" class="form-control" id="editarPlazoPublicador" name="plazo_dias_publicador" min="1" max="23" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" name="guardar_plazo_item" class="btn btn-primary"><i class="bi bi-save"></i> Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
-function editarPlazoAnual(itemId, itemNombre, diasExtraCargador, diasExtraPublicador, motivo) {
+function editarPlazoItem(regla) {
+    document.getElementById('editarPlazoItemId').value = regla.id;
+    document.getElementById('editarPlazoItemNombre').value = regla.nombre;
+    document.getElementById('editarPlazoCargador').value = regla.cargador;
+    document.getElementById('editarPlazoPublicador').value = regla.publicador;
+}
+
+function editarPlazoAnual(itemId, itemNombre, diasExtraCargador, diasExtraPublicador, motivo, baseCargador, basePublicador) {
     document.getElementById('modalItemId').value = itemId;
     document.getElementById('itemNombreModal').value = itemNombre;
     document.getElementById('diasExtraCargadorAnual').value = diasExtraCargador || 0;
     document.getElementById('diasExtraPublicadorAnual').value = diasExtraPublicador || 0;
     document.getElementById('motivoExtensionAnual').value = motivo || '';
+    document.getElementById('baseCargadorAnual').textContent = (baseCargador || 6) + '.º';
+    document.getElementById('basePublicadorAnual').textContent = (basePublicador || 10) + '.º';
 }
 
 // Variables globales para preview mensual

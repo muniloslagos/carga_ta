@@ -38,7 +38,14 @@ class PlazoCalculator {
             }
         }
         // Fallback: si n supera los hÃ¡biles del mes devolver Ãºltimo hÃ¡bil
-        return sprintf('%04d-%02d-%02d', $year, $month, $daysInMonth);
+        for ($d = $daysInMonth; $d >= 1; $d--) {
+            $dow = (int) date('N', mktime(0, 0, 0, $month, $d, $year));
+            if ($dow <= 5) {
+                return sprintf('%04d-%02d-%02d', $year, $month, $d);
+            }
+        }
+
+        return sprintf('%04d-%02d-01', $year, $month);
     }
 
     /**
@@ -132,11 +139,22 @@ class PlazoCalculator {
      * @return string|null  'Y-m-d' o null si es ocurrencia
      */
     public static function calcularPlazoEnvioConExtra(string $periodicidad, int $ano, int $mes, int $diasExtra): ?string {
+        return self::calcularPlazoEnvioConfigurado($periodicidad, $ano, $mes, 6, $diasExtra);
+    }
+
+    /** Plazo de envío usando el día hábil base del ítem más la extensión mensual. */
+    public static function calcularPlazoEnvioConfigurado(
+        string $periodicidad,
+        int $ano,
+        int $mes,
+        int $diasBase,
+        int $diasExtra = 0
+    ): ?string {
         if (strtolower($periodicidad) === 'ocurrencia') {
             return null;
         }
         [$dy, $dm] = self::mesDeadlineEnvio($periodicidad, $ano, $mes);
-        return self::calcularNesimoDiaHabil($dy, $dm, 6 + $diasExtra);
+        return self::calcularNesimoDiaHabil($dy, $dm, max(1, $diasBase) + max(0, $diasExtra));
     }
 
     /**
@@ -156,11 +174,22 @@ class PlazoCalculator {
      * @return string|null  'Y-m-d' o null si es ocurrencia
      */
     public static function calcularPlazoPublicacionConExtra(string $periodicidad, int $ano, int $mes, int $diasExtra): ?string {
+        return self::calcularPlazoPublicacionConfigurado($periodicidad, $ano, $mes, 10, $diasExtra);
+    }
+
+    /** Plazo de publicación usando el día hábil base del ítem más la extensión mensual. */
+    public static function calcularPlazoPublicacionConfigurado(
+        string $periodicidad,
+        int $ano,
+        int $mes,
+        int $diasBase,
+        int $diasExtra = 0
+    ): ?string {
         if (strtolower($periodicidad) === 'ocurrencia') {
             return null;
         }
         [$dy, $dm] = self::mesDeadlineEnvio($periodicidad, $ano, $mes);
-        return self::calcularNesimoDiaHabil($dy, $dm, 10 + $diasExtra);
+        return self::calcularNesimoDiaHabil($dy, $dm, max(1, $diasBase) + max(0, $diasExtra));
     }
 
     /**

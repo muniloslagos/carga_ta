@@ -4,6 +4,8 @@ require_once __DIR__ . '/PlazoCalculator.php';
 class ItemPlazo {
     private $db;
     private $table = 'item_plazos';
+    private $plazosBaseCache = [];
+    private $soportaPlazosBase = null;
 
     public function __construct($db) {
         $this->db = $db;
@@ -117,6 +119,101 @@ class ItemPlazo {
         return $stmt->get_result();
     }
 
+    /** Obtiene la regla base permanente de un ítem; NULL equivale a 6/10 general. */
+    public function getPlazoBaseItem($item_id) {
+        $item_id = (int)$item_id;
+        if (array_key_exists($item_id, $this->plazosBaseCache)) {
+            return $this->plazosBaseCache[$item_id];
+        }
+        if (!$this->tieneColumnasPlazoBase()) {
+            $this->plazosBaseCache[$item_id] = null;
+            return null;
+        }
+        $sql = "SELECT id, plazo_dias_cargador, plazo_dias_publicador
+                FROM items_transparencia WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('i', $item_id);
+        $stmt->execute();
+        $this->plazosBaseCache[$item_id] = $stmt->get_result()->fetch_assoc() ?: null;
+        return $this->plazosBaseCache[$item_id];
+    }
+
+    /** Permite conservar el plazo general mientras la migración aún no se instala. */
+    public function tieneColumnasPlazoBase() {
+        if ($this->soportaPlazosBase !== null) {
+            return $this->soportaPlazosBase;
+        }
+
+        $resultado = $this->db->query("
+            SELECT COUNT(*) AS total
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'items_transparencia'
+              AND COLUMN_NAME IN ('plazo_dias_cargador', 'plazo_dias_publicador')
+        ");
+        $fila = $resultado ? $resultado->fetch_assoc() : null;
+        $this->soportaPlazosBase = $fila && (int)$fila['total'] === 2;
+        return $this->soportaPlazosBase;
+    }
+
+    /** Lista únicamente los ítems activos que tienen una regla personalizada. */
+    public function getItemsConPlazoBase() {
+        return $this->db->query("
+            SELECT i.id, i.numeracion, i.nombre, i.periodicidad,
+                   i.plazo_dias_cargador, i.plazo_dias_publicador,
+                   d.nombre AS direccion_nombre
+            FROM items_transparencia i
+            LEFT JOIN direcciones d ON d.id = i.direccion_id
+            WHERE i.activo = 1
+              AND i.plazo_dias_cargador IS NOT NULL
+              AND i.plazo_dias_publicador IS NOT NULL
+            ORDER BY i.numeracion, i.nombre
+        ");
+    }
+
+    /** Lista ítems programados que todavía heredan el plazo general. */
+    public function getItemsSinPlazoBase() {
+        return $this->db->query("
+            SELECT id, numeracion, nombre, periodicidad
+            FROM items_transparencia
+            WHERE activo = 1
+              AND periodicidad <> 'ocurrencia'
+              AND plazo_dias_cargador IS NULL
+              AND plazo_dias_publicador IS NULL
+            ORDER BY numeracion, nombre
+        ");
+    }
+
+    public function guardarPlazoBaseItem($item_id, $plazoCargador, $plazoPublicador) {
+        $sql = "UPDATE items_transparencia
+                SET plazo_dias_cargador = ?, plazo_dias_publicador = ?
+                WHERE id = ? AND activo = 1 AND periodicidad <> 'ocurrencia'";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('iii', $plazoCargador, $plazoPublicador, $item_id);
+        $resultado = $stmt->execute();
+        unset($this->plazosBaseCache[(int)$item_id]);
+        return $resultado;
+    }
+
+    public function eliminarPlazoBaseItem($item_id) {
+        $sql = "UPDATE items_transparencia
+                SET plazo_dias_cargador = NULL, plazo_dias_publicador = NULL
+                WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('i', $item_id);
+        $resultado = $stmt->execute();
+        unset($this->plazosBaseCache[(int)$item_id]);
+        return $resultado;
+    }
+
+    private function getDiasBase($item_id) {
+        $regla = $this->getPlazoBaseItem($item_id);
+        return [
+            !empty($regla['plazo_dias_cargador']) ? (int)$regla['plazo_dias_cargador'] : 6,
+            !empty($regla['plazo_dias_publicador']) ? (int)$regla['plazo_dias_publicador'] : 10,
+        ];
+    }
+
     /**
      * Obtiene el plazo FINAL de ENVÍO para un item en un período.
      * Si hay días extra configurados, calcula: N-ésimo día hábil con (6 + dias_extra).
@@ -136,19 +233,20 @@ class ItemPlazo {
 
         $personalizado = $this->getByItemAndMes($item_id, $ano, $mes);
 
-        // Días extra configurados → calcular base + extra
-        if ($personalizado && !empty($personalizado['dias_extra_cargador'])) {
-            $diasExtra = (int)$personalizado['dias_extra_cargador'];
-            return PlazoCalculator::calcularPlazoEnvioConExtra($periodicidad, (int)$ano, (int)$mes, $diasExtra);
-        }
-
-        // Fecha fija legacy (plazo_interno)
+        // Una fecha fija para el período tiene prioridad sobre cualquier cálculo.
         if ($personalizado && !empty($personalizado['plazo_interno'])) {
             return $personalizado['plazo_interno'];
         }
 
-        // Calcular automáticamente (6° día hábil)
-        return PlazoCalculator::calcularPlazoEnvio($periodicidad, (int)$ano, (int)$mes);
+        [$diasBaseCargador] = $this->getDiasBase($item_id);
+        $diasExtra = $personalizado ? (int)($personalizado['dias_extra_cargador'] ?? 0) : 0;
+        return PlazoCalculator::calcularPlazoEnvioConfigurado(
+            $periodicidad,
+            (int)$ano,
+            (int)$mes,
+            $diasBaseCargador,
+            $diasExtra
+        );
     }
 
     /**
@@ -170,19 +268,20 @@ class ItemPlazo {
 
         $personalizado = $this->getByItemAndMes($item_id, $ano, $mes);
 
-        // Días extra configurados → calcular base + extra
-        if ($personalizado && !empty($personalizado['dias_extra_publicador'])) {
-            $diasExtra = (int)$personalizado['dias_extra_publicador'];
-            return PlazoCalculator::calcularPlazoPublicacionConExtra($periodicidad, (int)$ano, (int)$mes, $diasExtra);
-        }
-
-        // Fecha fija legacy (fecha_carga_portal)
+        // Una fecha fija para el período tiene prioridad sobre cualquier cálculo.
         if ($personalizado && !empty($personalizado['fecha_carga_portal'])) {
             return $personalizado['fecha_carga_portal'];
         }
 
-        // Calcular automáticamente (10° día hábil)
-        return PlazoCalculator::calcularPlazoPublicacion($periodicidad, (int)$ano, (int)$mes);
+        [, $diasBasePublicador] = $this->getDiasBase($item_id);
+        $diasExtra = $personalizado ? (int)($personalizado['dias_extra_publicador'] ?? 0) : 0;
+        return PlazoCalculator::calcularPlazoPublicacionConfigurado(
+            $periodicidad,
+            (int)$ano,
+            (int)$mes,
+            $diasBasePublicador,
+            $diasExtra
+        );
     }
 }
 

@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS `items_transparencia` (
   `descripcion` text COLLATE utf8mb4_unicode_ci,
   `direccion_id` int(11) DEFAULT NULL,
   `periodicidad` enum('mensual','trimestral','semestral','anual','ocurrencia') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `plazo_dias_cargador` tinyint(3) unsigned DEFAULT NULL,
+  `plazo_dias_publicador` tinyint(3) unsigned DEFAULT NULL,
   `activo` tinyint(1) DEFAULT '1',
   `fecha_creacion` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `fecha_actualizacion` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
