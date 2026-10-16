@@ -22,65 +22,10 @@ $success = '';
 $error = '';
 $tabActiva = $_GET['tab'] ?? 'mes';
 
-if (empty($_SESSION['csrf_instalar_plazos_item'])) {
-    $_SESSION['csrf_instalar_plazos_item'] = bin2hex(random_bytes(32));
-}
-
-$columnasPlazoItem = ['plazo_dias_cargador', 'plazo_dias_publicador'];
-$obtenerColumnasPlazoItem = static function ($conexion) use ($columnasPlazoItem) {
-    $encontradas = [];
-    $sql = "SELECT COLUMN_NAME
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'items_transparencia'
-              AND COLUMN_NAME IN ('plazo_dias_cargador', 'plazo_dias_publicador')";
-    $resultado = $conexion->query($sql);
-    if ($resultado) {
-        while ($fila = $resultado->fetch_assoc()) {
-            $encontradas[] = $fila['COLUMN_NAME'];
-        }
-    }
-    return $encontradas;
-};
-
-$columnasPlazoEncontradas = $obtenerColumnasPlazoItem($conn);
-$plazosPorItemInstalados = count(array_intersect($columnasPlazoItem, $columnasPlazoEncontradas)) === count($columnasPlazoItem);
-
-// Instalación controlada desde el panel administrativo. Cada ALTER es idempotente
-// porque solo se ejecuta para una columna que todavía no existe.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['instalar_plazos_item'])) {
-    $tabActiva = 'items';
-    $csrfRecibido = (string)($_POST['csrf_token'] ?? '');
-    if (!hash_equals($_SESSION['csrf_instalar_plazos_item'], $csrfRecibido)) {
-        $error = 'La sesión de instalación expiró. Recargue la página e inténtelo nuevamente.';
-    } else {
-        $definiciones = [
-            'plazo_dias_cargador' => "TINYINT UNSIGNED NULL DEFAULT NULL COMMENT 'Día hábil base para el cargador; NULL hereda 6'",
-            'plazo_dias_publicador' => "TINYINT UNSIGNED NULL DEFAULT NULL COMMENT 'Día hábil base para el publicador; NULL hereda 10'",
-        ];
-
-        foreach ($definiciones as $columna => $definicion) {
-            if (!in_array($columna, $columnasPlazoEncontradas, true)) {
-                if (!$conn->query("ALTER TABLE items_transparencia ADD COLUMN `$columna` $definicion")) {
-                    $error = 'No se pudo actualizar la base de datos: ' . $conn->error;
-                    break;
-                }
-            }
-        }
-
-        $columnasPlazoEncontradas = $obtenerColumnasPlazoItem($conn);
-        $plazosPorItemInstalados = count(array_intersect($columnasPlazoItem, $columnasPlazoEncontradas)) === count($columnasPlazoItem);
-        if (!$error && $plazosPorItemInstalados) {
-            $success = 'La sección Plazos por Ítem fue instalada correctamente. La base de datos quedó actualizada.';
-            $_SESSION['csrf_instalar_plazos_item'] = bin2hex(random_bytes(32));
-        } elseif (!$error) {
-            $error = 'La actualización no pudo completarse. Verifique los permisos de la base de datos.';
-        }
-    }
-}
+$plazosPorItemInstalados = $itemPlazoClass->tieneColumnasPlazoBase();
 
 // Guardar o eliminar la regla base permanente de un ítem.
-elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo_item'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_plazo_item'])) {
     $tabActiva = 'items';
     $item_id = (int)($_POST['item_id'] ?? 0);
     $plazo_cargador = (int)($_POST['plazo_dias_cargador'] ?? 0);
@@ -725,12 +670,9 @@ $anoActual = (int)date('Y');
                     se recomienda disponer de un respaldo reciente de la base de datos. El usuario MySQL de la aplicación
                     debe tener permiso <code>ALTER</code>.
                 </div>
-                <form method="POST" onsubmit="return confirm('¿Instalar Plazos por Ítem? Esta acción actualizará la estructura de la base de datos.');">
-                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_instalar_plazos_item']); ?>">
-                    <button type="submit" name="instalar_plazos_item" class="btn btn-warning">
-                        <i class="bi bi-database-add"></i> Instalar Plazos por Ítem
-                    </button>
-                </form>
+                <a href="<?php echo SITE_URL; ?>admin/actualizaciones/" class="btn btn-warning">
+                    <i class="bi bi-arrow-repeat"></i> Ir a Actualizaciones
+                </a>
             </div>
         </div>
     <?php else: ?>
@@ -816,6 +758,15 @@ $anoActual = (int)date('Y');
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="buscarNuevoPlazoItem" class="form-label">Buscar ítem</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" class="form-control" id="buscarNuevoPlazoItem"
+                                   placeholder="Escriba el número o nombre del ítem" autocomplete="off">
+                        </div>
+                        <small class="text-muted" id="resultadoBusquedaPlazoItem"></small>
+                    </div>
+                    <div class="mb-3">
                         <label for="nuevoPlazoItem" class="form-label">Ítem <span class="text-danger">*</span></label>
                         <select class="form-select" id="nuevoPlazoItem" name="item_id" required>
                             <option value="">Seleccione un ítem</option>
@@ -891,6 +842,64 @@ $anoActual = (int)date('Y');
 <?php endif; ?>
 
 <script>
+const opcionesPlazoItem = <?php echo json_encode(array_map(static function ($item) {
+    return [
+        'id' => (int)$item['id'],
+        'texto' => $item['numeracion'] . ' — ' . $item['nombre'] . ' (' . ucfirst($item['periodicidad']) . ')'
+    ];
+}, $itemsDisponiblesPlazo), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+function normalizarBusquedaPlazoItem(texto) {
+    return (texto || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function filtrarOpcionesPlazoItem() {
+    const buscador = document.getElementById('buscarNuevoPlazoItem');
+    const selector = document.getElementById('nuevoPlazoItem');
+    const resultado = document.getElementById('resultadoBusquedaPlazoItem');
+    if (!buscador || !selector) return;
+
+    const termino = normalizarBusquedaPlazoItem(buscador.value.trim());
+    const seleccionActual = selector.value;
+    const coincidencias = opcionesPlazoItem.filter(opcion =>
+        !termino || normalizarBusquedaPlazoItem(opcion.texto).includes(termino)
+    );
+
+    selector.innerHTML = '';
+    const inicial = document.createElement('option');
+    inicial.value = '';
+    inicial.textContent = coincidencias.length ? 'Seleccione un ítem' : 'No se encontraron ítems';
+    selector.appendChild(inicial);
+
+    coincidencias.forEach(opcion => {
+        const elemento = document.createElement('option');
+        elemento.value = opcion.id;
+        elemento.textContent = opcion.texto;
+        selector.appendChild(elemento);
+    });
+
+    if (coincidencias.some(opcion => String(opcion.id) === seleccionActual)) {
+        selector.value = seleccionActual;
+    }
+    resultado.textContent = coincidencias.length + (coincidencias.length === 1 ? ' ítem encontrado' : ' ítems encontrados');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const buscador = document.getElementById('buscarNuevoPlazoItem');
+    const modal = document.getElementById('modalAgregarPlazoItem');
+    if (buscador) {
+        buscador.addEventListener('input', filtrarOpcionesPlazoItem);
+        filtrarOpcionesPlazoItem();
+    }
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function () {
+            buscador.value = '';
+            filtrarOpcionesPlazoItem();
+            buscador.focus();
+        });
+    }
+});
+
 function editarPlazoItem(regla) {
     document.getElementById('editarPlazoItemId').value = regla.id;
     document.getElementById('editarPlazoItemNombre').value = regla.nombre;

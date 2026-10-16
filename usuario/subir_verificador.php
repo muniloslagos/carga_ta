@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once '../classes/Verificador.php';
 require_once '../classes/ItemPlazo.php';
 require_once '../classes/PlazoCalculator.php';
+require_once '../classes/Revisor.php';
 
 $conn = $db->getConnection();
 $verificadorClass = new Verificador($conn);
@@ -47,6 +48,13 @@ $doc = $checkDoc->get_result()->fetch_assoc();
 
 if (!$doc) {
     $_SESSION['error'] = 'Documento no encontrado.';
+    header('Location: dashboard.php');
+    exit;
+}
+
+$permisoPublicacion = Revisor::puedePublicar($documento_id, $conn);
+if (empty($permisoPublicacion['puede_publicar'])) {
+    $_SESSION['error'] = $permisoPublicacion['razon'] ?: 'El documento todavía no puede ser publicado.';
     header('Location: dashboard.php');
     exit;
 }

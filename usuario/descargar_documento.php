@@ -64,6 +64,30 @@ if (!$documento) {
     exit;
 }
 
+// El publicador recibe siempre la versión final vigente del revisor cuando
+// existe. Si no existe (o la actualización aún no está instalada), recibe el
+// archivo original de la unidad.
+$nombreDescargaPreferido = null;
+$solicitaVersionFinal = isset($_GET['version_final']) && $_GET['version_final'] === '1';
+$puedeVerVersionFinal = in_array($perfil, ['publicador', 'revisor', 'auditor', 'administrativo'], true);
+if ($puedeVerVersionFinal && ($perfil === 'publicador' || $solicitaVersionFinal)) {
+    $checkVersiones = $db_conn->query("SHOW TABLES LIKE 'documentos_versiones_revisor'");
+    if ($checkVersiones && $checkVersiones->num_rows > 0) {
+        $stmtVersion = $db_conn->prepare("SELECT archivo, nombre_original
+            FROM documentos_versiones_revisor
+            WHERE documento_id = ? AND es_vigente = 1
+            ORDER BY numero_version DESC, id DESC LIMIT 1");
+        $stmtVersion->bind_param('i', $doc_id);
+        $stmtVersion->execute();
+        $versionFinal = $stmtVersion->get_result()->fetch_assoc();
+        $stmtVersion->close();
+        if ($versionFinal) {
+            $documento['archivo'] = $versionFinal['archivo'];
+            $nombreDescargaPreferido = $versionFinal['nombre_original'];
+        }
+    }
+}
+
 // Ruta segura del archivo
 $rutaRelativa = str_replace('\\', '/', trim((string)$documento['archivo']));
 $rutaRelativa = ltrim($rutaRelativa, '/');
@@ -82,7 +106,7 @@ if (!file_exists($archivo)) {
 
 // Descargar el archivo
 header('Content-Type: application/octet-stream');
-$nombreDescarga = basename($rutaRelativa);
+$nombreDescarga = $nombreDescargaPreferido ?: basename($rutaRelativa);
 $nombreAlternativo = preg_replace('/[^A-Za-z0-9._-]/', '_', $nombreDescarga);
 header('Content-Disposition: attachment; filename="' . $nombreAlternativo . '"; filename*=UTF-8\'\'' . rawurlencode($nombreDescarga));
 header('Content-Length: ' . filesize($archivo));

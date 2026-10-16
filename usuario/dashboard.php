@@ -31,6 +31,24 @@ $historialClass = new Historial($db->getConnection());
 $user_id = $current_user['id'] ?? null;
 $conn = $db->getConnection();
 
+function tieneVersionFinalRevisor($conn, $documentoId) {
+    static $tablaExiste = null;
+    static $cache = [];
+    $documentoId = (int)$documentoId;
+    if (array_key_exists($documentoId, $cache)) return $cache[$documentoId];
+    if ($tablaExiste === null) {
+        $check = $conn->query("SHOW TABLES LIKE 'documentos_versiones_revisor'");
+        $tablaExiste = $check && $check->num_rows > 0;
+    }
+    if (!$tablaExiste) return $cache[$documentoId] = false;
+    $stmt = $conn->prepare("SELECT 1 FROM documentos_versiones_revisor WHERE documento_id = ? AND es_vigente = 1 LIMIT 1");
+    $stmt->bind_param('i', $documentoId);
+    $stmt->execute();
+    $existe = (bool)$stmt->get_result()->fetch_row();
+    $stmt->close();
+    return $cache[$documentoId] = $existe;
+}
+
 // Obtener mes y año actual
 $mesActual = (int)date('m');
 $anoActual = (int)date('Y');
@@ -923,7 +941,7 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
                                                     <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
+                                                        <i class="bi bi-file-earmark-check"></i> <?php echo ($user_perfil === 'publicador' && tieneVersionFinalRevisor($conn, $ultimoDoc['id'])) ? 'Versión Final' : 'Ver Doc'; ?>
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
@@ -1207,7 +1225,7 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
                                                     <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
+                                                        <i class="bi bi-file-earmark-check"></i> <?php echo ($user_perfil === 'publicador' && tieneVersionFinalRevisor($conn, $ultimoDoc['id'])) ? 'Versión Final' : 'Ver Doc'; ?>
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
@@ -1493,7 +1511,7 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
                                                     <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
+                                                        <i class="bi bi-file-earmark-check"></i> <?php echo ($user_perfil === 'publicador' && tieneVersionFinalRevisor($conn, $ultimoDoc['id'])) ? 'Versión Final' : 'Ver Doc'; ?>
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
@@ -1777,7 +1795,7 @@ if (isset($_SESSION['success'])) {
                                                         <i class="bi bi-check-circle-fill text-success" title="Aprobado por revisor" style="font-size: 1.2em; margin-right: 5px;"></i>
                                                     <?php endif; ?>
                                                     <a href="descargar_documento.php?doc_id=<?php echo $ultimoDoc['id']; ?>" class="btn btn-sm btn-success" title="Descargar documento" style="white-space: nowrap;">
-                                                        <i class="bi bi-file-earmark-check"></i> Ver Doc
+                                                        <i class="bi bi-file-earmark-check"></i> <?php echo ($user_perfil === 'publicador' && tieneVersionFinalRevisor($conn, $ultimoDoc['id'])) ? 'Versión Final' : 'Ver Doc'; ?>
                                                     </a>
                                                     <?php else: ?>
                                                     <span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Sin Movimiento</span>
@@ -2407,6 +2425,10 @@ function mostrarHistorial(itemId, itemNombre, mes, ano) {
                             icono = '<i class="bi bi-x-circle"></i>';
                             iconoClass = 'bg-danger';
                             tipoTexto = 'Documento Observado';
+                        } else if (mov.tipo === 'version_final_revisor') {
+                            icono = '<i class="bi bi-file-earmark-lock"></i>';
+                            iconoClass = 'bg-primary';
+                            tipoTexto = 'Versión Final del Revisor';
                         } else {
                             icono = '<i class="bi bi-question-circle"></i>';
                             iconoClass = 'bg-dark';

@@ -155,6 +155,16 @@ $totalDocumentos = $conn->query("SELECT COUNT(*) as total FROM documentos WHERE 
                 </div>
             </div>
         </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-arrow-repeat display-1 text-primary"></i>
+                    <h5 class="card-title mt-3">Actualizaciones</h5>
+                    <p class="card-text">Instalar cambios de base de datos incluidos con nuevas versiones</p>
+                    <a href="actualizaciones/" class="btn btn-primary">Ver actualizaciones</a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -232,7 +232,7 @@ class Documento {
     }
 
     // Subir archivo
-    public function uploadFile($file, $itemId = null, $mes = null, $ano = null) {
+    public function uploadFile($file, $itemId = null, $mes = null, $ano = null, $categoria = 'documentos') {
         // Tipos permitidos: PDF, documentos Word, Excel, imágenes y archivos comprimidos
         $allowedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'xlsm', 'csv', 'jpg', 'jpeg', 'png', 'zip', 'rar', '7z'];
         $maxSize = 200 * 1024 * 1024; // 200MB
@@ -248,13 +248,14 @@ class Documento {
         }
 
         if ($file['size'] > $maxSize) {
-            return ['error' => 'El archivo es demasiado grande (máximo 100MB)'];
+            return ['error' => 'El archivo es demasiado grande (máximo 200MB)'];
         }
 
         $relativeDir = '';
         $destinationDir = $this->uploadDir;
         if ((int)$itemId > 0 && (int)$mes >= 1 && (int)$mes <= 12 && (int)$ano > 0) {
-            $relativeDir = 'documentos/' . sprintf('%04d', (int)$ano)
+            $categoria = $categoria === 'revisiones' ? 'revisiones' : 'documentos';
+            $relativeDir = $categoria . '/' . sprintf('%04d', (int)$ano)
                 . '/' . sprintf('%02d', (int)$mes)
                 . '/item_' . (int)$itemId . '/';
             $destinationDir .= $relativeDir;

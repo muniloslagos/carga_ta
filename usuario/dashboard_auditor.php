@@ -599,6 +599,8 @@ function mostrarHistorialAuditor(button) {
                     icono = '<i class="bi bi-dash-circle"></i>'; clase = 'bg-secondary'; tipo = 'Sin Movimiento';
                 } else if (movimiento.tipo === 'documento_observado') {
                     icono = '<i class="bi bi-x-circle"></i>'; clase = 'bg-danger'; tipo = 'Documento Observado';
+                } else if (movimiento.tipo === 'version_final_revisor') {
+                    icono = '<i class="bi bi-file-earmark-lock"></i>'; clase = 'bg-primary'; tipo = 'Versión Final del Revisor';
                 }
 
                 const fechaObjeto = new Date(movimiento.fecha);

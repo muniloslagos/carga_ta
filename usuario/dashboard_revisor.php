@@ -15,6 +15,10 @@ require_once '../classes/Documento.php';
 $conn = $db->getConnection();
 $revisorClass = new Revisor($conn);
 $documentoClass = new Documento($conn);
+$versionesFinalesDisponibles = $revisorClass->versionesFinalesDisponibles();
+if (empty($_SESSION['csrf_version_revisor'])) {
+    $_SESSION['csrf_version_revisor'] = bin2hex(random_bytes(32));
+}
 
 // Verificar si la funcionalidad de revisión está activada
 $revision_activada = Revisor::estaActivado($conn);
@@ -106,6 +110,14 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
     <div class="alert alert-danger alert-dismissible fade show">
         <i class="bi bi-exclamation-triangle"></i> <?php echo htmlspecialchars($mensaje_error); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
+
+<?php if (!$versionesFinalesDisponibles): ?>
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        La carga de versiones finales aún no está instalada. Un administrador puede habilitarla desde
+        <strong>Administración → Actualizaciones</strong>. La revisión normal continúa utilizando el archivo original.
     </div>
 <?php endif; ?>
 
@@ -249,6 +261,7 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                         $hay_documentos = true;
                         $estado_revision = $doc['estado_revision'] ?? null;
                         $observaciones = $doc['observaciones_revision'] ?? '';
+                        $versionFinal = $versionesFinalesDisponibles ? $revisorClass->getVersionFinalVigente($doc['id']) : null;
                         
                         // Color de la fila según estado
                         $rowClass = '';
@@ -288,16 +301,32 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
                             <td><small><?php echo date('d/m/Y H:i', strtotime($doc['fecha_subida'])); ?></small></td>
                             <td class="text-center">
                                 <?php echo $badgeEstado; ?>
+                                <?php if ($versionFinal): ?>
+                                    <div class="mt-1"><span class="badge bg-primary"><i class="bi bi-file-earmark-lock"></i> Versión final v<?php echo (int)$versionFinal['numero_version']; ?></span></div>
+                                <?php endif; ?>
                                 <?php if ($estado_revision === 'aprobado'): ?>
                                     <i class="bi bi-check-circle-fill text-success ms-1" title="Tick verde visible"></i>
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
                                 <div class="btn-group" role="group">
-                                    <a href="descargar_documento.php?doc_id=<?php echo $doc['id']; ?>" 
-                                       class="btn btn-sm btn-outline-primary" title="Ver documento">
-                                        <i class="bi bi-file-earmark-text"></i> Ver
+                                    <a href="descargar_documento.php?doc_id=<?php echo $doc['id']; ?>&origen=original"
+                                       class="btn btn-sm btn-outline-primary" title="Ver archivo original enviado por la unidad">
+                                        <i class="bi bi-file-earmark-text"></i> Original
                                     </a>
+                                    <?php if ($versionFinal): ?>
+                                        <a href="descargar_documento.php?doc_id=<?php echo $doc['id']; ?>&version_final=1"
+                                           class="btn btn-sm btn-outline-success" title="Descargar versión final vigente">
+                                            <i class="bi bi-file-earmark-check"></i> Ver final
+                                        </a>
+                                    <?php endif; ?>
+                                    <?php if ($versionesFinalesDisponibles): ?>
+                                        <button type="button" class="btn btn-sm btn-primary"
+                                                onclick="cargarVersionFinal(<?php echo (int)$doc['id']; ?>, <?php echo htmlspecialchars(json_encode($doc['item_titulo']), ENT_QUOTES); ?>)"
+                                                title="Cargar archivo definitivo y aprobar">
+                                            <i class="bi bi-cloud-upload"></i> <?php echo $versionFinal ? 'Nueva versión' : 'Versión final'; ?>
+                                        </button>
+                                    <?php endif; ?>
                                     <?php if ($estado_revision !== 'aprobado'): ?>
                                         <button type="button" class="btn btn-sm btn-success" 
                                                 onclick="aprobarDocumento(<?php echo $doc['id']; ?>)" title="Aprobar">
@@ -354,6 +383,49 @@ unset($_SESSION['mensaje_success'], $_SESSION['mensaje_error']);
         </div>
     </div>
 </div>
+
+<?php if ($versionesFinalesDisponibles): ?>
+<div class="modal fade" id="modalVersionFinal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="cargar_version_revisor.php" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_version_revisor']); ?>">
+                <input type="hidden" name="documento_id" id="version_documento_id">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-check"></i> Cargar versión final</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2"><strong id="version_item_titulo"></strong></p>
+                    <div class="alert alert-info small">
+                        Este archivo será el que descargará el publicador. El documento original enviado por la unidad se conservará como antecedente.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Archivo final validado <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="archivo_final"
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.jpg,.jpeg,.png,.zip,.rar,.7z" required>
+                        <small class="text-muted">PDF, Word, Excel, CSV, imágenes o comprimidos. Máximo 200 MB.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Detalle de las correcciones (opcional)</label>
+                        <textarea class="form-control" name="comentarios" rows="3" placeholder="Ej.: Se protegieron datos personales y se corrigió el formato."></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirmar_version_final" required>
+                        <label class="form-check-label" for="confirmar_version_final">
+                            Confirmo que este es el archivo definitivo revisado y apto para publicación.
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-cloud-upload"></i> Cargar y aprobar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Modal de bitácora e historial (solo lectura) -->
 <div class="modal fade" id="modalHistorialRevisor" tabindex="-1">
@@ -488,6 +560,8 @@ function mostrarHistorialRevisor(button) {
                     icono = '<i class="bi bi-dash-circle"></i>'; clase = 'bg-secondary'; tipo = 'Sin Movimiento';
                 } else if (movimiento.tipo === 'documento_observado') {
                     icono = '<i class="bi bi-x-circle"></i>'; clase = 'bg-danger'; tipo = 'Documento Observado';
+                } else if (movimiento.tipo === 'version_final_revisor') {
+                    icono = '<i class="bi bi-file-earmark-lock"></i>'; clase = 'bg-primary'; tipo = 'Versión Final del Revisor';
                 }
 
                 const fechaObjeto = new Date(movimiento.fecha);
@@ -512,6 +586,12 @@ function mostrarHistorialRevisor(button) {
 function aprobarDocumento(docId) {
     document.getElementById('aprobar_documento_id').value = docId;
     new bootstrap.Modal(document.getElementById('modalAprobar')).show();
+}
+
+function cargarVersionFinal(docId, itemTitulo) {
+    document.getElementById('version_documento_id').value = docId;
+    document.getElementById('version_item_titulo').textContent = itemTitulo || '';
+    new bootstrap.Modal(document.getElementById('modalVersionFinal')).show();
 }
 
 function observarDocumento(docId, itemTitulo, observacionesActuales) {

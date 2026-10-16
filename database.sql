@@ -1,5 +1,5 @@
 -- Dump de Base de Datos - Sistema de Control de Transparencia Activa
--- Versión: 1.0.0
+-- Versión: 1.2.0
 -- Fecha de Creación: Diciembre 2025
 
 -- =====================================================
@@ -110,6 +110,26 @@ CREATE TABLE IF NOT EXISTS `documentos` (
   CONSTRAINT `documentos_ibfk_3` FOREIGN KEY (`revisado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Versiones finales validadas por el revisor. El archivo original permanece
+-- siempre en documentos.archivo.
+CREATE TABLE IF NOT EXISTS `documentos_versiones_revisor` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `documento_id` int(11) NOT NULL,
+  `revisor_id` int(11) NOT NULL,
+  `archivo` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nombre_original` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `comentarios` text COLLATE utf8mb4_unicode_ci,
+  `numero_version` int(11) NOT NULL DEFAULT '1',
+  `es_vigente` tinyint(1) NOT NULL DEFAULT '1',
+  `fecha_carga` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `hash_archivo` char(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_version_documento_vigente` (`documento_id`,`es_vigente`),
+  KEY `idx_version_revisor` (`revisor_id`),
+  CONSTRAINT `fk_version_revisor_documento` FOREIGN KEY (`documento_id`) REFERENCES `documentos` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_version_revisor_usuario` FOREIGN KEY (`revisor_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- =====================================================
 -- TABLA: logs
 -- =====================================================
@@ -124,6 +144,22 @@ CREATE TABLE IF NOT EXISTS `logs` (
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
   CONSTRAINT `logs_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `migraciones_sistema` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `codigo` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nombre` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `descripcion` text COLLATE utf8mb4_unicode_ci,
+  `estado` enum('instalada','no_aplicable','error') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'instalada',
+  `instalado_por` int(11) DEFAULT NULL,
+  `fecha_instalacion` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `detalle` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `codigo` (`codigo`),
+  KEY `idx_migraciones_estado` (`estado`),
+  CONSTRAINT `fk_migraciones_usuario` FOREIGN KEY (`instalado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================

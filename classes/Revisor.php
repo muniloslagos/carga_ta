@@ -13,9 +13,64 @@
 class Revisor {
     private $db;
     private $table = 'revisiones_documentos';
+    private $tablaVersionesExiste = null;
 
     public function __construct($db) {
         $this->db = $db;
+    }
+
+    public function versionesFinalesDisponibles() {
+        if ($this->tablaVersionesExiste !== null) {
+            return $this->tablaVersionesExiste;
+        }
+        $result = $this->db->query("SHOW TABLES LIKE 'documentos_versiones_revisor'");
+        $this->tablaVersionesExiste = $result && $result->num_rows > 0;
+        return $this->tablaVersionesExiste;
+    }
+
+    public function getVersionFinalVigente($documento_id) {
+        if (!$this->versionesFinalesDisponibles()) {
+            return null;
+        }
+        $stmt = $this->db->prepare("SELECT vr.*, u.nombre AS revisor_nombre
+            FROM documentos_versiones_revisor vr
+            LEFT JOIN usuarios u ON u.id = vr.revisor_id
+            WHERE vr.documento_id = ? AND vr.es_vigente = 1
+            ORDER BY vr.numero_version DESC, vr.id DESC LIMIT 1");
+        $stmt->bind_param('i', $documento_id);
+        $stmt->execute();
+        $version = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        return $version ?: null;
+    }
+
+    public function registrarVersionFinal($documento_id, $revisor_id, $archivo, $nombreOriginal, $comentarios, $hash) {
+        if (!$this->versionesFinalesDisponibles()) {
+            throw new Exception('La actualización de versiones finales aún no está instalada.');
+        }
+
+        $stmtNumero = $this->db->prepare("SELECT COALESCE(MAX(numero_version), 0) + 1 AS siguiente
+            FROM documentos_versiones_revisor WHERE documento_id = ?");
+        $stmtNumero->bind_param('i', $documento_id);
+        $stmtNumero->execute();
+        $numero = (int)$stmtNumero->get_result()->fetch_assoc()['siguiente'];
+        $stmtNumero->close();
+
+        $stmtAnterior = $this->db->prepare("UPDATE documentos_versiones_revisor SET es_vigente = 0 WHERE documento_id = ?");
+        $stmtAnterior->bind_param('i', $documento_id);
+        $stmtAnterior->execute();
+        $stmtAnterior->close();
+
+        $stmt = $this->db->prepare("INSERT INTO documentos_versiones_revisor
+            (documento_id, revisor_id, archivo, nombre_original, comentarios, numero_version, es_vigente, hash_archivo)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
+        $stmt->bind_param('iisssis', $documento_id, $revisor_id, $archivo, $nombreOriginal, $comentarios, $numero, $hash);
+        if (!$stmt->execute()) {
+            throw new Exception('No se pudo registrar la versión final: ' . $stmt->error);
+        }
+        $id = (int)$this->db->insert_id;
+        $stmt->close();
+        return $id;
     }
 
     /**

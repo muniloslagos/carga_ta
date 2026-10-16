@@ -76,6 +76,52 @@ class Historial {
             ];
         }
 
+        // Versiones finales cargadas por el revisor. El original permanece
+        // registrado arriba como documento cargado por la unidad.
+        $tableCheck = $this->db->query("SHOW TABLES LIKE 'documentos_versiones_revisor'");
+        if ($tableCheck && $tableCheck->num_rows > 0) {
+            $sql = "SELECT vr.id, vr.documento_id, vr.archivo, vr.nombre_original,
+                           vr.comentarios, vr.numero_version, vr.es_vigente,
+                           vr.fecha_carga AS fecha, u.nombre AS usuario,
+                           d.titulo, d.mes_carga AS mes, d.ano_carga AS ano
+                    FROM documentos_versiones_revisor vr
+                    INNER JOIN documentos d ON d.id = vr.documento_id
+                    LEFT JOIN usuarios u ON u.id = vr.revisor_id
+                    WHERE d.item_id = ?";
+            $params = [$item_id];
+            $types = 'i';
+            if ($mes !== null && $ano !== null) {
+                $sql .= " AND d.mes_carga = ? AND d.ano_carga = ?";
+                $params[] = $mes;
+                $params[] = $ano;
+                $types .= 'ii';
+            }
+            $sql .= " ORDER BY vr.fecha_carga DESC, vr.id DESC";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bind_param($types, ...$params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $detalle = 'Archivo: ' . $row['nombre_original']
+                    . ' | Versión: ' . (int)$row['numero_version']
+                    . ' | Estado: ' . ($row['es_vigente'] ? 'Vigente para publicación' : 'Reemplazada por una versión posterior');
+                if (!empty($row['comentarios'])) {
+                    $detalle .= ' | Comentarios: ' . $row['comentarios'];
+                }
+                $movimientos[] = [
+                    'tipo' => 'version_final_revisor',
+                    'usuario' => $row['usuario'] ?? 'Revisor no identificado',
+                    'fecha' => $row['fecha'],
+                    'descripcion' => 'Versión final validada: ' . $row['titulo'],
+                    'detalle' => $detalle,
+                    'documento_id' => $row['documento_id'],
+                    'mes' => $row['mes'],
+                    'ano' => $row['ano'],
+                ];
+            }
+            $stmt->close();
+        }
+
         // 2. Verificadores agregados (con publicador y fecha)
         $sql = "SELECT 
             vp.id as verificador_id,

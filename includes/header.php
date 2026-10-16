@@ -9,6 +9,7 @@ if (!defined('SITE_NAME')) {
     require_once dirname(__DIR__) . '/config/config.php';
 }
 require_once dirname(__DIR__) . '/includes/municipalidad.php';
+require_once dirname(__DIR__) . '/config/version.php';
 
 // Calcular la URL base del proyecto dinámicamente
 if (!defined('BASE_PATH')) {
@@ -100,6 +101,7 @@ if ($is_logged_in) {
 $solicitudesInformacionPendientes = $solicitudesInformacionPendientes ?? 0;
 $contadorSolicitudesInformacionPreparado = $contadorSolicitudesInformacionPreparado ?? false;
 $transparenciaPasivaActiva = false;
+$actualizacionesPendientes = 0;
 if ($is_logged_in) {
     try {
         require_once __DIR__ . '/transparencia_pasiva_csv.php';
@@ -112,6 +114,17 @@ if ($is_logged_in) {
     } catch (Throwable $errorTransparenciaPasiva) {
         $transparenciaPasivaActiva = false;
         $solicitudesInformacionPendientes = 0;
+    }
+}
+
+// Solo lectura: la tabla de control se crea recién cuando el administrador
+// ingresa al Centro de actualizaciones.
+if ($is_logged_in && $current_profile === 'administrativo') {
+    try {
+        require_once dirname(__DIR__) . '/classes/SystemUpdater.php';
+        $actualizacionesPendientes = (new SystemUpdater($conn))->pendingCount();
+    } catch (Throwable $errorActualizaciones) {
+        $actualizacionesPendientes = 0;
     }
 }
 ?>
@@ -158,6 +171,9 @@ if ($is_logged_in) {
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/documentos/"><i class="bi bi-file-earmark"></i> Documentos</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/correos/"><i class="bi bi-envelope"></i> Correos</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/configuracion/"><i class="bi bi-gear-fill"></i> Configuración</a></li>
+                                <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/actualizaciones/"><i class="bi bi-arrow-repeat"></i> Actualizaciones
+                                    <?php if ($actualizacionesPendientes > 0): ?><span class="badge bg-danger ms-1"><?php echo $actualizacionesPendientes; ?></span><?php endif; ?>
+                                </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/items/plazos.php"><i class="bi bi-calendar-check"></i> Plazos</a></li>
                                 <li><a class="dropdown-item" href="<?php echo SITE_URL; ?>admin/auditor/"><i class="bi bi-search"></i> Auditor</a></li>
@@ -192,6 +208,16 @@ if ($is_logged_in) {
                 </ul>
                 <ul class="navbar-nav ms-auto align-items-center gap-2">
                     <?php if ($is_logged_in && $current_user): ?>
+                        <?php if ($current_profile === 'administrativo'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link text-light position-relative" href="<?php echo SITE_URL; ?>admin/actualizaciones/" title="Actualizaciones del sistema">
+                                <i class="bi <?php echo $actualizacionesPendientes > 0 ? 'bi-bell-fill text-warning' : 'bi-bell'; ?>" style="font-size:1.15rem;"></i>
+                                <?php if ($actualizacionesPendientes > 0): ?>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"><?php echo $actualizacionesPendientes; ?></span>
+                                <?php endif; ?>
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <?php if ($transparenciaPasivaActiva): ?>
                         <li class="nav-item">
                             <a class="nav-link text-light" href="<?php echo SITE_URL; ?>t_pasiva/">
