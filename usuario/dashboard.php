@@ -49,6 +49,17 @@ function tieneVersionFinalRevisor($conn, $documentoId) {
     return $cache[$documentoId] = $existe;
 }
 
+function mostrarTituloItem($item, $esCargador) {
+    $titulo = htmlspecialchars($item['nombre'] ?? '', ENT_QUOTES, 'UTF-8');
+    if (!$esCargador || empty($item['plantilla_archivo'])) {
+        return $titulo;
+    }
+    $id = (int)($item['id'] ?? 0);
+    return '<a href="descargar_plantilla_item.php?item_id=' . $id . '" class="text-decoration-none" '
+        . 'title="Descargar plantilla Excel">' . $titulo
+        . ' <i class="bi bi-paperclip" aria-label="Tiene plantilla adjunta"></i></a>';
+}
+
 // Obtener mes y año actual
 $mesActual = (int)date('m');
 $anoActual = (int)date('Y');
@@ -215,6 +226,12 @@ $joinRevisiones = $tablaRevExiste ?
     "LEFT JOIN revisiones_documentos rd ON d.id = rd.documento_id" :
     "";
 
+$checkPlantillaItem = $conn->query("SHOW COLUMNS FROM items_transparencia LIKE 'plantilla_archivo'");
+$plantillasItemsHabilitadas = $checkPlantillaItem && $checkPlantillaItem->num_rows > 0;
+$selectPlantillaItem = $plantillasItemsHabilitadas
+    ? 'i.plantilla_archivo, i.plantilla_nombre_original,'
+    : 'NULL AS plantilla_archivo, NULL AS plantilla_nombre_original,';
+
 $query = "
     SELECT 
         i.id as item_id,
@@ -223,6 +240,7 @@ $query = "
         i.periodicidad,
         i.descripcion as item_descripcion,
         i.mes_carga_anual,
+        $selectPlantillaItem
         d.id as doc_id,
         d.titulo as doc_titulo,
         d.archivo as doc_archivo,
@@ -300,7 +318,9 @@ while ($row = $resultado->fetch_assoc()) {
             'nombre' => $row['item_nombre'],
             'periodicidad' => $row['periodicidad'],
             'descripcion' => $row['item_descripcion'],
-            'mes_carga_anual' => $row['mes_carga_anual'] ?? null
+            'mes_carga_anual' => $row['mes_carga_anual'] ?? null,
+            'plantilla_archivo' => $row['plantilla_archivo'] ?? null,
+            'plantilla_nombre_original' => $row['plantilla_nombre_original'] ?? null
         ];
         $itemsPorPeriodicidad[$periodicidad][] = $itemsCache[$itemId];
     }
@@ -905,7 +925,7 @@ if (isset($_SESSION['success'])) {
                                             </div>
                                         </td>
                                         <td>
-                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php echo mostrarTituloItem($item, $user_perfil === 'cargador_informacion'); ?>
                                             <?php if ($plazoFinal || $plazoPublicFinal): ?>
                                                 <div class="small text-muted mt-1">
                                                     <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
@@ -1195,7 +1215,7 @@ if (isset($_SESSION['success'])) {
                                             </div>
                                         </td>
                                         <td>
-                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php echo mostrarTituloItem($item, $user_perfil === 'cargador_informacion'); ?>
                                             <?php if ($plazoFinal || $plazoPublicFinal): ?>
                                                 <div class="small text-muted mt-1">
                                                     <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
@@ -1482,7 +1502,7 @@ if (isset($_SESSION['success'])) {
                                             </div>
                                         </td>
                                         <td>
-                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php echo mostrarTituloItem($item, $user_perfil === 'cargador_informacion'); ?>
                                             <?php if ($plazoFinal || $plazoPublicFinal): ?>
                                                 <div class="small text-muted mt-1">
                                                     <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>
@@ -1765,7 +1785,7 @@ if (isset($_SESSION['success'])) {
                                             </div>
                                         </td>
                                         <td>
-                                            <?php echo htmlspecialchars($item['nombre']); ?>
+                                            <?php echo mostrarTituloItem($item, $user_perfil === 'cargador_informacion'); ?>
                                             <?php if ($plazoFinal || $plazoPublicFinal): ?>
                                                 <div class="small text-muted mt-1">
                                                     <?php if ($plazoFinal): ?><span title="Plazo cargador"><i class="bi bi-upload"></i> <?php echo date('d/m/Y', strtotime($plazoFinal)); ?></span><?php endif; ?>

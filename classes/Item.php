@@ -84,6 +84,38 @@ class Item {
         return $stmt->execute();
     }
 
+    public function supportsTemplates() {
+        $result = $this->db->query("SHOW COLUMNS FROM {$this->table} LIKE 'plantilla_archivo'");
+        return $result && $result->num_rows > 0;
+    }
+
+    public function updateTemplate($id, $archivo, $nombreOriginal, $usuarioId) {
+        if (!$this->supportsTemplates()) {
+            return false;
+        }
+
+        $sql = "UPDATE {$this->table}
+                SET plantilla_archivo = ?, plantilla_nombre_original = ?,
+                    plantilla_subida_por = ?, plantilla_fecha_actualizacion = NOW()
+                WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bind_param('ssii', $archivo, $nombreOriginal, $usuarioId, $id);
+        return $stmt->execute();
+    }
+
+    public function removeTemplate($id) {
+        if (!$this->supportsTemplates()) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare("UPDATE {$this->table}
+            SET plantilla_archivo = NULL, plantilla_nombre_original = NULL,
+                plantilla_subida_por = NULL, plantilla_fecha_actualizacion = NULL
+            WHERE id = ?");
+        $stmt->bind_param('i', $id);
+        return $stmt->execute();
+    }
+
     // Desactivar item
     public function deactivate($id) {
         $sql = "UPDATE {$this->table} SET activo = 0 WHERE id = ?";

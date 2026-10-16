@@ -14,6 +14,46 @@ $conn = $db->getConnection();
 
 $error = '';
 $success = '';
+$plantillasHabilitadas = $itemClass->supportsTemplates();
+
+function eliminarArchivoPlantilla($rutaRelativa) {
+    if (!$rutaRelativa) return;
+    $raiz = realpath(dirname(__DIR__, 2) . '/uploads/plantillas/items');
+    $archivo = realpath(dirname(__DIR__, 2) . '/' . ltrim($rutaRelativa, '/\\'));
+    if ($raiz && $archivo && strpos($archivo, $raiz . DIRECTORY_SEPARATOR) === 0 && is_file($archivo)) {
+        @unlink($archivo);
+    }
+}
+
+function guardarPlantillaItem($archivo, $itemId) {
+    if (($archivo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('No se pudo recibir la plantilla Excel. Código: ' . ($archivo['error'] ?? 'desconocido'));
+    }
+    if (($archivo['size'] ?? 0) > 20 * 1024 * 1024) {
+        throw new RuntimeException('La plantilla supera el máximo permitido de 20 MB.');
+    }
+
+    $nombreOriginal = basename((string)($archivo['name'] ?? ''));
+    $extension = strtolower(pathinfo($nombreOriginal, PATHINFO_EXTENSION));
+    if (!in_array($extension, ['xls', 'xlsx', 'xlsm'], true)) {
+        throw new RuntimeException('La plantilla debe ser un archivo XLS, XLSX o XLSM.');
+    }
+
+    $directorio = dirname(__DIR__, 2) . '/uploads/plantillas/items/' . (int)$itemId;
+    if (!is_dir($directorio) && !mkdir($directorio, 0755, true) && !is_dir($directorio)) {
+        throw new RuntimeException('No fue posible crear la carpeta de plantillas.');
+    }
+    $nombreInterno = 'plantilla_' . (int)$itemId . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $destino = $directorio . '/' . $nombreInterno;
+    if (!move_uploaded_file($archivo['tmp_name'], $destino)) {
+        throw new RuntimeException('No fue posible guardar la plantilla en el servidor.');
+    }
+    return [
+        'ruta' => 'uploads/plantillas/items/' . (int)$itemId . '/' . $nombreInterno,
+        'nombre' => $nombreOriginal,
+        'absoluta' => $destino,
+    ];
+}
 
 // Procesar formulario ANTES de incluir header
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -82,9 +122,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = array_merge($data, $predefinedData);
         }
 
-        if ($itemClass->update(intval($_POST['item_id']), $data)) {
-            $_SESSION['success'] = 'Item actualizado correctamente';
-            $redirect = true;
+        $itemId = intval($_POST['item_id']);
+        $itemAnterior = $itemClass->getById($itemId);
+        $hayArchivoPlantilla = isset($_FILES['plantilla_excel'])
+            && ($_FILES['plantilla_excel']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+        $quitarPlantilla = !empty($_POST['quitar_plantilla']);
+
+        if (($hayArchivoPlantilla || $quitarPlantilla) && !$plantillasHabilitadas) {
+            $error = 'La función de plantillas aún no está instalada. Ingrese a Actualizaciones del sistema.';
+        } elseif ($itemClass->update($itemId, $data)) {
+            try {
+                if ($hayArchivoPlantilla) {
+                    $nueva = guardarPlantillaItem($_FILES['plantilla_excel'], $itemId);
+                    if (!$itemClass->updateTemplate($itemId, $nueva['ruta'], $nueva['nombre'], (int)$_SESSION['user_id'])) {
+                        @unlink($nueva['absoluta']);
+                        throw new RuntimeException('No se pudo asociar la plantilla al item.');
+                    }
+                    eliminarArchivoPlantilla($itemAnterior['plantilla_archivo'] ?? null);
+                } elseif ($quitarPlantilla && !empty($itemAnterior['plantilla_archivo'])) {
+                    if (!$itemClass->removeTemplate($itemId)) {
+                        throw new RuntimeException('No se pudo quitar la plantilla del item.');
+                    }
+                    eliminarArchivoPlantilla($itemAnterior['plantilla_archivo']);
+                }
+                $_SESSION['success'] = 'Item actualizado correctamente';
+                $redirect = true;
+            } catch (Throwable $e) {
+                $error = $e->getMessage();
+            }
         } else {
             $error = 'Error al actualizar el item';
         }
@@ -569,7 +634,7 @@ if (!isset($PERIODICIDADES)) {
                 <h5 class="modal-title" id="itemModalLabel">Nuevo Item</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="itemForm">
+            <form method="POST" id="itemForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     <input type="hidden" name="action" value="create" id="formAction">
                     <input type="hidden" name="item_id" id="itemId">
@@ -648,6 +713,23 @@ if (!isset($PERIODICIDADES)) {
                             <option value="12">Diciembre</option>
                         </select>
                         <small class="text-muted">Mes en que se debe cargar este item anual</small>
+                    </div>
+
+                    <div class="mb-3 d-none" id="plantillaExcelContainer">
+                        <label for="plantilla_excel" class="form-label">Plantilla Excel (opcional)</label>
+                        <?php if ($plantillasHabilitadas): ?>
+                            <input type="file" class="form-control" id="plantilla_excel" name="plantilla_excel" accept=".xls,.xlsx,.xlsm">
+                            <small class="text-muted">Formatos XLS, XLSX o XLSM. Máximo 20 MB. Una nueva plantilla reemplaza la anterior.</small>
+                            <div id="plantillaActual" class="alert alert-info py-2 mt-2 d-none"></div>
+                            <div class="form-check mt-2 d-none" id="quitarPlantillaContainer">
+                                <input class="form-check-input" type="checkbox" value="1" id="quitar_plantilla" name="quitar_plantilla">
+                                <label class="form-check-label" for="quitar_plantilla">Quitar la plantilla actual</label>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-warning mb-0">
+                                Esta función aún no está instalada. Instálela desde <strong>Actualizaciones</strong> en el menú administrador.
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1004,6 +1086,23 @@ function editItem(id) {
             if (data.periodicidad === 'anual' && data.mes_carga_anual) {
                 document.getElementById('mes_carga_anual').value = data.mes_carga_anual;
             }
+            const plantillaContainer = document.getElementById('plantillaExcelContainer');
+            plantillaContainer.classList.remove('d-none');
+            const plantillaActual = document.getElementById('plantillaActual');
+            const quitarContainer = document.getElementById('quitarPlantillaContainer');
+            const quitarCheckbox = document.getElementById('quitar_plantilla');
+            if (plantillaActual && quitarContainer && quitarCheckbox) {
+                quitarCheckbox.checked = false;
+                if (data.plantilla_archivo) {
+                    const nombre = data.plantilla_nombre_original || 'Plantilla Excel';
+                    plantillaActual.textContent = 'Plantilla actual: ' + nombre;
+                    plantillaActual.classList.remove('d-none');
+                    quitarContainer.classList.remove('d-none');
+                } else {
+                    plantillaActual.classList.add('d-none');
+                    quitarContainer.classList.add('d-none');
+                }
+            }
         });
 }
 
@@ -1173,6 +1272,11 @@ document.getElementById('itemModal').addEventListener('hide.bs.modal', function(
     document.getElementById('predefined_item_key').value = '';
     document.getElementById('predefined_item_selector').value = '';
     document.getElementById('mesCargaAnualContainer').style.display = 'none';
+    document.getElementById('plantillaExcelContainer').classList.add('d-none');
+    const plantillaActual = document.getElementById('plantillaActual');
+    const quitarPlantillaContainer = document.getElementById('quitarPlantillaContainer');
+    if (plantillaActual) plantillaActual.classList.add('d-none');
+    if (quitarPlantillaContainer) quitarPlantillaContainer.classList.add('d-none');
     document.getElementById('itemModalValidationError').classList.add('d-none');
     document.getElementById('itemModalValidationError').innerHTML = '';
 });
