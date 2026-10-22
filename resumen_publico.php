@@ -271,7 +271,7 @@ while ($item = $all_items->fetch_assoc()) {
         $items_por_direccion[$dir_id]['totales']['publicados']++;
     } elseif ($documento) {
         if ($tieneObservacion) {
-            $estado = $sinMovimiento ? 'Sin Movimiento (Observado)' : 'Cargado (Observado)';
+            $estado = $sinMovimiento ? 'Sin Movimiento (Observado)' : 'Pendiente (Observado)';
             $estado_clase = 'danger';
         } else {
             $estado = $sinMovimiento ? 'Sin Movimiento (Sin Publicar)' : 'Cargado (Sin Publicar)';
@@ -286,8 +286,15 @@ while ($item = $all_items->fetch_assoc()) {
             $fecha_envio_raw = $sinMovFecha;
         }
         $fecha_publicacion = 'Pendiente';
-        $totales['cargados']++;
-        $items_por_direccion[$dir_id]['totales']['cargados']++;
+        if ($tieneObservacion) {
+            // Una carga observada requiere corrección: no se considera una
+            // entrega válida para el porcentaje de cumplimiento.
+            $totales['pendientes']++;
+            $items_por_direccion[$dir_id]['totales']['pendientes']++;
+        } else {
+            $totales['cargados']++;
+            $items_por_direccion[$dir_id]['totales']['cargados']++;
+        }
     } elseif ($sinMovimiento) {
         $estado = 'Sin Movimiento (Sin Publicar)';
         $estado_clase = 'warning';

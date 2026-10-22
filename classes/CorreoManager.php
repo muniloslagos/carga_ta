@@ -60,6 +60,41 @@ class CorreoManager {
                 : null
         ];
     }
+
+    /**
+     * Un documento observado y aún no corregido se considera pendiente de
+     * carga para los informes de cumplimiento, aunque el archivo original se
+     * conserve como antecedente.
+     */
+    private function documentoTieneObservacionPendiente($documento_id) {
+        static $tablaExiste = null;
+        static $cache = [];
+
+        $documento_id = (int)$documento_id;
+        if ($documento_id <= 0) {
+            return false;
+        }
+        if (array_key_exists($documento_id, $cache)) {
+            return $cache[$documento_id];
+        }
+        if ($tablaExiste === null) {
+            $check = $this->conn->query("SHOW TABLES LIKE 'observaciones_documentos'");
+            $tablaExiste = $check && $check->num_rows > 0;
+        }
+        if (!$tablaExiste) {
+            return $cache[$documento_id] = false;
+        }
+
+        $stmt = $this->conn->prepare('SELECT 1 FROM observaciones_documentos WHERE documento_id = ? AND resuelta = 0 LIMIT 1');
+        if (!$stmt) {
+            return $cache[$documento_id] = false;
+        }
+        $stmt->bind_param('i', $documento_id);
+        $stmt->execute();
+        $pendiente = (bool)$stmt->get_result()->fetch_row();
+        $stmt->close();
+        return $cache[$documento_id] = $pendiente;
+    }
     
     /**
      * Enviar correo de inicio de proceso a todos los cargadores
@@ -779,6 +814,11 @@ class CorreoManager {
                     $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
                     $html .= '<td>' . date('d/m/Y H:i', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
                     $html .= '<td>' . date('d/m/Y H:i', strtotime($verificadorOcurrencia['fecha_carga_portal'])) . '</td>';
+                } elseif ($this->documentoTieneObservacionPendiente($documentoOcurrencia['id'])) {
+                    $items_pendientes++;
+                    $html .= '<td style="color:red;"><strong>✗ Pendiente (Observado)</strong></td>';
+                    $html .= '<td>' . date('d/m/Y H:i', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                    $html .= '<td><em>Requiere corrección</em></td>';
                 } else {
                     $items_cargados++;
                     $html .= '<td style="color:orange;"><strong>⚠ Cargado (sin publicar)</strong></td>';
@@ -878,6 +918,14 @@ class CorreoManager {
                 }
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
                 $html .= '<td>' . date('d/m/Y H:i', strtotime($verificador['fecha_carga_portal'])) . '</td>';
+            } elseif ($documento && $this->documentoTieneObservacionPendiente($documento['id'])) {
+                // El archivo observado se conserva como antecedente, pero no
+                // cuenta como carga válida hasta que sea corregido.
+                $items_pendientes++;
+                $label = $sinMovimiento ? '✗ Sin Movimiento (Observado)' : '✗ Pendiente (Observado)';
+                $html .= '<td style="color:red;"><strong>' . $label . '</strong></td>';
+                $html .= '<td>' . date('d/m/Y H:i', strtotime($documento['fecha_subida'])) . '</td>';
+                $html .= '<td><em>Requiere corrección</em></td>';
             } elseif ($documento) {
                 // Tiene documento pero no verificador
                 $items_cargados++;
@@ -1436,6 +1484,11 @@ class CorreoManager {
                         $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
                         $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
                         $html .= '<td>' . date('d/m/Y', strtotime($verificadorOcurrencia['fecha_carga_portal'])) . '</td>';
+                    } elseif ($this->documentoTieneObservacionPendiente($documentoOcurrencia['id'])) {
+                        $pen_general++;
+                        $html .= '<td style="color:red;"><strong>✗ Pendiente (Observado)</strong></td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                        $html .= '<td><em>Requiere corrección</em></td>';
                     } else {
                         $car_general++;
                         $html .= '<td style="color:orange;"><strong>⚠ Cargado (Sin Publicar)</strong></td>';
@@ -1530,6 +1583,12 @@ class CorreoManager {
                     $html .= '<td style="color:green;"><strong>' . $label . '</strong></td>';
                     $html .= '<td>' . date('d/m/Y', strtotime($documento['fecha_subida'])) . '</td>';
                     $html .= '<td>' . date('d/m/Y', strtotime($verificador['fecha_carga_portal'])) . '</td>';
+                } elseif ($documento && $this->documentoTieneObservacionPendiente($documento['id'])) {
+                    $pen_general++;
+                    $label = $sinMovimiento ? '✗ Sin Movimiento (Observado)' : '✗ Pendiente (Observado)';
+                    $html .= '<td style="color:red;"><strong>' . $label . '</strong></td>';
+                    $html .= '<td>' . date('d/m/Y', strtotime($documento['fecha_subida'])) . '</td>';
+                    $html .= '<td><em>Requiere corrección</em></td>';
                 } elseif ($documento) {
                     $car_general++;
                     $label = $sinMovimiento ? '⚠ Sin Movimiento (Sin Publicar)' : '⚠ Cargado (Sin Publicar)';
@@ -1641,6 +1700,11 @@ class CorreoManager {
                         $html .= '<td style="color:green;"><strong>✓ Publicado</strong></td>';
                         $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
                         $html .= '<td>' . date('d/m/Y', strtotime($verificadorOcurrencia['fecha_carga_portal'])) . '</td>';
+                    } elseif ($this->documentoTieneObservacionPendiente($documentoOcurrencia['id'])) {
+                        $pen++;
+                        $html .= '<td style="color:red;"><strong>✗ Pendiente (Observado)</strong></td>';
+                        $html .= '<td>' . date('d/m/Y', strtotime($documentoOcurrencia['fecha_subida'])) . '</td>';
+                        $html .= '<td><em>Requiere corrección</em></td>';
                     } else {
                         $car++;
                         $html .= '<td style="color:orange;"><strong>⚠ Cargado (Sin Publicar)</strong></td>';
@@ -1735,6 +1799,12 @@ class CorreoManager {
                     $html .= '<td style="color:green;"><strong>' . $label . '</strong></td>';
                     $html .= '<td>' . date('d/m/Y', strtotime($documento['fecha_subida'])) . '</td>';
                     $html .= '<td>' . date('d/m/Y', strtotime($verificador['fecha_carga_portal'])) . '</td>';
+                } elseif ($documento && $this->documentoTieneObservacionPendiente($documento['id'])) {
+                    $pen++;
+                    $label = $sinMovimiento ? '✗ Sin Movimiento (Observado)' : '✗ Pendiente (Observado)';
+                    $html .= '<td style="color:red;"><strong>' . $label . '</strong></td>';
+                    $html .= '<td>' . date('d/m/Y', strtotime($documento['fecha_subida'])) . '</td>';
+                    $html .= '<td><em>Requiere corrección</em></td>';
                 } elseif ($documento) {
                     $car++;
                     $label = $sinMovimiento ? '⚠ Sin Movimiento (Sin Publicar)' : '⚠ Cargado (Sin Publicar)';
