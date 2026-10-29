@@ -124,10 +124,18 @@ require_once dirname(__DIR__) . '/includes/header.php';
     }
 
     .tp-table-card {
-        border: 0;
+        border: 1px solid #d9e0e7;
         border-radius: 0.85rem;
-        box-shadow: 0 0.25rem 1rem rgba(44, 62, 80, 0.1);
+        box-shadow: 0 0.35rem 1.2rem rgba(44, 62, 80, 0.08);
         overflow: hidden;
+        background: #fff;
+    }
+
+    .tp-table {
+        --bs-table-bg: #fff;
+        --bs-table-hover-bg: #f6f8fa;
+        border-collapse: separate;
+        border-spacing: 0;
     }
 
     .tp-table thead th {
@@ -139,37 +147,51 @@ require_once dirname(__DIR__) . '/includes/header.php';
         padding: 0.9rem 0.75rem;
         vertical-align: middle;
         white-space: nowrap;
+        border: 0;
+        border-right: 1px solid rgba(255, 255, 255, 0.13);
+        border-bottom: 1px solid #243442;
+    }
+
+    .tp-table thead th:last-child {
+        border-right: 0;
     }
 
     .tp-table tbody td {
+        background-color: #fff;
         color: #34495e;
         font-size: 0.88rem;
         padding: 0.85rem 0.75rem;
         vertical-align: middle;
+        border: 0;
+        border-right: 1px solid #e1e6eb;
+        border-bottom: 1px solid #d9e0e7;
     }
 
-    .tp-table tbody tr.tp-row-delivered > td {
-        background-color: #d1e7dd;
+    .tp-table tbody td:last-child {
+        border-right: 0;
     }
 
-    .tp-table tbody tr.tp-row-delivered:hover > td {
-        background-color: #badbcc;
+    .tp-table tbody tr:last-child td {
+        border-bottom: 0;
     }
 
-    .tp-table tbody tr.tp-row-internal > td {
-        background-color: #f8d7da;
-    }
-
-    .tp-table tbody tr.tp-row-internal:hover > td {
-        background-color: #f1bfc4;
-    }
-
-    .tp-table tbody tr.tp-row-internal-answered > td {
-        background-color: #fff3cd;
-    }
-
+    .tp-table tbody tr:hover > td,
+    .tp-table tbody tr.tp-row-delivered:hover > td,
+    .tp-table tbody tr.tp-row-internal:hover > td,
     .tp-table tbody tr.tp-row-internal-answered:hover > td {
-        background-color: #ffe69c;
+        background-color: #f6f8fa;
+    }
+
+    .tp-table tbody tr.tp-row-delivered > td:first-child {
+        box-shadow: inset 4px 0 0 #198754;
+    }
+
+    .tp-table tbody tr.tp-row-internal > td:first-child {
+        box-shadow: inset 4px 0 0 #dc3545;
+    }
+
+    .tp-table tbody tr.tp-row-internal-answered > td:first-child {
+        box-shadow: inset 4px 0 0 #ffc107;
     }
 
     .tp-legend {
@@ -187,10 +209,10 @@ require_once dirname(__DIR__) . '/includes/header.php';
     }
 
     .tp-legend-color {
-        width: 0.85rem;
-        height: 0.85rem;
-        border: 1px solid rgba(44, 62, 80, 0.14);
-        border-radius: 0.2rem;
+        width: 0.28rem;
+        height: 1rem;
+        border: 0;
+        border-radius: 50rem;
     }
 
     .tp-info-button {
@@ -215,14 +237,15 @@ require_once dirname(__DIR__) . '/includes/header.php';
 
     .tp-state {
         display: inline-block;
-        border: 1px solid #d8e2ea;
+        border: 1px solid #d3dce5;
         border-radius: 50rem;
-        background: #f6f8fa;
-        color: #34495e;
+        background: #f8fafc;
+        color: #2c3e50;
         font-size: 0.78rem;
         font-weight: 600;
         padding: 0.25rem 0.55rem;
         white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(44, 62, 80, 0.04);
     }
 
     .tp-unit {
@@ -235,6 +258,10 @@ require_once dirname(__DIR__) . '/includes/header.php';
 
     .tp-table tbody td.tp-deadline {
         background-color: #fff !important;
+    }
+
+    .tp-table tbody tr:hover td.tp-deadline {
+        background-color: #f6f8fa !important;
     }
 
     .tp-deadline-content {
