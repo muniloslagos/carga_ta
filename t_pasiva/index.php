@@ -156,6 +156,36 @@ require_once dirname(__DIR__) . '/includes/header.php';
         border-right: 0;
     }
 
+    .tp-sort-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-weight: inherit;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .tp-sort-button:hover,
+    .tp-sort-button:focus-visible {
+        color: #dbeafe;
+    }
+
+    .tp-sort-button:focus-visible {
+        outline: 2px solid #93c5fd;
+        outline-offset: 3px;
+        border-radius: 0.15rem;
+    }
+
+    .tp-sort-button i {
+        font-size: 0.78rem;
+        opacity: 0.85;
+    }
+
     .tp-table tbody td {
         background-color: #fff;
         color: #34495e;
@@ -328,29 +358,31 @@ require_once dirname(__DIR__) . '/includes/header.php';
             </div>
             <div class="tp-legend" aria-label="Significado de los colores">
                 <span class="tp-legend-item">
-                    <span class="tp-legend-color" style="background:#d1e7dd;"></span>
+                    <span class="tp-legend-color" style="background:#198754;"></span>
                     Respuesta entregada
                 </span>
-                <span class="tp-legend-item">
-                    <span class="tp-legend-color" style="background:#f8d7da;"></span>
-                    Solicitud interna
-                </span>
-                <span class="tp-legend-item">
-                    <span class="tp-legend-color" style="background:#fff3cd;"></span>
-                    Solicitud interna contestada
-                </span>
-                <span class="tp-legend-item">
-                    <span class="tp-deadline-dot danger"></span>
-                    Caducidad vencida
-                </span>
-                <span class="tp-legend-item">
-                    <span class="tp-deadline-dot warning"></span>
-                    Vence dentro de 5 días
-                </span>
-                <span class="tp-legend-item">
-                    <span class="tp-deadline-dot success"></span>
-                    Caducidad vigente
-                </span>
+                <?php if (!$vistaRespondidas): ?>
+                    <span class="tp-legend-item">
+                        <span class="tp-legend-color" style="background:#dc3545;"></span>
+                        Solicitud interna
+                    </span>
+                    <span class="tp-legend-item">
+                        <span class="tp-legend-color" style="background:#ffc107;"></span>
+                        Solicitud interna contestada
+                    </span>
+                    <span class="tp-legend-item">
+                        <span class="tp-deadline-dot danger"></span>
+                        Caducidad vencida
+                    </span>
+                    <span class="tp-legend-item">
+                        <span class="tp-deadline-dot warning"></span>
+                        Vence dentro de 5 días
+                    </span>
+                    <span class="tp-legend-item">
+                        <span class="tp-deadline-dot success"></span>
+                        Caducidad vigente
+                    </span>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -361,18 +393,28 @@ require_once dirname(__DIR__) . '/includes/header.php';
                         <tr>
                             <th scope="col">Código</th>
                             <th scope="col">Información solicitada</th>
-                            <th scope="col">Estado</th>
+                            <?php if (!$vistaRespondidas): ?>
+                                <th scope="col">Estado de solicitud interna</th>
+                            <?php endif; ?>
                             <th scope="col">Estado actual</th>
-                            <th scope="col">Unidad</th>
-                            <th scope="col">Fecha ingreso</th>
+                            <th scope="col" aria-sort="none">
+                                <button type="button" class="tp-sort-button" data-sort-key="direccion">
+                                    Dirección <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
+                                </button>
+                            </th>
+                            <th scope="col" aria-sort="none">
+                                <button type="button" class="tp-sort-button" data-sort-key="fecha">
+                                    Fecha ingreso <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
+                                </button>
+                            </th>
                             <th scope="col">Fecha caducidad</th>
                             <th scope="col">Prórroga</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="tpSolicitudesBody">
                         <?php if ($solicitudesFiltradas === []): ?>
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-5">
+                                <td colspan="<?php echo $vistaRespondidas ? 7 : 8; ?>" class="text-center text-muted py-5">
                                     <?php echo $vistaRespondidas
                                         ? 'No hay SAI respondidas para mostrar.'
                                         : 'No hay solicitudes internas en proceso.'; ?>
@@ -380,8 +422,22 @@ require_once dirname(__DIR__) . '/includes/header.php';
                             </tr>
                         <?php else: ?>
                             <?php foreach ($solicitudesFiltradas as $indice => $solicitud): ?>
-                                <?php $semaforoCaducidad = tp_semaforo_caducidad((string)$solicitud['fecha_caducidad']); ?>
-                                <tr class="<?php echo tp_clase_estado_solicitud($solicitud); ?>">
+                                <?php $semaforoCaducidad = !$vistaRespondidas
+                                    ? tp_semaforo_caducidad((string)$solicitud['fecha_caducidad'])
+                                    : null; ?>
+                                <?php
+                                    $direccionOrden = trim((string)$solicitud['unidad']);
+                                    if (function_exists('mb_strtolower')) {
+                                        $direccionOrden = mb_strtolower($direccionOrden, 'UTF-8');
+                                    } else {
+                                        $direccionOrden = strtolower($direccionOrden);
+                                    }
+                                    $fechaIngresoOrden = tp_convertir_fecha((string)$solicitud['fecha_ingreso']);
+                                ?>
+                                <tr class="<?php echo tp_clase_estado_solicitud($solicitud); ?>"
+                                    data-solicitud-row
+                                    data-direccion="<?php echo htmlspecialchars($direccionOrden, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-fecha="<?php echo $fechaIngresoOrden ? $fechaIngresoOrden->format('Ymd') : ''; ?>">
                                     <td class="tp-code">
                                         <?php echo htmlspecialchars($solicitud['codigo'], ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
@@ -398,11 +454,13 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                             <?php echo htmlspecialchars(tp_resumir_texto($solicitud['informacion']), ENT_QUOTES, 'UTF-8'); ?>
                                         </button>
                                     </td>
-                                    <td>
-                                        <span class="tp-state">
-                                            <?php echo htmlspecialchars($solicitud['estado'], ENT_QUOTES, 'UTF-8'); ?>
-                                        </span>
-                                    </td>
+                                    <?php if (!$vistaRespondidas): ?>
+                                        <td>
+                                            <span class="tp-state">
+                                                <?php echo htmlspecialchars($solicitud['estado'], ENT_QUOTES, 'UTF-8'); ?>
+                                            </span>
+                                        </td>
+                                    <?php endif; ?>
                                     <td>
                                         <span class="tp-state">
                                             <?php echo htmlspecialchars($solicitud['estado_actual'], ENT_QUOTES, 'UTF-8'); ?>
@@ -414,12 +472,16 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                     <td class="tp-date">
                                         <?php echo htmlspecialchars(tp_formatear_fecha((string)$solicitud['fecha_ingreso']), ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
-                                    <td class="tp-date tp-deadline">
-                                        <span class="tp-deadline-content" title="<?php echo htmlspecialchars($semaforoCaducidad['texto'], ENT_QUOTES, 'UTF-8'); ?>">
-                                            <span class="tp-deadline-dot <?php echo $semaforoCaducidad['clase']; ?>" aria-hidden="true"></span>
-                                            <span><?php echo htmlspecialchars(tp_formatear_fecha((string)$solicitud['fecha_caducidad']), ENT_QUOTES, 'UTF-8'); ?></span>
-                                            <span class="visually-hidden"><?php echo htmlspecialchars($semaforoCaducidad['texto'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                        </span>
+                                    <td class="tp-date<?php echo $vistaRespondidas ? '' : ' tp-deadline'; ?>">
+                                        <?php if ($vistaRespondidas): ?>
+                                            <?php echo htmlspecialchars(tp_formatear_fecha((string)$solicitud['fecha_caducidad']), ENT_QUOTES, 'UTF-8'); ?>
+                                        <?php else: ?>
+                                            <span class="tp-deadline-content" title="<?php echo htmlspecialchars($semaforoCaducidad['texto'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                <span class="tp-deadline-dot <?php echo $semaforoCaducidad['clase']; ?>" aria-hidden="true"></span>
+                                                <span><?php echo htmlspecialchars(tp_formatear_fecha((string)$solicitud['fecha_caducidad']), ENT_QUOTES, 'UTF-8'); ?></span>
+                                                <span class="visually-hidden"><?php echo htmlspecialchars($semaforoCaducidad['texto'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php echo htmlspecialchars($solicitud['prorroga'], ENT_QUOTES, 'UTF-8'); ?>
@@ -454,20 +516,58 @@ require_once dirname(__DIR__) . '/includes/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('modalInformacionSolicitud');
-    if (!modal) {
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            if (!button) {
+                return;
+            }
+
+            document.getElementById('modalInformacionCodigo').textContent =
+                button.getAttribute('data-codigo') || '';
+            document.getElementById('modalInformacionTexto').textContent =
+                button.getAttribute('data-informacion') || '';
+        });
+    }
+
+    const tbody = document.getElementById('tpSolicitudesBody');
+    const sortButtons = document.querySelectorAll('.tp-sort-button');
+    if (!tbody || sortButtons.length === 0) {
         return;
     }
 
-    modal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        if (!button) {
-            return;
-        }
+    sortButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const key = button.dataset.sortKey;
+            const nextDirection = button.dataset.direction === 'asc' ? 'desc' : 'asc';
+            const rows = Array.from(tbody.querySelectorAll('tr[data-solicitud-row]'));
 
-        document.getElementById('modalInformacionCodigo').textContent =
-            button.getAttribute('data-codigo') || '';
-        document.getElementById('modalInformacionTexto').textContent =
-            button.getAttribute('data-informacion') || '';
+            rows.sort(function (rowA, rowB) {
+                const valueA = rowA.dataset[key] || '';
+                const valueB = rowB.dataset[key] || '';
+                let comparison;
+                if (key === 'fecha') {
+                    comparison = valueA.localeCompare(valueB);
+                } else {
+                    comparison = valueA.localeCompare(valueB, 'es', { sensitivity: 'base' });
+                }
+                return nextDirection === 'asc' ? comparison : -comparison;
+            });
+
+            rows.forEach(function (row) {
+                tbody.appendChild(row);
+            });
+
+            sortButtons.forEach(function (otherButton) {
+                otherButton.dataset.direction = '';
+                otherButton.closest('th').setAttribute('aria-sort', 'none');
+                otherButton.querySelector('i').className = 'bi bi-arrow-down-up';
+            });
+
+            button.dataset.direction = nextDirection;
+            button.closest('th').setAttribute('aria-sort', nextDirection === 'asc' ? 'ascending' : 'descending');
+            button.querySelector('i').className = nextDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+        });
     });
 });
 </script>
