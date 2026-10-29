@@ -110,11 +110,59 @@ function tp_validar_estructura_csv(string $ruta, array $columnasRequeridas): voi
     }
 }
 
+function tp_describir_error_carga(int $codigo): string
+{
+    $mensajes = [
+        UPLOAD_ERR_OK => 'Carga recibida correctamente',
+        UPLOAD_ERR_INI_SIZE => 'El archivo supera upload_max_filesize',
+        UPLOAD_ERR_FORM_SIZE => 'El archivo supera MAX_FILE_SIZE del formulario',
+        UPLOAD_ERR_PARTIAL => 'El archivo se recibió parcialmente',
+        UPLOAD_ERR_NO_FILE => 'No se recibió ningún archivo',
+        UPLOAD_ERR_NO_TMP_DIR => 'PHP no encuentra la carpeta temporal',
+        UPLOAD_ERR_CANT_WRITE => 'PHP no pudo escribir el archivo temporal en disco',
+        UPLOAD_ERR_EXTENSION => 'Una extensión de PHP detuvo la carga',
+    ];
+
+    return $mensajes[$codigo] ?? 'Código de carga desconocido';
+}
+
+function tp_registrar_error_carga_csv(array $archivo, int $codigo): void
+{
+    $directorioTemporal = ini_get('upload_tmp_dir');
+    if ($directorioTemporal === false || trim((string)$directorioTemporal) === '') {
+        $directorioTemporal = sys_get_temp_dir();
+    }
+
+    $datos = [
+        'fecha' => date(DATE_ATOM),
+        'codigo' => $codigo,
+        'descripcion' => tp_describir_error_carga($codigo),
+        'nombre' => basename((string)($archivo['name'] ?? '')),
+        'tamano_reportado' => (int)($archivo['size'] ?? 0),
+        'tipo_reportado' => (string)($archivo['type'] ?? ''),
+        'tmp_name_presente' => !empty($archivo['tmp_name']),
+        'content_length' => isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : null,
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'max_file_uploads' => ini_get('max_file_uploads'),
+        'upload_tmp_dir' => $directorioTemporal,
+        'tmp_existe' => is_dir((string)$directorioTemporal),
+        'tmp_es_escribible' => is_writable((string)$directorioTemporal),
+        'php_sapi' => PHP_SAPI,
+    ];
+
+    $json = json_encode($datos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    error_log('[CSV_UPLOAD_ERROR] ' . ($json !== false ? $json : 'No fue posible serializar el diagnóstico'));
+}
+
 function tp_validar_csv_subido(array $archivo, array $columnasRequeridas): void
 {
     $error = (int)($archivo['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($error !== UPLOAD_ERR_OK) {
-        throw new RuntimeException('La carga del CSV no se completó correctamente.');
+        tp_registrar_error_carga_csv($archivo, $error);
+        throw new RuntimeException(
+            'La carga del CSV no se completó correctamente (código ' . $error . ').'
+        );
     }
 
     $rutaTemporal = (string)($archivo['tmp_name'] ?? '');

@@ -95,7 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Configuración General
     if (isset($_POST['guardar_general'])) {
-        $max_file_size = (int)($_POST['max_file_size'] ?? 200);
+        // No usar el nombre MAX_FILE_SIZE (PHP lo interpreta, sin distinguir
+        // mayúsculas, como un límite de carga expresado en bytes).
+        $max_file_size = (int)($_POST['limite_archivos_mb'] ?? 200);
         $activar_revision = isset($_POST['activar_revision_previa']) ? 1 : 0;
         $activar_transparencia_pasiva = isset($_POST['transparencia_pasiva_activa']) ? 1 : 0;
         
@@ -577,9 +579,9 @@ require_once dirname(dirname(__DIR__)) . '/includes/header.php';
                                             </div>
                                             <div class="card-body">
                                                 <div class="mb-3">
-                                                    <label for="max_file_size" class="form-label">Tamaño Máximo de Archivo <span class="text-danger">*</span></label>
+                                                    <label for="limite_archivos_mb" class="form-label">Tamaño Máximo de Archivo <span class="text-danger">*</span></label>
                                                     <div class="input-group">
-                                                        <input type="number" class="form-control" id="max_file_size" name="max_file_size" 
+                                                        <input type="number" class="form-control" id="limite_archivos_mb" name="limite_archivos_mb"
                                                                value="<?= htmlspecialchars($max_file_size) ?>" min="1" max="500" required>
                                                         <span class="input-group-text">MB</span>
                                                     </div>
