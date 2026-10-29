@@ -241,7 +241,7 @@ function tp_obtener_solicitudes(string $directorioCsv): array
         }
     }
 
-    $solicitudes = [];
+    $solicitudesPorCodigo = [];
     foreach ($solicitudesInternas as $solicitudInterna) {
         $codigo = trim((string)($solicitudInterna['Código'] ?? ''));
         if ($codigo === '') {
@@ -250,20 +250,59 @@ function tp_obtener_solicitudes(string $directorioCsv): array
 
         $solicitudGeneral = $reportePorCodigo[$codigo] ?? [];
 
-        // Se conserva una fila por cada asignación/unidad del CSV interno.
-        $solicitudes[] = [
-            'codigo' => $codigo,
-            'informacion' => (string)($solicitudInterna['Información solicitada'] ?? ''),
-            'estado' => (string)($solicitudInterna['Estado'] ?? ''),
-            'estado_actual' => (string)($solicitudGeneral['Estado actual'] ?? ''),
-            'unidad' => (string)($solicitudInterna['Unidad'] ?? ''),
-            'fecha_ingreso' => (string)($solicitudGeneral['Fecha ingreso'] ?? ''),
-            'fecha_caducidad' => (string)($solicitudGeneral['Fecha caducidad'] ?? ''),
-            'prorroga' => (string)($solicitudGeneral['Prórroga'] ?? ''),
-        ];
+        if (!isset($solicitudesPorCodigo[$codigo])) {
+            $solicitudesPorCodigo[$codigo] = [
+                'codigo' => $codigo,
+                'informacion' => (string)($solicitudInterna['Información solicitada'] ?? ''),
+                'estado' => '',
+                'estados_internos' => [],
+                'estado_actual' => (string)($solicitudGeneral['Estado actual'] ?? ''),
+                'unidad' => '',
+                'unidades' => [],
+                'fecha_ingreso' => (string)($solicitudGeneral['Fecha ingreso'] ?? ''),
+                'fecha_caducidad' => (string)($solicitudGeneral['Fecha caducidad'] ?? ''),
+                'prorroga' => (string)($solicitudGeneral['Prórroga'] ?? ''),
+            ];
+        }
+
+        $informacion = trim((string)($solicitudInterna['Información solicitada'] ?? ''));
+        if ($solicitudesPorCodigo[$codigo]['informacion'] === '' && $informacion !== '') {
+            $solicitudesPorCodigo[$codigo]['informacion'] = $informacion;
+        }
+
+        $unidad = trim((string)($solicitudInterna['Unidad'] ?? ''));
+        if ($unidad !== '' && !in_array($unidad, $solicitudesPorCodigo[$codigo]['unidades'], true)) {
+            $solicitudesPorCodigo[$codigo]['unidades'][] = $unidad;
+        }
+
+        $estadoInterno = trim((string)($solicitudInterna['Estado'] ?? ''));
+        if ($estadoInterno !== '' && !in_array($estadoInterno, $solicitudesPorCodigo[$codigo]['estados_internos'], true)) {
+            $solicitudesPorCodigo[$codigo]['estados_internos'][] = $estadoInterno;
+        }
     }
 
-    return $solicitudes;
+    foreach ($solicitudesPorCodigo as &$solicitud) {
+        $solicitud['unidad'] = implode(' · ', $solicitud['unidades']);
+
+        // Si al menos una unidad sigue trabajando, la solicitud completa debe
+        // permanecer En Proceso. Solo se muestra Contestada cuando ya no queda
+        // ninguna asignación pendiente.
+        $estadoElegido = $solicitud['estados_internos'][0] ?? '';
+        foreach ($solicitud['estados_internos'] as $estadoInterno) {
+            if (strcasecmp($estadoInterno, 'En Proceso') === 0) {
+                $estadoElegido = 'En Proceso';
+                break;
+            }
+            if (strcasecmp($estadoInterno, 'Contestada') === 0) {
+                $estadoElegido = 'Contestada';
+            }
+        }
+        $solicitud['estado'] = $estadoElegido;
+        unset($solicitud['unidades'], $solicitud['estados_internos']);
+    }
+    unset($solicitud);
+
+    return array_values($solicitudesPorCodigo);
 }
 
 function tp_contar_solicitudes_en_proceso(string $directorioCsv): int

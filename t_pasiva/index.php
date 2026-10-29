@@ -59,6 +59,54 @@ function tp_clase_estado_solicitud(array $solicitud): string
     return '';
 }
 
+function tp_convertir_fecha(string $valor): ?DateTimeImmutable
+{
+    $valor = trim($valor);
+    if ($valor === '') {
+        return null;
+    }
+
+    // Los reportes SAI normalmente entregan ISO con o sin hora/fracciones.
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $valor, $partes)) {
+        $fecha = DateTimeImmutable::createFromFormat('!Y-m-d', $partes[1] . '-' . $partes[2] . '-' . $partes[3]);
+        return $fecha ?: null;
+    }
+
+    foreach (['!d/m/Y', '!d-m-Y'] as $formato) {
+        $fecha = DateTimeImmutable::createFromFormat($formato, $valor);
+        if ($fecha !== false) {
+            return $fecha;
+        }
+    }
+
+    return null;
+}
+
+function tp_formatear_fecha(string $valor): string
+{
+    $fecha = tp_convertir_fecha($valor);
+    return $fecha ? $fecha->format('d/m/Y') : trim($valor);
+}
+
+function tp_semaforo_caducidad(string $valor): array
+{
+    $fecha = tp_convertir_fecha($valor);
+    if (!$fecha) {
+        return ['clase' => 'secondary', 'texto' => 'Fecha no disponible'];
+    }
+
+    $hoy = new DateTimeImmutable('today');
+    $dias = (int)$hoy->diff($fecha)->format('%r%a');
+    if ($dias < 0) {
+        return ['clase' => 'danger', 'texto' => 'Vencida'];
+    }
+    if ($dias <= 5) {
+        return ['clase' => 'warning', 'texto' => $dias === 0 ? 'Vence hoy' : 'Por vencer en ' . $dias . ' día(s)'];
+    }
+
+    return ['clase' => 'success', 'texto' => 'Vigente'];
+}
+
 $contadorSolicitudesInformacionPreparado = true;
 require_once dirname(__DIR__) . '/includes/header.php';
 ?>
@@ -185,6 +233,29 @@ require_once dirname(__DIR__) . '/includes/header.php';
         white-space: nowrap;
     }
 
+    .tp-table tbody td.tp-deadline {
+        background-color: #fff !important;
+    }
+
+    .tp-deadline-content {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .tp-deadline-dot {
+        width: 0.72rem;
+        height: 0.72rem;
+        border-radius: 50%;
+        flex: 0 0 auto;
+        box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.08);
+    }
+
+    .tp-deadline-dot.danger { background-color: #dc3545; }
+    .tp-deadline-dot.warning { background-color: #ffc107; }
+    .tp-deadline-dot.success { background-color: #198754; }
+    .tp-deadline-dot.secondary { background-color: #6c757d; }
+
     .tp-modal-text {
         line-height: 1.65;
         white-space: pre-wrap;
@@ -241,6 +312,18 @@ require_once dirname(__DIR__) . '/includes/header.php';
                     <span class="tp-legend-color" style="background:#fff3cd;"></span>
                     Solicitud interna contestada
                 </span>
+                <span class="tp-legend-item">
+                    <span class="tp-deadline-dot danger"></span>
+                    Caducidad vencida
+                </span>
+                <span class="tp-legend-item">
+                    <span class="tp-deadline-dot warning"></span>
+                    Vence dentro de 5 días
+                </span>
+                <span class="tp-legend-item">
+                    <span class="tp-deadline-dot success"></span>
+                    Caducidad vigente
+                </span>
             </div>
         </div>
 
@@ -270,6 +353,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
                             </tr>
                         <?php else: ?>
                             <?php foreach ($solicitudesFiltradas as $indice => $solicitud): ?>
+                                <?php $semaforoCaducidad = tp_semaforo_caducidad((string)$solicitud['fecha_caducidad']); ?>
                                 <tr class="<?php echo tp_clase_estado_solicitud($solicitud); ?>">
                                     <td class="tp-code">
                                         <?php echo htmlspecialchars($solicitud['codigo'], ENT_QUOTES, 'UTF-8'); ?>
@@ -301,10 +385,14 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                         <?php echo htmlspecialchars($solicitud['unidad'], ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
                                     <td class="tp-date">
-                                        <?php echo htmlspecialchars($solicitud['fecha_ingreso'], ENT_QUOTES, 'UTF-8'); ?>
+                                        <?php echo htmlspecialchars(tp_formatear_fecha((string)$solicitud['fecha_ingreso']), ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
-                                    <td class="tp-date">
-                                        <?php echo htmlspecialchars($solicitud['fecha_caducidad'], ENT_QUOTES, 'UTF-8'); ?>
+                                    <td class="tp-date tp-deadline">
+                                        <span class="tp-deadline-content" title="<?php echo htmlspecialchars($semaforoCaducidad['texto'], ENT_QUOTES, 'UTF-8'); ?>">
+                                            <span class="tp-deadline-dot <?php echo $semaforoCaducidad['clase']; ?>" aria-hidden="true"></span>
+                                            <span><?php echo htmlspecialchars(tp_formatear_fecha((string)$solicitud['fecha_caducidad']), ENT_QUOTES, 'UTF-8'); ?></span>
+                                            <span class="visually-hidden"><?php echo htmlspecialchars($semaforoCaducidad['texto'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                        </span>
                                     </td>
                                     <td>
                                         <?php echo htmlspecialchars($solicitud['prorroga'], ENT_QUOTES, 'UTF-8'); ?>
