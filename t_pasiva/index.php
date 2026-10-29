@@ -372,7 +372,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
                     </span>
                     <span class="tp-legend-item">
                         <span class="tp-deadline-dot danger"></span>
-                        Caducidad vencida
+                        Vencimiento expirado
                     </span>
                     <span class="tp-legend-item">
                         <span class="tp-deadline-dot warning"></span>
@@ -380,7 +380,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
                     </span>
                     <span class="tp-legend-item">
                         <span class="tp-deadline-dot success"></span>
-                        Caducidad vigente
+                        Vencimiento vigente
                     </span>
                 <?php endif; ?>
             </div>
@@ -407,7 +407,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                     Fecha ingreso <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
                                 </button>
                             </th>
-                            <th scope="col">Fecha caducidad</th>
+                            <th scope="col">Fecha vencimiento</th>
                             <th scope="col">Prórroga</th>
                         </tr>
                     </thead>
