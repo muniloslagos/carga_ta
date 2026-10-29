@@ -370,18 +370,6 @@ require_once dirname(__DIR__) . '/includes/header.php';
                         <span class="tp-legend-color" style="background:#ffc107;"></span>
                         Solicitud interna contestada
                     </span>
-                    <span class="tp-legend-item">
-                        <span class="tp-deadline-dot danger"></span>
-                        Vencimiento expirado
-                    </span>
-                    <span class="tp-legend-item">
-                        <span class="tp-deadline-dot warning"></span>
-                        Vence dentro de 5 días
-                    </span>
-                    <span class="tp-legend-item">
-                        <span class="tp-deadline-dot success"></span>
-                        Vencimiento vigente
-                    </span>
                 <?php endif; ?>
             </div>
         </div>
